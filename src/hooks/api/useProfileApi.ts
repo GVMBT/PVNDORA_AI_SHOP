@@ -13,7 +13,7 @@ import { logger } from "../../utils/logger";
 import { useApi } from "../useApi";
 
 export function useProfileTyped() {
-  const { get, post, put, loading, error } = useApi();
+  const { get, post, put, del, loading, error } = useApi();
   const [profile, setProfile] = useState<ProfileData | null>(null);
 
   const getProfile = useCallback(async (): Promise<ProfileData | null> => {
@@ -98,6 +98,25 @@ export function useProfileTyped() {
       }
     },
     [post]
+  );
+
+  const cancelWithdrawal = useCallback(
+    async (
+      withdrawalId: string
+    ): Promise<{
+      success: boolean;
+      message: string;
+      amount_returned?: number;
+      currency?: string;
+    }> => {
+      try {
+        return await del(`/profile/withdraw/${withdrawalId}`);
+      } catch (err) {
+        logger.error("Failed to cancel withdrawal", err);
+        throw err;
+      }
+    },
+    [del]
   );
 
   const createShareLink = useCallback(async (): Promise<{ prepared_message_id: string }> => {
@@ -200,6 +219,7 @@ export function useProfileTyped() {
     getProfile,
     previewWithdrawal,
     requestWithdrawal,
+    cancelWithdrawal,
     createShareLink,
     createTopUp,
     updatePreferences,

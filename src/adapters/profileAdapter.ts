@@ -218,6 +218,9 @@ export function adaptProfile(
 
   const nextLevel = getNextLevel(currentLevel, displayThresholds);
 
+  // Filter pending withdrawals (reserved balance)
+  const pendingWithdrawals = withdrawals.filter((w) => w.status === "pending");
+
   // Combine and sort billing logs from multiple sources
   const billingLogs: BillingLog[] = [
     // Balance transactions (most comprehensive - includes topups, purchases, refunds, etc.)
@@ -346,6 +349,13 @@ export function adaptProfile(
     },
     networkTree: [], // Populated via adaptReferralNetwork call
     billingLogs,
+    pendingWithdrawals: pendingWithdrawals.map((w) => ({
+      id: w.id,
+      amount_debited: w.amount_debited ?? w.amount,
+      balance_currency: w.balance_currency || "RUB",
+      amount_to_pay: w.amount_to_pay ?? 0,
+      created_at: w.created_at,
+    })),
     currency: "RUB", // Always RUB after migration
     language: profile.interface_language || "en",
     interfaceLanguage: profile.interface_language || undefined,

@@ -424,6 +424,59 @@ async def cmd_broadcast(message: Message, state: FSMContext) -> None:
     await state.set_state(BroadcastStates.select_bot)
 
 
+# Helper functions for broadcasts list (reduce cognitive complexity)
+def _get_broadcast_status_icon(status: str) -> str:
+    """Get status icon for broadcast."""
+    status_icons = {
+        "draft": "📝",
+        "scheduled": "⏰",
+        "sending": "🔄",
+        "sent": "✅",
+        "cancelled": "❌",
+    }
+    return status_icons.get(status, "❓")
+
+
+def _get_bot_icon(target_bot: str) -> str:
+    """Get bot icon for broadcast."""
+    return "🤖" if target_bot == "pvndora" else "💸"
+
+
+def _format_broadcast_progress(sent_count: int, total_recipients: int | None) -> str:
+    """Format broadcast progress string."""
+    return f"{sent_count}/{total_recipients}" if total_recipients else "—"
+
+
+def _get_broadcast_identifier(bc: dict[str, Any]) -> str:
+    """Get broadcast identifier (slug or shortened ID)."""
+    slug_raw = bc.get("slug")
+    id_raw = bc.get("id", "")
+    if slug_raw:
+        return str(slug_raw)
+    if id_raw:
+        return str(id_raw)[:8]
+    return ""
+
+
+def _format_broadcast_line(bc: dict[str, Any]) -> str:
+    """Format single broadcast line for display."""
+    status_raw = bc.get("status")
+    status = str(status_raw) if status_raw is not None else "unknown"
+    icon = _get_broadcast_status_icon(status)
+
+    target_bot_raw = bc.get("target_bot")
+    target_bot = str(target_bot_raw) if target_bot_raw is not None else ""
+    bot_icon = _get_bot_icon(target_bot)
+
+    sent_count = bc.get("sent_count", 0)
+    total_recipients = bc.get("total_recipients")
+    progress = _format_broadcast_progress(sent_count, total_recipients)
+
+    slug_or_id = _get_broadcast_identifier(bc)
+
+    return f"{icon} {bot_icon} <code>{slug_or_id}</code> — {progress}"
+
+
 @router.message(Command("broadcasts"))
 async def cmd_broadcasts_list(message: Message) -> None:
     """List recent broadcasts."""
@@ -443,30 +496,10 @@ async def cmd_broadcasts_list(message: Message) -> None:
 
     lines = ["◈━━━━━━━━━━━━━━━━━━━━━◈\n     📢 <b>РАССЫЛКИ</b>\n◈━━━━━━━━━━━━━━━━━━━━━◈\n"]
 
-    status_icons = {
-        "draft": "📝",
-        "scheduled": "⏰",
-        "sending": "🔄",
-        "sent": "✅",
-        "cancelled": "❌",
-    }
-
     for bc in result.data:
         if not isinstance(bc, dict):
             continue
-        status_raw = bc.get("status")
-        status = str(status_raw) if status_raw is not None else "unknown"
-        icon = status_icons.get(status, "❓")
-        target_bot_raw = bc.get("target_bot")
-        target_bot = str(target_bot_raw) if target_bot_raw is not None else ""
-        bot_icon = "🤖" if target_bot == "pvndora" else "💸"
-        total_recipients = bc.get("total_recipients")
-        sent_count = bc.get("sent_count", 0)
-        progress = f"{sent_count}/{total_recipients}" if total_recipients else "—"
-        slug_raw = bc.get("slug")
-        id_raw = bc.get("id", "")
-        slug_or_id = str(slug_raw) if slug_raw else (str(id_raw)[:8] if id_raw else "")
-        lines.append(f"{icon} {bot_icon} <code>{slug_or_id}</code> — {progress}")
+        lines.append(_format_broadcast_line(bc))
 
     await message.answer("\n".join(lines), parse_mode=ParseMode.HTML)
 
@@ -1083,6 +1116,52 @@ async def cb_back(callback: CallbackQuery, state: FSMContext) -> None:
 # ==================== HELPER FUNCTIONS ====================
 
 
+# Helper functions for recipients filtering (reduce cognitive complexity)
+def _apply_base_filters(query: Any) -> Any:
+    """Apply base filters - exclude banned, DND, and blocked users."""
+    return query.eq("is_banned", False).eq("do_not_disturb", False).is_("bot_blocked_at", "null")
+
+
+def _apply_bot_filter(query: Any, target_bot: str) -> Any:
+    """Apply bot-specific filter."""
+    if target_bot == "discount":
+        query = query.eq("discount_tier_source", True)
+    return query
+
+
+async def _get_buyer_ids(db: "Database") -> list[str]:
+    """Get list of user IDs who have delivered orders."""
+    buyers_result = (
+        await db.client.table("orders").select("user_id").eq("status", "delivered").execute()
+    )
+    return list({o["user_id"] for o in (buyers_result.data or [])})
+
+
+async def _apply_audience_filter(
+    db: "Database", query: Any, audience: str
+) -> tuple[Any, list[dict[str, Any]] | None]:
+    """Apply audience filter. Returns (query, None) or (None, []) if should return empty."""
+    now = datetime.now(UTC)
+    if audience == "active":
+        query = query.gte("last_activity_at", (now - timedelta(days=7)).isoformat())
+    elif audience == "inactive":
+        query = query.lt("last_activity_at", (now - timedelta(days=7)).isoformat())
+    elif audience == "vip":
+        query = query.eq("is_partner", True)
+    elif audience == "buyers":
+        buyer_ids = await _get_buyer_ids(db)
+        if buyer_ids:
+            query = query.in_("id", buyer_ids)
+        else:
+            # No buyers - return empty list
+            return (None, [])
+    elif audience == "non_buyers":
+        buyer_ids = await _get_buyer_ids(db)
+        if buyer_ids:
+            query = query.not_.in_("id", buyer_ids)
+    return (query, None)
+
+
 async def _get_recipients_list(
     db: "Database",
     target_bot: str,
@@ -1093,39 +1172,15 @@ async def _get_recipients_list(
     query = db.client.table("users").select("id, telegram_id, language_code")
 
     # Base filters - exclude banned, DND, and blocked users
-    query = query.eq("is_banned", False).eq("do_not_disturb", False).is_("bot_blocked_at", "null")
+    query = _apply_base_filters(query)
 
     # Bot-specific filter
-    if target_bot == "discount":
-        query = query.eq("discount_tier_source", True)
+    query = _apply_bot_filter(query, target_bot)
 
     # Audience filter
-    now = datetime.now(UTC)
-    if audience == "active":
-        query = query.gte("last_activity_at", (now - timedelta(days=7)).isoformat())
-    elif audience == "inactive":
-        query = query.lt("last_activity_at", (now - timedelta(days=7)).isoformat())
-    elif audience == "vip":
-        query = query.eq("is_partner", True)
-    elif audience == "buyers":
-        # Users with at least one delivered order - use subquery
-        buyers_result = (
-            await db.client.table("orders").select("user_id").eq("status", "delivered").execute()
-        )
-        buyer_ids = list({o["user_id"] for o in (buyers_result.data or [])})
-        if buyer_ids:
-            query = query.in_("id", buyer_ids)
-        else:
-            # No buyers - return empty list
-            return []
-    elif audience == "non_buyers":
-        # Users without delivered orders
-        buyers_result = (
-            await db.client.table("orders").select("user_id").eq("status", "delivered").execute()
-        )
-        buyer_ids = list({o["user_id"] for o in (buyers_result.data or [])})
-        if buyer_ids:
-            query = query.not_.in_("id", buyer_ids)
+    query, empty_result = await _apply_audience_filter(db, query, audience)
+    if empty_result is not None:
+        return empty_result
 
     # Language filter
     if languages:

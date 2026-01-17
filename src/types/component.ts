@@ -191,6 +191,13 @@ export interface ProfileData {
   career: CareerProgress;
   networkTree: NetworkNode[];
   billingLogs: BillingLog[];
+  pendingWithdrawals?: Array<{
+    id: string;
+    amount_debited: number;
+    balance_currency: string;
+    amount_to_pay: number;
+    created_at: string;
+  }>; // Pending withdrawals (reserved balance)
   currency: CurrencyCode;
   language: string;
   interfaceLanguage?: string; // User's preferred interface language (ru, en, etc.)

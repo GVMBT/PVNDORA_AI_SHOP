@@ -16,6 +16,7 @@ import {
   Settings,
   Share2,
   Wallet,
+  X,
 } from "lucide-react";
 import type React from "react";
 import { memo, useCallback } from "react";
@@ -57,6 +58,7 @@ interface ProfileStatsProps {
     preferred_currency?: string,
     interface_language?: string
   ) => Promise<{ success: boolean; message: string }>;
+  onCancelWithdrawal?: (withdrawalId: string) => Promise<void>;
 }
 
 const ProfileStats: React.FC<ProfileStatsProps> = ({
@@ -70,6 +72,7 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
   onShare,
   onToggleRewardMode,
   onUpdatePreferences,
+  onCancelWithdrawal,
 }) => {
   // Use currency and locale from context for active state (updates immediately on user action)
   const { locale: contextLocale } = useLocaleContext();
@@ -114,6 +117,55 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
               <DecryptedText text={formatBalance(user.balance, activeCurrency)} />
               <span className="text-xl text-pandora-cyan">{getCurrencySymbol(activeCurrency)}</span>
             </div>
+
+            {/* Reserved Balance (Pending Withdrawals) */}
+            {user.pendingWithdrawals && user.pendingWithdrawals.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-white/10">
+                <div className="text-[10px] font-mono text-yellow-500 uppercase tracking-widest mb-2">
+                  {t("profile.reservedBalance") || "ЗАРЕЗЕРВИРОВАНО"}
+                </div>
+                {user.pendingWithdrawals.map((w) => {
+                  const reservedAmount = w.amount_debited || 0;
+                  const reservedCurrency = w.balance_currency || "RUB";
+                  return (
+                    <div
+                      key={w.id}
+                      className="flex items-center justify-between bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-sm mb-2 last:mb-0"
+                    >
+                      <div className="flex flex-col">
+                        <div className="text-sm font-bold text-yellow-400 flex items-baseline gap-1">
+                          {formatBalance(reservedAmount, reservedCurrency)}
+                          <span className="text-xs text-yellow-500">
+                            {getCurrencySymbol(reservedCurrency)}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-gray-400 mt-1">
+                          {t("profile.withdraw.pending") || "Ожидает вывода"} •{" "}
+                          {w.amount_to_pay ? `${w.amount_to_pay} USDT` : ""}
+                        </div>
+                      </div>
+                      {onCancelWithdrawal && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (onHaptic) onHaptic("light");
+                            try {
+                              await onCancelWithdrawal(w.id);
+                            } catch (err) {
+                              logger.error("Failed to cancel withdrawal", err);
+                            }
+                          }}
+                          className="ml-3 p-1.5 text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/20 rounded transition-colors"
+                          title={t("profile.withdraw.cancel") || "Отменить вывод"}
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3 mt-auto">

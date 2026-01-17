@@ -4,14 +4,18 @@ Balance withdrawal operations.
 All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from core.auth import verify_telegram_auth
-from core.logging import get_logger
+from core.errors import ERROR_USER_NOT_FOUND
+from core.logging import get_logger, sanitize_id_for_logging
 from core.routers.webapp.models import WithdrawalPreviewRequest, WithdrawalRequest
 from core.services.database import get_database
+
+if TYPE_CHECKING:
+    from core.utils.validators import TelegramUser
 
 logger = get_logger(__name__)
 
@@ -239,6 +243,9 @@ async def request_withdrawal(
     # RESERVE BALANCE: Deduct amount immediately to prevent spending during processing
     await _reserve_balance_for_withdrawal(db, db_user, request.amount, amount_to_pay_usdt, wallet_address)
 
+    # Calculate balance AFTER reservation (for admin alert)
+    balance_after_reservation = balance - request.amount
+
     # Create withdrawal request with SNAPSHOT pricing
     withdrawal_result = (
         await db.client.table("withdrawal_requests")
@@ -283,7 +290,8 @@ async def request_withdrawal(
             amount=round(amount_to_pay_usdt, 2),  # Alert USDT amount!
             method=f"TRC20 USDT ({wallet_address[:8]}...)",
             request_id=request_id,
-            user_balance=balance,
+            user_balance=balance_after_reservation,  # Balance AFTER reservation
+            balance_currency=balance_currency,  # Currency for correct display
         )
     except Exception as e:
         logger.warning(f"Failed to send withdrawal alert: {e}")
@@ -300,4 +308,97 @@ async def request_withdrawal(
             "exchange_rate": exchange_rate,
             "wallet_address": wallet_address,
         },
+    }
+
+
+@withdrawals_router.delete("/profile/withdraw/{withdrawal_id}")
+async def cancel_withdrawal(
+    withdrawal_id: str, user: "TelegramUser" = Depends(verify_telegram_auth)
+) -> dict[str, Any]:
+    """Cancel a pending withdrawal request.
+
+    Only pending withdrawals can be cancelled by the user.
+    Returns reserved balance back to user.
+    """
+    db = get_database()
+
+    db_user = await db.get_user_by_telegram_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail=ERROR_USER_NOT_FOUND)
+
+    # Get withdrawal request
+    withdrawal_result = (
+        await db.client.table("withdrawal_requests")
+        .select("*")
+        .eq("id", withdrawal_id)
+        .eq("user_id", db_user.id)
+        .single()
+        .execute()
+    )
+
+    if not withdrawal_result.data:
+        raise HTTPException(status_code=404, detail="Withdrawal request not found")
+
+    withdrawal = withdrawal_result.data
+    status = withdrawal.get("status", "")
+    balance_reserved = withdrawal.get("balance_reserved", False)
+    amount_debited = withdrawal.get("amount_debited")
+    balance_currency = withdrawal.get("balance_currency", "RUB")
+
+    # Only pending withdrawals can be cancelled
+    if status != "pending":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot cancel withdrawal with status '{status}'. Only pending withdrawals can be cancelled.",
+        )
+
+    # Return reserved balance to user (if it was reserved)
+    if balance_reserved and amount_debited:
+        try:
+            await db.client.rpc(
+                "add_to_user_balance",
+                {
+                    "p_user_id": str(db_user.id),
+                    "p_amount": float(amount_debited),  # Return the amount
+                    "p_reason": "Отмена заявки на вывод средств",
+                    "p_reference_type": "withdrawal",
+                    "p_reference_id": withdrawal_id,
+                    "p_metadata": {
+                        "withdrawal_cancelled": True,
+                        "original_amount_debited": amount_debited,
+                        "original_currency": balance_currency,
+                    },
+                },
+            ).execute()
+            logger.info(f"Returned {amount_debited} {balance_currency} to user after withdrawal cancellation")
+        except Exception:
+            logger.exception("Failed to return balance after withdrawal cancellation")
+            raise HTTPException(
+                status_code=500, detail="Failed to return balance. Please contact support."
+            )
+
+    # Update withdrawal status to cancelled
+    await (
+        db.client.table("withdrawal_requests")
+        .update(
+            {
+                "status": "cancelled",
+                "admin_comment": "Отменено пользователем",
+            },
+        )
+        .eq("id", withdrawal_id)
+        .execute()
+    )
+
+    logger.info(
+        "User %s cancelled withdrawal request %s",
+        sanitize_id_for_logging(str(db_user.id)),
+        sanitize_id_for_logging(withdrawal_id),
+    )
+
+    return {
+        "success": True,
+        "message": "Withdrawal request cancelled",
+        "amount_returned": amount_debited,
+        "currency": balance_currency,
     }

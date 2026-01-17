@@ -235,11 +235,19 @@ export interface APIBonusHistoryItem {
 
 export interface APIWithdrawalRequest {
   id: UUID;
-  amount: number;
+  amount: number; // USD equivalent (legacy)
   payment_method: "card" | "phone" | "crypto";
   payment_details: Record<string, string>;
-  status: "pending" | "approved" | "rejected" | "completed";
+  status: "pending" | "processing" | "completed" | "rejected" | "cancelled";
   created_at: string;
+  // Snapshot fields (for correct currency display)
+  amount_debited?: number; // Original amount in user's balance currency
+  amount_to_pay?: number; // USDT amount to pay
+  balance_currency?: string; // User's balance currency (RUB, USD)
+  exchange_rate?: number;
+  usdt_rate?: number;
+  network_fee?: number;
+  wallet_address?: string;
 }
 
 export interface APIBalanceTransaction {

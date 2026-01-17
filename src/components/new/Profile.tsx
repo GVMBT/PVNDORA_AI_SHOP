@@ -39,6 +39,7 @@ interface ProfileProps {
   ) => Promise<{ success: boolean; message: string }>;
   onSetPartnerMode?: (mode: "commission" | "discount") => Promise<{ success: boolean }>;
   onApplyPartner?: () => void;
+  onCancelWithdrawal?: (withdrawalId: string) => Promise<void>;
 }
 
 // --- MAIN COMPONENT ---
@@ -56,6 +57,7 @@ const Profile: React.FC<ProfileProps> = ({
   onUpdatePreferences,
   onSetPartnerMode,
   onApplyPartner,
+  onCancelWithdrawal,
 }) => {
   const { t } = useLocale();
   const { copy: copyToClipboard, copied } = useClipboard();
@@ -209,6 +211,7 @@ const Profile: React.FC<ProfileProps> = ({
           onShare={handleShare}
           onToggleRewardMode={toggleRewardMode}
           onUpdatePreferences={onUpdatePreferences}
+          onCancelWithdrawal={onCancelWithdrawal}
         />
 
         <ProfileCareer

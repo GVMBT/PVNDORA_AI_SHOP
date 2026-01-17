@@ -227,7 +227,8 @@ class CurrencyService:
                 pass
 
         # Fallback rate (should be updated periodically)
-        return 100.0  # 1 USDT ≈ 100 RUB
+        # Updated Jan 2026: ~90-95 RUB per USDT (approximate current rate)
+        return 90.0  # 1 USDT ≈ 90 RUB (approximate, should be fetched from API)
 
     async def calculate_withdrawal_usdt(
         self,

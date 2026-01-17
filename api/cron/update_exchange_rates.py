@@ -53,8 +53,9 @@ async def update_exchange_rates_entrypoint(request: Request):
             from upstash_redis.asyncio import Redis as AsyncRedis
 
             redis = AsyncRedis(url=redis_url, token=redis_token)
-            await redis.setex("currency:rate:USDT_RUB", 3600, str(usdt_rub_rate))
-            logger.info(f"Updated USDT/RUB rate in Redis: {usdt_rub_rate}")
+            # TTL set to 7 hours (25200 seconds) to cover 6-hour cron interval + buffer
+            await redis.setex("currency:rate:USDT_RUB", 25200, str(usdt_rub_rate))
+            logger.info(f"Updated USDT/RUB rate in Redis: {usdt_rub_rate} (TTL: 7 hours)")
 
         now = datetime.now(UTC).isoformat()
         result = {
@@ -76,50 +77,43 @@ async def fetch_usdt_rub_rate() -> float:
     """Fetch current USDT/RUB rate from exchange API.
 
     Tries multiple sources for reliability.
+    NOTE: Binance P2P no longer supports RUB pairs (removed Jan 31, 2024).
     """
-    # Try Binance P2P API (most accurate for RUB)
+    # Try CoinGecko API (free, no key required for basic usage)
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            # Binance P2P average rate
-            response = await client.post(
-                "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search",
-                json={
-                    "asset": "USDT",
-                    "fiat": "RUB",
-                    "merchantCheck": True,
-                    "page": 1,
-                    "rows": 10,
-                    "tradeType": "BUY",
-                },
-                headers={"Content-Type": "application/json"},
+            response = await client.get(
+                "https://api.coingecko.com/api/v3/simple/price",
+                params={"ids": "tether", "vs_currencies": "rub"},
             )
             response.raise_for_status()
             data = response.json()
 
-            if data.get("data"):
-                prices = [float(ad["adv"]["price"]) for ad in data["data"][:5]]
-                if prices:
-                    avg_rate = sum(prices) / len(prices)
-                    logger.info(f"Got USDT/RUB from Binance P2P: {avg_rate}")
-                    return avg_rate
+            if data.get("tether") and data["tether"].get("rub"):
+                rate = float(data["tether"]["rub"])
+                logger.info(f"Got USDT/RUB from CoinGecko: {rate}")
+                return rate
     except Exception as e:
-        logger.warning(f"Binance P2P failed: {e}")
+        logger.warning(f"CoinGecko API failed: {e}")
 
-    # Fallback: Try exchangerate-api (less accurate for crypto)
+    # Fallback: Try exchangerate-api (USD/RUB, then use as USDT/RUB)
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get("https://api.exchangerate-api.com/v4/latest/USD")
             response.raise_for_status()
             data = response.json()
-            rub_rate_raw = data.get("rates", {}).get("RUB", 100.0)
+            rub_rate_raw = data.get("rates", {}).get("RUB")
             # USDT ≈ USD, so USDT/RUB ≈ USD/RUB
-            # Explicitly convert to float to satisfy type checker
-            rub_rate = float(rub_rate_raw) if isinstance(rub_rate_raw, (int, float)) else 100.0
-            logger.info(f"Got USDT/RUB from exchangerate-api: {rub_rate}")
-            return rub_rate
+            if rub_rate_raw:
+                rub_rate = float(rub_rate_raw) if isinstance(rub_rate_raw, (int, float)) else None
+                if rub_rate:
+                    logger.info(f"Got USDT/RUB from exchangerate-api (USD/RUB): {rub_rate}")
+                    return rub_rate
     except Exception as e:
         logger.warning(f"exchangerate-api failed: {e}")
 
-    # Last resort fallback
-    logger.warning("Using fallback USDT/RUB rate: 100.0")
-    return 100.0
+    # Last resort fallback (updated to more realistic rate - Jan 2026)
+    # Current approximate rate: ~90-95 RUB per USDT (as of Jan 2026)
+    fallback_rate = 90.0
+    logger.warning(f"Using fallback USDT/RUB rate: {fallback_rate}")
+    return fallback_rate

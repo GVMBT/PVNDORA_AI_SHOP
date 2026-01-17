@@ -260,6 +260,125 @@ async def _notify_replacement_success(
         logger.warning("process-replacement: Failed to send notification: %s", error_type)
 
 
+async def _get_user_telegram_id_from_order(
+    db: Any, order_id: str
+) -> int | None:
+    """Get user telegram_id from order (reduces cognitive complexity)."""
+    order_res = (
+        await db.client.table("orders")
+        .select("user_telegram_id")
+        .eq("id", order_id)
+        .single()
+        .execute()
+    )
+    if (
+        order_res.data
+        and isinstance(order_res.data, dict)
+        and order_res.data.get("user_telegram_id")
+    ):
+        return int(order_res.data.get("user_telegram_id", 0))
+    return None
+
+
+async def _handle_no_stock_replacement(
+    db: Any,
+    notification_service: Any,
+    ticket_id: str,
+    user_telegram_id: int | None,
+    product_id_str: str,
+) -> dict[str, Any]:
+    """Handle case when no stock is available for replacement (reduces cognitive complexity)."""
+    await _queue_replacement_for_stock(db, ticket_id)
+    await _notify_replacement_queued(notification_service, user_telegram_id, product_id_str)
+    return {
+        "queued": True,
+        "reason": "No stock available - queued for auto-delivery",
+        "ticket_status": "approved",
+    }
+
+
+async def _get_product_info_for_replacement(
+    db: Any, product_id: str
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Get product info for replacement (reduces cognitive complexity)."""
+    product_res = (
+        await db.client.table("products")
+        .select("duration_days, name")
+        .eq("id", product_id)
+        .single()
+        .execute()
+    )
+
+    if not product_res.data:
+        logger.error(
+            "process-replacement: Product %s not found",
+            sanitize_id_for_logging(product_id),
+        )
+        return (None, {"error": "Product not found"})
+
+    product = product_res.data if isinstance(product_res.data, dict) else {}
+    return (product, None)
+
+
+async def _process_stock_replacement(
+    db: Any,
+    notification_service: Any,
+    ticket_id: str,
+    item_id: str,
+    stock_item: dict[str, Any],
+    product: dict[str, Any],
+    user_telegram_id: int | None,
+    now: datetime,
+) -> dict[str, Any]:
+    """Process stock replacement and update order item (reduces cognitive complexity)."""
+    stock_id = stock_item["id"]
+    stock_content = stock_item.get("content", "")
+
+    product_name = str(product.get("name", "Product"))
+    duration_days = float(product.get("duration_days", 0)) if product.get("duration_days") else 0
+
+    # Calculate expires_at
+    expires_at_str = None
+    if duration_days and duration_days > 0:
+        expires_at_str = (now + timedelta(days=float(duration_days))).isoformat()
+
+    # Update order item with replacement
+    update_error = await _update_order_item_with_replacement(
+        db,
+        item_id,
+        stock_id,
+        stock_content,
+        expires_at_str,
+        now,
+    )
+    if update_error:
+        await _rollback_stock_reservation(db, stock_id)
+        return update_error
+
+    # Close ticket and notify
+    await _close_replacement_ticket(db, ticket_id)
+    await _notify_replacement_success(
+        notification_service,
+        user_telegram_id,
+        product_name,
+        str(item_id) if item_id else "",
+        credentials=stock_content,
+    )
+
+    logger.info(
+        "process-replacement: Successfully replaced key for item %s",
+        sanitize_id_for_logging(item_id),
+    )
+
+    return {
+        "success": True,
+        "item_id": item_id,
+        "stock_id": stock_id,
+        "ticket_id": ticket_id,
+        "message": "Replacement completed (1 key replaced)",
+    }
+
+
 async def _get_buyer_name(db, buyer_id: str) -> str:
     """Get buyer name for notification (reduces cognitive complexity)."""
     buyer_result = (
@@ -557,20 +676,7 @@ async def worker_process_replacement(request: Request) -> dict[str, Any]:
     order_id_from_item = item_data.get("order_id")
 
     # Get user telegram_id for notifications
-    order_res = (
-        await db.client.table("orders")
-        .select("user_telegram_id")
-        .eq("id", order_id_from_item)
-        .single()
-        .execute()
-    )
-    user_telegram_id = (
-        int(order_res.data.get("user_telegram_id", 0))
-        if order_res.data
-        and isinstance(order_res.data, dict)
-        and order_res.data.get("user_telegram_id")
-        else None
-    )
+    user_telegram_id = await _get_user_telegram_id_from_order(db, order_id_from_item)
 
     # Reserve stock
     now = datetime.now(UTC)
@@ -579,78 +685,27 @@ async def worker_process_replacement(request: Request) -> dict[str, Any]:
 
     if not stock_item and not reserve_error:
         # No stock available - queue for later
-        await _queue_replacement_for_stock(db, ticket_id)
-        await _notify_replacement_queued(notification_service, user_telegram_id, product_id_str)
-        return {
-            "queued": True,
-            "reason": "No stock available - queued for auto-delivery",
-            "ticket_status": "approved",
-        }
+        return await _handle_no_stock_replacement(
+            db, notification_service, ticket_id, user_telegram_id, product_id_str
+        )
 
     if reserve_error:
         return reserve_error
 
-    stock_id = stock_item["id"]
-    stock_content = stock_item.get("content", "")
-
     # Get product info for expiration
-    product_res = (
-        await db.client.table("products")
-        .select("duration_days, name")
-        .eq("id", product_id)
-        .single()
-        .execute()
-    )
+    product, product_error = await _get_product_info_for_replacement(db, product_id_str)
+    if product_error:
+        await _rollback_stock_reservation(db, stock_item["id"])
+        return product_error
 
-    if not product_res.data:
-        logger.error(
-            "process-replacement: Product %s not found",
-            sanitize_id_for_logging(product_id),
-        )
-        await _rollback_stock_reservation(db, stock_id)
-        return {"error": "Product not found"}
-
-    product = product_res.data if isinstance(product_res.data, dict) else {}
-    duration_days = float(product.get("duration_days", 0)) if product.get("duration_days") else 0
-    product_name = str(product.get("name", "Product"))
-
-    # Calculate expires_at
-    expires_at_str = None
-    if duration_days and duration_days > 0:
-        expires_at_str = (now + timedelta(days=float(duration_days))).isoformat()
-
-    # Update order item with replacement
-    update_error = await _update_order_item_with_replacement(
+    # Process stock replacement
+    return await _process_stock_replacement(
         db,
+        notification_service,
+        ticket_id,
         item_id,
-        stock_id,
-        stock_content,
-        expires_at_str,
+        stock_item,
+        product,
+        user_telegram_id,
         now,
     )
-    if update_error:
-        await _rollback_stock_reservation(db, stock_id)
-        return update_error
-
-    # Close ticket and notify (include credentials in notification)
-    await _close_replacement_ticket(db, ticket_id)
-    await _notify_replacement_success(
-        notification_service,
-        user_telegram_id,
-        product_name,
-        str(item_id) if item_id else "",
-        credentials=stock_content,
-    )
-
-    logger.info(
-        "process-replacement: Successfully replaced key for item %s",
-        sanitize_id_for_logging(item_id),
-    )
-
-    return {
-        "success": True,
-        "item_id": item_id,
-        "stock_id": stock_id,
-        "ticket_id": ticket_id,
-        "message": "Replacement completed (1 key replaced)",
-    }

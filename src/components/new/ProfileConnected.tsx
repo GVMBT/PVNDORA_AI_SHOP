@@ -31,6 +31,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
     getProfile,
     previewWithdrawal,
     requestWithdrawal,
+    cancelWithdrawal,
     createShareLink,
     createTopUp,
     updatePreferences,
@@ -509,6 +510,26 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
         onUpdatePreferences={handleUpdatePreferences}
         onSetPartnerMode={handleSetPartnerMode}
         onApplyPartner={handleOpenPartnerApplication}
+        onCancelWithdrawal={async (withdrawalId: string) => {
+          try {
+            await cancelWithdrawal(withdrawalId);
+            await getProfile(); // Reload profile to update balance
+            hapticFeedback?.("notification", "success");
+            showModalAlert(
+              t("profile.withdraw.cancelled") || "Заявка отменена",
+              t("profile.withdraw.cancelledDesc") ||
+                "Средства возвращены на баланс. Вы можете создать новую заявку.",
+              "success"
+            );
+          } catch (err) {
+            logger.error("Failed to cancel withdrawal", err);
+            showModalAlert(
+              t("profile.errors.error") || "Ошибка",
+              "Не удалось отменить заявку. Попробуйте позже.",
+              "warning"
+            );
+          }
+        }}
       />
 
       {/* Partner Application Modal */}

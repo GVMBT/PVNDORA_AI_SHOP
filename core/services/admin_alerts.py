@@ -224,10 +224,12 @@ class AdminAlertService:
         method: str,
         request_id: str,
         user_balance: float | None = None,
+        balance_currency: str = "RUB",
     ) -> int:
         """Alert admins about new withdrawal request.
 
         Note: amount is in USDT (for TRC20 withdrawals).
+        user_balance should be balance AFTER reservation (after withdrawal deduction).
         """
         user_display = f"@{username}" if username else f"ID: {user_telegram_id}"
 
@@ -238,7 +240,14 @@ class AdminAlertService:
         )
 
         if user_balance is not None:
-            message += f"\n<b>Баланс:</b> ${user_balance:.2f}"
+            # Format balance with correct currency symbol
+            if balance_currency == "RUB":
+                balance_display = f"{user_balance:,.0f} ₽"
+            elif balance_currency == "USD":
+                balance_display = f"${user_balance:.2f}"
+            else:
+                balance_display = f"{user_balance:.2f} {balance_currency}"
+            message += f"\n<b>Баланс:</b> {balance_display}"
 
         return await self.send_alert(
             title="💸 Запрос на вывод средств",

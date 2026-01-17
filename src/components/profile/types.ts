@@ -91,4 +91,11 @@ export interface ProfileDataProp {
   photoUrl?: string;
   partnerMode?: "commission" | "discount"; // Partner reward mode
   exchangeRate?: number; // Currency exchange rate from USD
+  pendingWithdrawals?: Array<{
+    id: string;
+    amount_debited: number;
+    balance_currency: string;
+    amount_to_pay: number;
+    created_at: string;
+  }>; // Pending withdrawals (reserved balance)
 }
