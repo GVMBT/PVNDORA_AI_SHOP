@@ -10,6 +10,7 @@
  */
 
 import { type ComponentType, lazy } from "react";
+import { sessionStorage } from "./storage";
 
 // Track if we've already tried reloading
 const RELOAD_KEY = "pvndora_chunk_reload";
@@ -36,15 +37,15 @@ function isChunkLoadError(error: unknown): boolean {
  */
 function forceReload(): void {
   // Mark that we're reloading to prevent infinite loops
-  const reloadCount = Number.parseInt(sessionStorage.getItem(RELOAD_KEY) || "0", 10);
+  const reloadCount = Number.parseInt(sessionStorage.get(RELOAD_KEY) || "0", 10);
 
   if (reloadCount < 2) {
-    sessionStorage.setItem(RELOAD_KEY, String(reloadCount + 1));
+    sessionStorage.set(RELOAD_KEY, String(reloadCount + 1));
     // Force reload bypassing cache
     globalThis.location.reload();
   } else {
     // Clear reload counter and let error boundary show error
-    sessionStorage.removeItem(RELOAD_KEY);
+    sessionStorage.remove(RELOAD_KEY);
     throw new Error(
       "Failed to load application after multiple retries. Please clear browser cache and try again."
     );
@@ -56,7 +57,7 @@ function forceReload(): void {
  * Call this in your root component's useEffect
  */
 export function clearReloadCounter(): void {
-  sessionStorage.removeItem(RELOAD_KEY);
+  sessionStorage.remove(RELOAD_KEY);
 }
 
 /**

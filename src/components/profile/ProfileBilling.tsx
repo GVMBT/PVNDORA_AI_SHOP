@@ -25,51 +25,74 @@ interface MetadataResult {
   details: string;
 }
 
+// Helper functions for metadata processing (reduce cognitive complexity)
+const processPurchaseMetadata = (meta: BillingLogData["metadata"], t: TranslateFunc): string => {
+  if (meta.payment_method === "balance") {
+    return t("profile.billing.transaction.purchase_balance") || "Оплата с баланса";
+  }
+  return t("profile.billing.transaction.purchase_external") || "Оплата заказа";
+};
+
+const processBonusMetadata = (
+  meta: BillingLogData["metadata"],
+  t: TranslateFunc
+): { source: string; details: string } => {
+  const level = meta.level ? String(meta.level) : "";
+  const source = t(`profile.billing.transaction.bonus_l${level}`) || `Реф. бонус L${level}`;
+  const details = meta.from_username
+    ? `${t("profile.billing.transaction.details.from") || "от"} ${meta.from_username}`
+    : "";
+  return { source, details };
+};
+
+const processRefundMetadata = (
+  meta: BillingLogData["metadata"],
+  t: TranslateFunc
+): { source: string; details: string } => {
+  const source = t("profile.billing.transaction.refund_auto") || "Авто-возврат";
+  const details = meta.product_name ? String(meta.product_name) : "";
+  return { source, details };
+};
+
+const processCashbackMetadata = (meta: BillingLogData["metadata"]): string => {
+  const percent =
+    typeof meta.cashback_percent === "number"
+      ? meta.cashback_percent
+      : Number.parseFloat(String(meta.cashback_percent)) || 0;
+  return `${percent}% кэшбек`;
+};
+
 function processMetadata(
   meta: BillingLogData["metadata"],
   sourceKey: string,
   defaultSource: string,
   t: TranslateFunc
 ): MetadataResult {
-  let source = defaultSource;
-  let details = "";
-
-  if (!meta) return { source, details };
+  if (!meta) return { source: defaultSource, details: "" };
 
   // For purchases, show payment method
   if (sourceKey === "purchase" && meta.payment_method) {
-    source =
-      meta.payment_method === "balance"
-        ? t("profile.billing.transaction.purchase_balance") || "Оплата с баланса"
-        : t("profile.billing.transaction.purchase_external") || "Оплата заказа";
+    return { source: processPurchaseMetadata(meta, t), details: "" };
   }
 
   // For referral bonuses, show level and from whom
   if (sourceKey === "bonus" && meta.level) {
-    source = t(`profile.billing.transaction.bonus_l${meta.level}`) || `Реф. бонус L${meta.level}`;
-    if (meta.from_username) {
-      details = `${t("profile.billing.transaction.details.from") || "от"} ${meta.from_username}`;
-    }
+    const result = processBonusMetadata(meta, t);
+    return { source: result.source, details: result.details };
   }
 
   // For refunds, show reason
   if (sourceKey === "refund" && meta.refund_type === "auto_expired") {
-    source = t("profile.billing.transaction.refund_auto") || "Авто-возврат";
-    if (meta.product_name) {
-      details = String(meta.product_name);
-    }
+    const result = processRefundMetadata(meta, t);
+    return { source: result.source, details: result.details };
   }
 
   // For cashback, show percent
   if (sourceKey === "cashback" && meta.cashback_percent) {
-    const percent =
-      typeof meta.cashback_percent === "number"
-        ? meta.cashback_percent
-        : Number.parseFloat(String(meta.cashback_percent)) || 0;
-    source = `${percent}% кэшбек`;
+    return { source: processCashbackMetadata(meta), details: "" };
   }
 
-  return { source, details };
+  return { source: defaultSource, details: "" };
 }
 
 interface ProfileBillingProps {

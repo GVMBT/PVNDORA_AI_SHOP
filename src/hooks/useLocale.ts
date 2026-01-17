@@ -40,29 +40,37 @@ export function useLocale(): UseLocaleReturn {
 
   const t = useCallback(
     (key: string, params: Record<string, string | number> = {}): string => {
-      const keys = key.split(".");
-      let value: LocaleValue | undefined = locales[locale];
-
-      for (const k of keys) {
-        if (value && typeof value === "object" && k in value) {
-          value = value[k];
-        } else {
-          value = undefined;
-          break;
-        }
-      }
-
-      // Fallback to English
-      if (value === undefined) {
-        value = locales.en;
-        for (const k of keys) {
+      // Helper functions for locale translation (reduce cognitive complexity)
+      const resolveLocaleValue = (
+        localeObj: LocaleObject,
+        keysArray: string[]
+      ): LocaleValue | undefined => {
+        let value: LocaleValue | undefined = localeObj;
+        for (const k of keysArray) {
           if (value && typeof value === "object" && k in value) {
             value = value[k];
           } else {
-            value = undefined;
-            break;
+            return undefined;
           }
         }
+        return value;
+      };
+
+      const replaceParams = (text: string, paramsObj: Record<string, string | number>): string => {
+        if (Object.keys(paramsObj).length === 0) return text;
+        return text.replaceAll(/\{(\w+)\}/g, (_: string, paramKey: string) =>
+          String(paramsObj[paramKey] ?? `{${paramKey}}`)
+        );
+      };
+
+      const keys = key.split(".");
+
+      // Try current locale first
+      let value = resolveLocaleValue(locales[locale], keys);
+
+      // Fallback to English if not found
+      if (value === undefined) {
+        value = resolveLocaleValue(locales.en, keys);
       }
 
       // Return key if not found
@@ -70,16 +78,9 @@ export function useLocale(): UseLocaleReturn {
         return key;
       }
 
-      // Replace params
-      if (typeof value === "string" && Object.keys(params).length > 0) {
-        return value.replace(/\{(\w+)\}/g, (_: string, paramKey: string) =>
-          String(params[paramKey] ?? `{${paramKey}}`)
-        );
-      }
-
       // Ensure we return a string
       if (typeof value === "string") {
-        return value;
+        return replaceParams(value, params);
       }
 
       // If value is an object, return the key as fallback

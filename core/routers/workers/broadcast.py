@@ -306,6 +306,88 @@ async def _send_to_user(
         return False
 
 
+async def _get_broadcast_from_db(db: Any, broadcast_id: str) -> dict[str, Any] | None:
+    """Get broadcast message from database."""
+    broadcast_result = (
+        await db.client.table("broadcast_messages")
+        .select("*")
+        .eq("id", broadcast_id)
+        .single()
+        .execute()
+    )
+
+    if not broadcast_result.data or not isinstance(broadcast_result.data, dict):
+        return None
+
+    return broadcast_result.data
+
+
+def _extract_broadcast_data(broadcast: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]], str | None, str | None]:
+    """Extract content, buttons, media_file_id, and media_type from broadcast."""
+    content_val = broadcast.get("content", {})
+    content = content_val if isinstance(content_val, dict) else {}
+    buttons_val = broadcast.get("buttons", [])
+    buttons = buttons_val if isinstance(buttons_val, list) else []
+    media_file_id = broadcast.get("media_file_id")
+    media_type = broadcast.get("media_type")
+    return (content, buttons, media_file_id, media_type)
+
+
+def _get_bot_token(target_bot: str) -> str | None:
+    """Get bot token for target bot."""
+    if target_bot == "discount":
+        return os.environ.get("DISCOUNT_BOT_TOKEN", "")
+    return os.environ.get("TELEGRAM_TOKEN", "")
+
+
+async def _prepare_media_for_broadcast(media_file_id: Any, broadcast_id: str) -> bytes | None:
+    """Prepare media bytes for broadcast if media_file_id is provided."""
+    if not media_file_id:
+        return None
+
+    media_file_id_str = str(media_file_id) if isinstance(media_file_id, (str, int)) else ""
+    if not media_file_id_str:
+        return None
+
+    return await _download_media_from_admin_bot(media_file_id_str, broadcast_id)
+
+
+async def _send_batch_to_users(
+    db: Any,
+    bot: Bot,
+    user_ids: list[str],
+    broadcast: dict[str, Any],
+    content: dict[str, Any],
+    buttons: list[dict[str, Any]],
+    media_bytes: bytes | None,
+    broadcast_id: str,
+) -> tuple[int, int]:
+    """Send broadcast message to batch of users. Returns (sent_count, failed_count)."""
+    sent = 0
+    failed = 0
+
+    for user_id in user_ids:
+        success = await _send_to_user(
+            db,
+            bot,
+            user_id,
+            broadcast,
+            content,
+            buttons,
+            media_bytes,
+            broadcast_id,
+        )
+        if success:
+            sent += 1
+        else:
+            failed += 1
+
+        # Rate limiting - 30 messages per second max
+        await asyncio.sleep(0.035)
+
+    return (sent, failed)
+
+
 async def _check_broadcast_complete(
     db: Any,
     broadcast_id: str,
@@ -408,34 +490,18 @@ async def worker_send_broadcast(request: Request) -> dict[str, Any]:
 
     # Get broadcast template
     logger.info(f"Fetching broadcast {broadcast_id} from database")
-    broadcast_result = (
-        await db.client.table("broadcast_messages")
-        .select("*")
-        .eq("id", broadcast_id)
-        .single()
-        .execute()
-    )
-
-    if not broadcast_result.data or not isinstance(broadcast_result.data, dict):
+    broadcast = await _get_broadcast_from_db(db, broadcast_id)
+    if not broadcast:
         logger.error(f"Broadcast {broadcast_id} not found in database")
         return {"error": "Broadcast not found"}
 
-    broadcast = broadcast_result.data
     logger.info(f"Broadcast {broadcast_id} found: status={broadcast.get('status')}")
 
-    content_val = broadcast.get("content", {})
-    content = content_val if isinstance(content_val, dict) else {}
-    buttons_val = broadcast.get("buttons", [])
-    buttons = buttons_val if isinstance(buttons_val, list) else []
-    media_file_id = broadcast.get("media_file_id")
-    media_type = broadcast.get("media_type")
+    # Extract broadcast data
+    content, buttons, media_file_id, media_type = _extract_broadcast_data(broadcast)
 
     # Get appropriate bot token
-    token = (
-        os.environ.get("DISCOUNT_BOT_TOKEN", "")
-        if target_bot == "discount"
-        else os.environ.get("TELEGRAM_TOKEN", "")
-    )
+    token = _get_bot_token(target_bot)
     if not token:
         return {"error": f"Bot token not configured for {target_bot}"}
 
@@ -444,38 +510,21 @@ async def worker_send_broadcast(request: Request) -> dict[str, Any]:
     # Download media if needed
     media_bytes = None
     if media_file_id and media_type:
-        media_file_id_str = str(media_file_id) if isinstance(media_file_id, (str, int)) else ""
-        if media_file_id_str:
-            media_bytes = await _download_media_from_admin_bot(media_file_id_str, broadcast_id)
+        media_bytes = await _prepare_media_for_broadcast(media_file_id, broadcast_id)
 
-    sent = 0
-    failed = 0
-
+    # Send to users
     try:
-        for user_id in user_ids:
-            broadcast_dict = broadcast if isinstance(broadcast, dict) else {}
-            content_dict = content if isinstance(content, dict) else {}
-            buttons_list = buttons if isinstance(buttons, list) else []
-            success = await _send_to_user(
-                db,
-                bot,
-                user_id,
-                broadcast_dict,
-                content_dict,
-                buttons_list,
-                media_bytes,
-                broadcast_id,
-            )
-            if success:
-                sent += 1
-            else:
-                failed += 1
-
-            # Rate limiting - 30 messages per second max
-            await asyncio.sleep(0.035)
-
-        broadcast_dict = broadcast if isinstance(broadcast, dict) else {}
-        await _check_broadcast_complete(db, broadcast_id, broadcast_dict, sent, failed)
+        sent, failed = await _send_batch_to_users(
+            db,
+            bot,
+            user_ids,
+            broadcast,
+            content,
+            buttons,
+            media_bytes,
+            broadcast_id,
+        )
+        await _check_broadcast_complete(db, broadcast_id, broadcast, sent, failed)
 
     finally:
         await bot.session.close()

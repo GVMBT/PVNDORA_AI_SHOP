@@ -352,14 +352,11 @@ async def _fetch_level_referrals(
     return result.data or [], None
 
 
-async def _batch_fetch_referral_data(
-    db: "Database", referral_ids: list[str], referrer_id: str
-) -> tuple[dict[str, int], dict[str, float]]:
-    """Batch fetch orders count and earnings for referrals."""
+async def _batch_fetch_orders_count(
+    db: "Database", referral_ids: list[str]
+) -> dict[str, int]:
+    """Batch fetch orders count for referrals."""
     orders_count_map: dict[str, int] = {}
-    earnings_map: dict[str, float] = {}
-
-    # Batch fetch orders count
     try:
         orders_result = (
             await db.client.table("orders")
@@ -375,8 +372,14 @@ async def _batch_fetch_referral_data(
                     orders_count_map[order_user_id] = orders_count_map.get(order_user_id, 0) + 1
     except Exception as e:
         logger.warning(f"Failed to batch fetch orders count: {e}")
+    return orders_count_map
 
-    # Batch fetch earnings
+
+async def _batch_fetch_earnings(
+    db: "Database", referral_ids: list[str], referrer_id: str
+) -> dict[str, float]:
+    """Batch fetch earnings for referrals."""
+    earnings_map: dict[str, float] = {}
     try:
         earnings_result = (
             await db.client.table("referral_bonuses")
@@ -395,7 +398,15 @@ async def _batch_fetch_referral_data(
                     earnings_map[from_user_id] = earnings_map.get(from_user_id, 0) + amount
     except Exception as e:
         logger.warning(f"Failed to batch fetch earnings: {e}")
+    return earnings_map
 
+
+async def _batch_fetch_referral_data(
+    db: "Database", referral_ids: list[str], referrer_id: str
+) -> tuple[dict[str, int], dict[str, float]]:
+    """Batch fetch orders count and earnings for referrals."""
+    orders_count_map = await _batch_fetch_orders_count(db, referral_ids)
+    earnings_map = await _batch_fetch_earnings(db, referral_ids, referrer_id)
     return orders_count_map, earnings_map
 
 

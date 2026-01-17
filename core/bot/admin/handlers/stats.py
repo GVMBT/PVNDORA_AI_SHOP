@@ -96,7 +96,10 @@ async def cmd_stats(message: Message) -> None:
 
     # Active partners
     partners_res = (
-        await db.client.table("users").select("id", count="exact").eq("is_partner", True).execute()
+        await db.client.table("users")
+        .select("id", count="exact")  # type: ignore[arg-type]
+        .eq("is_partner", True)
+        .execute()
     )
     partners = partners_res.count or 0
 

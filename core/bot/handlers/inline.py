@@ -1,7 +1,6 @@
 """Inline query handlers for product sharing."""
 
 import hashlib
-from collections.abc import Sequence
 
 from aiogram import Bot, Router
 from aiogram.enums import ParseMode

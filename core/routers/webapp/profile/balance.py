@@ -50,6 +50,103 @@ async def _convert_usd_to_balance_currency(
     return amount_usd * balance_rate
 
 
+def _calculate_min_topup_amount(
+    currency: str, formatter: Any, min_amounts: dict[str, float]
+) -> float:
+    """Calculate minimum top-up amount for currency."""
+    if currency in min_amounts:
+        return min_amounts[currency]
+    min_usd = 5.0
+    return formatter.convert(min_usd)
+
+
+async def _create_topup_transaction(
+    db: Any, db_user: Any, amount_to_credit: float, balance_currency: str, currency: str, request_amount: float, formatter: Any
+) -> str | None:
+    """Create pending topup transaction. Returns transaction ID."""
+    current_balance = float(db_user.balance) if db_user.balance else 0
+
+    try:
+        tx_result = (
+            await db.client.table("balance_transactions")
+            .insert(
+                {
+                    "user_id": db_user.id,
+                    "type": "topup",
+                    "amount": amount_to_credit,
+                    "currency": balance_currency,
+                    "balance_before": current_balance,
+                    "balance_after": current_balance,
+                    "status": "pending",
+                    "description": f"Пополнение баланса {request_amount} {currency}",
+                    "metadata": {
+                        "payment_currency": currency,
+                        "payment_amount": request_amount,
+                        "balance_currency": balance_currency,
+                        "credit_amount": amount_to_credit,
+                        "exchange_rate": (
+                            formatter.exchange_rate if currency != balance_currency else 1.0
+                        ),
+                    },
+                },
+            )
+            .execute()
+        )
+        if (
+            tx_result.data
+            and isinstance(tx_result.data, list)
+            and len(tx_result.data) > 0
+            and isinstance(tx_result.data[0], dict)
+        ):
+            return str(tx_result.data[0]["id"])
+        return None
+    except Exception:
+        logger.exception("Failed to create topup transaction")
+        raise HTTPException(status_code=500, detail="Failed to create top-up request")
+
+
+async def _create_crystalpay_payment_for_topup(
+    payment_service: Any, topup_id: str, db_user: Any, payment_amount: float, payment_currency: str
+) -> dict[str, Any]:
+    """Create CrystalPay payment for topup. Returns payment result."""
+    if not topup_id or not isinstance(topup_id, str):
+        raise HTTPException(status_code=500, detail="Invalid topup_id")
+
+    result = await payment_service.create_crystalpay_payment_topup(
+        topup_id=topup_id,
+        user_id=str(db_user.id),
+        amount=payment_amount,
+        currency=payment_currency,
+    )
+
+    if not result or not result.get("payment_url"):
+        raise HTTPException(status_code=500, detail="Failed to create payment")
+
+    return result
+
+
+async def _update_topup_transaction_with_payment(
+    db: Any, topup_id: str, currency: str, request_amount: float, payment_result: dict[str, Any]
+) -> None:
+    """Update topup transaction with payment_id and metadata."""
+    await (
+        db.client.table("balance_transactions")
+        .update(
+            {
+                "reference_type": "payment",
+                "reference_id": payment_result.get("invoice_id"),
+                "metadata": {
+                    "original_currency": currency,
+                    "original_amount": request_amount,
+                    "invoice_id": payment_result.get("invoice_id"),
+                },
+            },
+        )
+        .eq("id", topup_id)
+        .execute()
+    )
+
+
 async def _calculate_amount_to_credit(
     currency: str,
     balance_currency: str,
@@ -105,26 +202,16 @@ async def create_topup(
         "AED": 20.0,
     }
 
-    # Use fixed minimum for currency if available, otherwise convert from USD
-    if currency in MIN_AMOUNTS:
-        min_in_user_currency = MIN_AMOUNTS[currency]
-    else:
-        MIN_USD = 5.0
-        min_in_user_currency = formatter.convert(MIN_USD)
-
+    # Validate minimum amount
+    min_in_user_currency = _calculate_min_topup_amount(currency, formatter, MIN_AMOUNTS)
     if request.amount < min_in_user_currency:
         raise HTTPException(
             status_code=400,
             detail=f"Minimum top-up is {format_price_simple(min_in_user_currency, currency)}",
         )
 
-    # Use original currency and amount - CrystalPay supports multiple currencies
-    payment_amount = request.amount
-    payment_currency = currency
-
     # Get user's balance_currency (currency of their actual balance)
     balance_currency = getattr(db_user, "balance_currency", "RUB") or "RUB"
-    current_balance = float(db_user.balance) if db_user.balance else 0
 
     # Convert payment amount to user's balance_currency if needed
     from decimal import Decimal
@@ -151,43 +238,9 @@ async def create_topup(
     )
 
     # Create pending transaction record in user's balance_currency
-    try:
-        tx_result = (
-            await db.client.table("balance_transactions")
-            .insert(
-                {
-                    "user_id": db_user.id,
-                    "type": "topup",
-                    "amount": amount_to_credit,  # Store in balance_currency!
-                    "currency": balance_currency,  # User's actual balance currency
-                    "balance_before": current_balance,
-                    "balance_after": current_balance,  # Will be updated on completion by webhook
-                    "status": "pending",
-                    "description": f"Пополнение баланса {request.amount} {currency}",
-                    "metadata": {
-                        "payment_currency": currency,
-                        "payment_amount": request.amount,
-                        "balance_currency": balance_currency,
-                        "credit_amount": amount_to_credit,
-                        "exchange_rate": (
-                            formatter.exchange_rate if currency != balance_currency else 1.0
-                        ),
-                    },
-                },
-            )
-            .execute()
-        )
-        topup_id = (
-            str(tx_result.data[0]["id"])
-            if tx_result.data
-            and isinstance(tx_result.data, list)
-            and len(tx_result.data) > 0
-            and isinstance(tx_result.data[0], dict)
-            else None
-        )
-    except Exception:
-        logger.exception("Failed to create topup transaction")
-        raise HTTPException(status_code=500, detail="Failed to create top-up request")
+    topup_id = await _create_topup_transaction(
+        db, db_user, amount_to_credit, balance_currency, currency, request.amount, formatter
+    )
 
     if not topup_id:
         raise HTTPException(status_code=500, detail="Failed to create top-up request")
@@ -198,43 +251,12 @@ async def create_topup(
 
         payment_service = PaymentService()
 
-        # Pass user's currency directly to CrystalPay
-        if not topup_id or not isinstance(topup_id, str):
-            raise HTTPException(status_code=500, detail="Invalid topup_id")
-        result = await payment_service.create_crystalpay_payment_topup(
-            topup_id=topup_id,
-            user_id=str(db_user.id),
-            amount=payment_amount,
-            currency=payment_currency,
+        result = await _create_crystalpay_payment_for_topup(
+            payment_service, topup_id, db_user, request.amount, currency
         )
-
-        if not result or not result.get("payment_url"):
-            # Rollback transaction
-            await (
-                db.client.table("balance_transactions")
-                .update({"status": "failed"})
-                .eq("id", topup_id)
-                .execute()
-            )
-            raise HTTPException(status_code=500, detail="Failed to create payment")
 
         # Update transaction with payment_id
-        await (
-            db.client.table("balance_transactions")
-            .update(
-                {
-                    "reference_type": "payment",
-                    "reference_id": result.get("invoice_id"),
-                    "metadata": {
-                        "original_currency": currency,
-                        "original_amount": request.amount,
-                        "invoice_id": result.get("invoice_id"),
-                    },
-                },
-            )
-            .eq("id", topup_id)
-            .execute()
-        )
+        await _update_topup_transaction_with_payment(db, topup_id, currency, request.amount, result)
 
         return {
             "success": True,

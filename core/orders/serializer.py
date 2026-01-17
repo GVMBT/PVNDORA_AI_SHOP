@@ -170,6 +170,19 @@ def _format_order_dates(order: Any) -> dict[str, Any]:
     }
 
 
+# Helper: Add minor units (kopecks/cents) to payload (reduces cognitive complexity)
+def _add_minor_units(
+    payload: dict[str, Any], amount_converted: float, original_price_converted: float | None
+) -> None:
+    """Add minor units (kopecks/cents) from converted amounts."""
+    try:
+        payload["amount_minor"] = to_kopecks(to_decimal(amount_converted))
+        if original_price_converted is not None:
+            payload["original_price_minor"] = to_kopecks(to_decimal(original_price_converted))
+    except Exception:
+        pass
+
+
 # Helper: Add payment info for pending orders (reduces cognitive complexity)
 def _add_payment_info(payload: dict[str, Any], order: Any) -> None:
     """Add payment URL and payment details for pending orders."""
@@ -232,12 +245,7 @@ def build_order_payload(
     }
 
     # Minor units (kopecks/cents) from converted amounts
-    try:
-        payload["amount_minor"] = to_kopecks(to_decimal(amount_converted))
-        if original_price_converted is not None:
-            payload["original_price_minor"] = to_kopecks(to_decimal(original_price_converted))
-    except Exception:
-        pass
+    _add_minor_units(payload, amount_converted, original_price_converted)
 
     # Attach items (source of truth for products and delivery content)
     if items:

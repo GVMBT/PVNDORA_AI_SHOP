@@ -6,7 +6,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 
 import logging
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -377,11 +377,19 @@ async def get_webapp_order_status(
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Calculate delivery progress
-    items_data = order.get("order_items", [])
+    items_data_raw = order.get("order_items", [])
+    # Ensure items_data is a list of dicts for type safety
+    items_data = (
+        cast(list[dict[str, Any]], items_data_raw)
+        if isinstance(items_data_raw, list)
+        else []
+    )
     progress, delivered_quantity, total_quantity = _calculate_delivery_progress(items_data)
 
     # Calculate estimated delivery
-    estimated_delivery_at = _calculate_estimated_delivery(order, items_data)
+    estimated_delivery_at = _calculate_estimated_delivery(
+        cast(dict[str, Any], order), items_data
+    )
 
     return OrderStatusResponse(
         order_id=order_id,

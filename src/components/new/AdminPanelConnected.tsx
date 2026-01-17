@@ -134,35 +134,43 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       customTo?: string,
       displayCurrency: "USD" | "RUB" = "RUB"
     ) => {
-      setIsAccountingLoading(true);
-      try {
-        const { apiRequest } = await import("../../utils/apiClient");
-        const { API } = await import("../../config");
-
-        // Build URL with period and currency params
-        let url = `${API.ADMIN_URL}/accounting/overview`;
+      // Helper functions for accounting data transformation (reduce cognitive complexity)
+      const buildAccountingUrl = (
+        baseUrl: string,
+        periodParam: "today" | "month" | "all" | "custom" | undefined,
+        customFromParam: string | undefined,
+        customToParam: string | undefined,
+        displayCurrencyParam: "USD" | "RUB"
+      ): string => {
         const params = new URLSearchParams();
-        params.append("display_currency", displayCurrency);
-        if (period && period !== "all") {
-          params.append("period", period);
+        params.append("display_currency", displayCurrencyParam);
+        if (periodParam && periodParam !== "all") {
+          params.append("period", periodParam);
         }
-        if (period === "custom" && customFrom) {
-          params.append("from", customFrom);
+        if (periodParam === "custom" && customFromParam) {
+          params.append("from", customFromParam);
         }
-        if (period === "custom" && customTo) {
-          params.append("to", customTo);
+        if (periodParam === "custom" && customToParam) {
+          params.append("to", customToParam);
         }
-        if (params.toString()) {
-          url += `?${params.toString()}`;
-        }
+        return params.toString() ? `${baseUrl}?${params.toString()}` : baseUrl;
+      };
 
-        // API returns snake_case, but we need to transform to camelCase for AccountingData
-        const rawData = await apiRequest<Record<string, unknown>>(url);
+      const extractProfitValue = (
+        profitUsdParam: Record<string, unknown> | null,
+        key: string
+      ): number | undefined => {
+        if (!profitUsdParam || !(key in profitUsdParam)) return undefined;
+        const value = profitUsdParam[key];
+        if (typeof value === "number") return value;
+        const parsed = Number.parseFloat(String(value));
+        return Number.isNaN(parsed) ? undefined : parsed;
+      };
 
-        // Log for debugging
-        logger.info("Accounting data loaded", rawData);
-
-        // Helper to safely get number from API response (supports both snake_case and camelCase)
+      const buildAccountingData = (
+        rawData: Record<string, unknown>,
+        profitUsdParam: Record<string, unknown> | null
+      ): AccountingData => {
         const getNumber = (snakeKey: string, camelKey?: string, fallback = 0): number => {
           const value = rawData[snakeKey] ?? (camelKey ? rawData[camelKey] : undefined);
           if (typeof value === "number") return value;
@@ -173,13 +181,11 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
           return fallback;
         };
 
-        // Helper to safely get string from API response
         const getString = (snakeKey: string, camelKey?: string): string | undefined => {
           const value = rawData[snakeKey] ?? (camelKey ? rawData[camelKey] : undefined);
           return typeof value === "string" ? value : undefined;
         };
 
-        // Helper to safely get object from API response
         const getObject = (
           snakeKey: string,
           camelKey?: string
@@ -190,29 +196,22 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
             : undefined;
         };
 
-        // Extract profit_usd object
-        const profitUsd =
-          rawData.profit_usd &&
-          typeof rawData.profit_usd === "object" &&
-          rawData.profit_usd !== null
-            ? (rawData.profit_usd as Record<string, unknown>)
-            : null;
+        const getTotalOrders = (): number => {
+          if (typeof rawData.total_orders === "string")
+            return Number.parseInt(rawData.total_orders, 10);
+          if (typeof rawData.total_orders === "number") return rawData.total_orders;
+          if (typeof rawData.totalOrders === "number") return rawData.totalOrders;
+          return 0;
+        };
 
-        setAccountingData({
+        return {
           // Filter info
           period: getString("period"),
           startDate: getString("start_date", "startDate"),
           endDate: getString("end_date", "endDate"),
 
           // Orders
-          totalOrders:
-            typeof rawData.total_orders === "string"
-              ? Number.parseInt(rawData.total_orders, 10)
-              : typeof rawData.total_orders === "number"
-                ? rawData.total_orders
-                : typeof rawData.totalOrders === "number"
-                  ? rawData.totalOrders
-                  : 0,
+          totalOrders: getTotalOrders(),
 
           // Revenue by currency (NEW - real amounts!)
           revenueByCurrency: (getObject("revenue_by_currency", "revenueByCurrency") ?? {}) as
@@ -244,36 +243,48 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
 
           // Profit (USD)
           netProfit: getNumber("net_profit", "netProfit"),
-          grossProfit:
-            profitUsd && "gross_profit" in profitUsd
-              ? typeof profitUsd.gross_profit === "number"
-                ? profitUsd.gross_profit
-                : Number.parseFloat(String(profitUsd.gross_profit)) || undefined
-              : undefined,
-          operatingProfit:
-            profitUsd && "operating_profit" in profitUsd
-              ? typeof profitUsd.operating_profit === "number"
-                ? profitUsd.operating_profit
-                : Number.parseFloat(String(profitUsd.operating_profit)) || undefined
-              : undefined,
-          grossMarginPct:
-            profitUsd && "gross_margin_pct" in profitUsd
-              ? typeof profitUsd.gross_margin_pct === "number"
-                ? profitUsd.gross_margin_pct
-                : Number.parseFloat(String(profitUsd.gross_margin_pct)) || undefined
-              : undefined,
-          netMarginPct:
-            profitUsd && "net_margin_pct" in profitUsd
-              ? typeof profitUsd.net_margin_pct === "number"
-                ? profitUsd.net_margin_pct
-                : Number.parseFloat(String(profitUsd.net_margin_pct)) || undefined
-              : undefined,
+          grossProfit: extractProfitValue(profitUsdParam, "gross_profit"),
+          operatingProfit: extractProfitValue(profitUsdParam, "operating_profit"),
+          grossMarginPct: extractProfitValue(profitUsdParam, "gross_margin_pct"),
+          netMarginPct: extractProfitValue(profitUsdParam, "net_margin_pct"),
 
           // Reserves
           reservesAccumulated: getNumber("reserves_accumulated", "reservesAccumulated"),
           reservesUsed: getNumber("reserves_used", "reservesUsed"),
           reservesAvailable: getNumber("reserves_available", "reservesAvailable"),
-        });
+        };
+      };
+
+      setIsAccountingLoading(true);
+      try {
+        const { apiRequest } = await import("../../utils/apiClient");
+        const { API } = await import("../../config");
+
+        // Build URL with period and currency params
+        const url = buildAccountingUrl(
+          `${API.ADMIN_URL}/accounting/overview`,
+          period,
+          customFrom,
+          customTo,
+          displayCurrency
+        );
+
+        // API returns snake_case, but we need to transform to camelCase for AccountingData
+        const rawData = await apiRequest<Record<string, unknown>>(url);
+
+        // Log for debugging
+        logger.info("Accounting data loaded", rawData);
+
+        // Extract profit_usd object
+        const profitUsd =
+          rawData.profit_usd &&
+          typeof rawData.profit_usd === "object" &&
+          rawData.profit_usd !== null
+            ? (rawData.profit_usd as Record<string, unknown>)
+            : null;
+
+        // Build accounting data object
+        setAccountingData(buildAccountingData(rawData, profitUsd));
       } catch (err) {
         logger.error("Failed to fetch accounting data", err);
       } finally {
