@@ -671,9 +671,14 @@
       "insufficientFunds": "INSUFFICIENT FUNDS",
       "minWithdrawal": "Minimum withdrawal is {amount}"
     },
+    "reservedBalance": "RESERVED",
     "withdraw": {
       "submittedTitle": "REQUEST SUBMITTED",
-      "submittedDesc": "Your withdrawal request has been submitted. We will process it within 24-48 hours."
+      "submittedDesc": "Your withdrawal request has been submitted. We will process it within 24-48 hours.",
+      "pending": "Pending withdrawal",
+      "cancel": "Cancel withdrawal",
+      "cancelled": "Request cancelled",
+      "cancelledDesc": "Funds returned to your balance. You can create a new request."
     },
     "loading": "Loading Profile...",
     "error": "PROFILE_ERROR",
@@ -846,6 +851,8 @@
       "title": "Withdraw Funds",
       "availableBalance": "Available balance",
       "amount": "Withdrawal amount",
+      "max": "MAX",
+      "preview": "WITHDRAWAL PREVIEW",
       "method": "Withdrawal method",
       "cryptoDescription": "Cryptocurrency withdrawal",
       "walletAddress": "Wallet address",

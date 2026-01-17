@@ -51,6 +51,10 @@ interface RawWithdrawalResponse {
   username?: string;
   first_name?: string;
   amount?: number;
+  // Snapshot fields for correct currency display
+  amount_debited?: number; // Original amount in user's balance currency
+  amount_to_pay?: number; // USDT amount to pay
+  balance_currency?: string; // User's balance currency (RUB, USD)
   payment_method?: string;
   payment_details?: Record<string, unknown>;
   status?: string;
@@ -448,6 +452,10 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
         username: w.username,
         first_name: w.first_name,
         amount: w.amount || 0,
+        // CRITICAL: Pass amount_debited and balance_currency for correct display
+        amount_debited: w.amount_debited,
+        amount_to_pay: w.amount_to_pay,
+        balance_currency: w.balance_currency,
         payment_method: w.payment_method,
         payment_details: w.payment_details,
         status: (w.status || "pending") as "pending" | "processing" | "completed" | "rejected",
