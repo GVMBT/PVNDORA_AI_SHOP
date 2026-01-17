@@ -217,6 +217,101 @@ def _build_crypto_payment_method(user_currency: str) -> PaymentMethod:
     )
 
 
+def _calculate_delivery_progress(items_data: list[dict[str, Any]]) -> tuple[int, int, int]:
+    """Calculate delivery progress from order items.
+
+    Returns:
+        Tuple of (progress_percent, delivered_quantity, total_quantity)
+    """
+    total_quantity = sum(item.get("quantity", 0) for item in items_data)
+    delivered_quantity = sum(item.get("delivered_quantity", 0) for item in items_data)
+
+    progress = 0
+    if total_quantity > 0:
+        progress = int((delivered_quantity / total_quantity) * 100)
+
+    return (progress, delivered_quantity, total_quantity)
+
+
+def _calculate_estimated_delivery(
+    order: dict[str, Any],
+    items_data: list[dict[str, Any]],
+) -> str | None:
+    """Calculate estimated delivery time from order and items.
+
+    Returns:
+        ISO format datetime string or None
+    """
+    if order["status"] not in ("paid", "processing", "partially_delivered"):
+        return None
+
+    max_hours = 0
+    for item in items_data:
+        hours = item.get("fulfillment_time_hours") or 24
+        max_hours = max(max_hours, hours)
+
+    paid_at = order.get("paid_at") or order.get("created_at")
+    if not paid_at:
+        return None
+
+    try:
+        paid_at_str = (
+            str(paid_at) if paid_at and isinstance(paid_at, (str, int, float)) else ""
+        )
+        if paid_at_str and isinstance(paid_at_str, str):
+            paid_dt = datetime.fromisoformat(paid_at_str)
+            est_dt = paid_dt + timedelta(hours=max_hours)
+            return est_dt.isoformat()
+    except Exception:
+        pass
+
+    return None
+
+
+def _extract_order_ids(result_data: list[Any]) -> list[str]:
+    """Extract order IDs from query result data."""
+    order_ids: list[str] = []
+    for row in result_data:
+        if isinstance(row, dict):
+            row_id = row.get("id")
+            if row_id:
+                order_ids.append(str(row_id))
+    return order_ids
+
+
+async def _process_orders_result(
+    db: "Database", result_data: list[Any]
+) -> list[dict[str, Any]]:
+    """Process orders result data and build order dicts."""
+    if not result_data:
+        return []
+
+    # OPTIMIZATION: Fix N+1 query problem - load all reviews for all orders in one query
+    order_ids = _extract_order_ids(result_data)
+    reviews_by_order = await _load_reviews_for_orders(db, order_ids)
+
+    orders = []
+    for row in result_data:
+        try:
+            if not isinstance(row, dict):
+                continue
+            order_dict = _process_order_row(row, reviews_by_order)
+            if order_dict:
+                orders.append(order_dict)
+        except Exception as e:
+            from core.logging import sanitize_id_for_logging
+
+            logger.error(
+                "Failed to process order %s: %s",
+                sanitize_id_for_logging(str(row.get("id"))),
+                type(e).__name__,
+                exc_info=True,
+            )
+            continue
+
+    return orders
+
+
 def _build_order_dict(
     row: dict[str, Any],
     items: list[dict[str, Any]],
@@ -283,33 +378,10 @@ async def get_webapp_order_status(
 
     # Calculate delivery progress
     items_data = order.get("order_items", [])
-    total_quantity = sum(item.get("quantity", 0) for item in items_data)
-    delivered_quantity = sum(item.get("delivered_quantity", 0) for item in items_data)
-
-    progress = 0
-    if total_quantity > 0:
-        progress = int((delivered_quantity / total_quantity) * 100)
+    progress, delivered_quantity, total_quantity = _calculate_delivery_progress(items_data)
 
     # Calculate estimated delivery
-    estimated_delivery_at = None
-    if order["status"] in ("paid", "processing", "partially_delivered"):
-        max_hours = 0
-        for item in items_data:
-            hours = item.get("fulfillment_time_hours") or 24
-            max_hours = max(max_hours, hours)
-
-        paid_at = order.get("paid_at") or order.get("created_at")
-        if paid_at:
-            try:
-                paid_at_str = (
-                    str(paid_at) if paid_at and isinstance(paid_at, (str, int, float)) else ""
-                )
-                if paid_at_str and isinstance(paid_at_str, str):
-                    paid_dt = datetime.fromisoformat(paid_at_str)
-                    est_dt = paid_dt + timedelta(hours=max_hours)
-                    estimated_delivery_at = est_dt.isoformat()
-            except Exception:
-                pass
+    estimated_delivery_at = _calculate_estimated_delivery(order, items_data)
 
     return OrderStatusResponse(
         order_id=order_id,
@@ -522,34 +594,7 @@ async def get_webapp_orders(
         logger.info("No orders found for user %s", sanitize_id_for_logging(str(db_user.id)))
         return OrdersListResponse(orders=[], count=0, currency=user_currency)
 
-    orders = []
-
-    # OPTIMIZATION: Fix N+1 query problem - load all reviews for all orders in one query
-    order_ids: list[str] = []
-    for row in result.data:
-        if isinstance(row, dict):
-            row_id = row.get("id")
-            if row_id:
-                order_ids.append(str(row_id))
-    reviews_by_order = await _load_reviews_for_orders(db, order_ids)
-
-    for row in result.data:
-        try:
-            if not isinstance(row, dict):
-                continue
-            order_dict = _process_order_row(row, reviews_by_order)
-            if order_dict:
-                orders.append(order_dict)
-        except Exception as e:
-            from core.logging import sanitize_id_for_logging
-
-            logger.error(
-                "Failed to process order %s: %s",
-                sanitize_id_for_logging(str(row.get("id"))),
-                type(e).__name__,
-                exc_info=True,
-            )
-            continue
+    orders = await _process_orders_result(db, result.data)
 
     from core.logging import sanitize_id_for_logging
 

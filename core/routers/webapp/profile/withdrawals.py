@@ -17,6 +17,99 @@ logger = get_logger(__name__)
 
 withdrawals_router = APIRouter()
 
+# =============================================================================
+# Helper Functions (reduce cognitive complexity)
+# =============================================================================
+
+
+def _validate_balance_sufficiency(request_amount: float, balance: float, formatter: Any) -> None:
+    """Validate user has sufficient balance."""
+    if request_amount > balance:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient balance. Available: {formatter.format(balance)}, requested: {formatter.format(request_amount)}",
+        )
+
+
+def _validate_minimum_withdrawal(
+    amount_to_pay_usdt: float,
+    min_usdt_after_fees: float,
+    network_fee_usdt: float,
+    usdt_rate: float,
+    exchange_rate: float,
+    balance_currency: str,
+    formatter: Any,
+) -> None:
+    """Validate withdrawal meets minimum requirements."""
+    if amount_to_pay_usdt < min_usdt_after_fees:
+        min_usdt_gross = min_usdt_after_fees + network_fee_usdt
+        min_usd = min_usdt_gross * usdt_rate
+        min_in_user_currency = min_usd * exchange_rate if balance_currency != "USD" else min_usd
+        raise HTTPException(
+            status_code=400,
+            detail=f"Минимальная сумма вывода: {formatter.format(min_in_user_currency)}. После комиссии сети ({network_fee_usdt} USDT) вы получите минимум {min_usdt_after_fees} USDT (требование биржи: минимум 10 USD).",
+        )
+
+
+def _validate_payment_method(method: str) -> None:
+    """Validate payment method."""
+    if method not in ["crypto"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid payment method. Only TRC20 USDT is supported.",
+        )
+
+
+def _validate_wallet_address(wallet_address: str | None) -> str:
+    """Validate and return wallet address."""
+    if not wallet_address or not wallet_address.strip():
+        raise HTTPException(status_code=400, detail="Wallet address is required")
+
+    wallet_address = wallet_address.strip()
+
+    # Basic TRC20 address validation (starts with T, 34 characters)
+    if not wallet_address.startswith("T") or len(wallet_address) != 34:
+        raise HTTPException(status_code=400, detail="Invalid TRC20 wallet address format")
+
+    return wallet_address
+
+
+async def _reserve_balance_for_withdrawal(
+    db: Any, db_user: Any, amount: float, amount_to_pay_usdt: float, wallet_address: str
+) -> None:
+    """Reserve balance for withdrawal request."""
+    try:
+        await db.client.rpc(
+            "add_to_user_balance",
+            {
+                "p_user_id": str(db_user.id),
+                "p_amount": -amount,  # Negative = deduct
+                "p_reason": "Резервирование для вывода средств",
+                "p_metadata": {
+                    "withdrawal_pending": True,
+                    "amount_usdt": amount_to_pay_usdt,
+                    "wallet_address": wallet_address[:8] + "...",
+                },
+            },
+        ).execute()
+        logger.info(f"Reserved {amount} for withdrawal request")
+    except Exception:
+        logger.exception("Failed to reserve balance for withdrawal")
+        raise HTTPException(status_code=500, detail="Failed to reserve balance for withdrawal")
+
+
+def _extract_request_id(withdrawal_result: Any) -> str:
+    """Extract request ID from withdrawal result."""
+    request_id_raw = (
+        withdrawal_result.data[0].get("id", "")
+        if withdrawal_result.data
+        and isinstance(withdrawal_result.data, list)
+        and len(withdrawal_result.data) > 0
+        and isinstance(withdrawal_result.data[0], dict)
+        else "unknown"
+    )
+    return str(request_id_raw) if request_id_raw else "unknown"
+
 
 @withdrawals_router.post("/profile/withdraw/preview")
 async def preview_withdrawal(
@@ -129,57 +222,22 @@ async def request_withdrawal(
     exchange_rate = withdrawal_calc["exchange_rate"]
     usdt_rate = withdrawal_calc["usdt_rate"]
 
-    # Check balance first (balance is in user's balance_currency)
-    if request.amount > balance:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Insufficient balance. Available: {formatter.format(balance)}, requested: {formatter.format(request.amount)}",
-        )
-
-    # Validate minimum withdrawal
-    if amount_to_pay_usdt < MIN_USDT_AFTER_FEES:
-        min_usdt_gross = MIN_USDT_AFTER_FEES + NETWORK_FEE_USDT
-        min_usd = min_usdt_gross * usdt_rate
-        min_in_user_currency = min_usd * exchange_rate if balance_currency != "USD" else min_usd
-        raise HTTPException(
-            status_code=400,
-            detail=f"Минимальная сумма вывода: {formatter.format(min_in_user_currency)}. После комиссии сети ({NETWORK_FEE_USDT} USDT) вы получите минимум {MIN_USDT_AFTER_FEES} USDT (требование биржи: минимум 10 USD).",
-        )
-
-    if request.method not in ["crypto"]:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid payment method. Only TRC20 USDT is supported.",
-        )
-
-    # Extract wallet address from details
-    wallet_address = request.details.strip() if request.details else None
-    if not wallet_address:
-        raise HTTPException(status_code=400, detail="Wallet address is required")
-
-    # Basic TRC20 address validation (starts with T, 34 characters)
-    if not wallet_address.startswith("T") or len(wallet_address) != 34:
-        raise HTTPException(status_code=400, detail="Invalid TRC20 wallet address format")
+    # Validate withdrawal request
+    _validate_balance_sufficiency(request.amount, balance, formatter)
+    _validate_minimum_withdrawal(
+        amount_to_pay_usdt,
+        MIN_USDT_AFTER_FEES,
+        NETWORK_FEE_USDT,
+        usdt_rate,
+        exchange_rate,
+        balance_currency,
+        formatter,
+    )
+    _validate_payment_method(request.method)
+    wallet_address = _validate_wallet_address(request.details)
 
     # RESERVE BALANCE: Deduct amount immediately to prevent spending during processing
-    try:
-        await db.client.rpc(
-            "add_to_user_balance",
-            {
-                "p_user_id": str(db_user.id),
-                "p_amount": -request.amount,  # Negative = deduct
-                "p_reason": "Резервирование для вывода средств",
-                "p_metadata": {
-                    "withdrawal_pending": True,
-                    "amount_usdt": amount_to_pay_usdt,
-                    "wallet_address": wallet_address[:8] + "...",
-                },
-            },
-        ).execute()
-        logger.info(f"Reserved {request.amount} {balance_currency} for withdrawal request")
-    except Exception:
-        logger.exception("Failed to reserve balance for withdrawal")
-        raise HTTPException(status_code=500, detail="Failed to reserve balance for withdrawal")
+    await _reserve_balance_for_withdrawal(db, db_user, request.amount, amount_to_pay_usdt, wallet_address)
 
     # Create withdrawal request with SNAPSHOT pricing
     withdrawal_result = (
@@ -212,15 +270,7 @@ async def request_withdrawal(
         .execute()
     )
 
-    request_id_raw = (
-        withdrawal_result.data[0].get("id", "")
-        if withdrawal_result.data
-        and isinstance(withdrawal_result.data, list)
-        and len(withdrawal_result.data) > 0
-        and isinstance(withdrawal_result.data[0], dict)
-        else "unknown"
-    )
-    request_id = str(request_id_raw) if request_id_raw else "unknown"
+    request_id = _extract_request_id(withdrawal_result)
 
     # Send alert to admins (best-effort)
     try:

@@ -15,6 +15,41 @@ logger = logging.getLogger(__name__)
 DELIVERED_STATES = ["delivered", "partial", "completed"]
 
 
+def _extract_name_from_item(item: dict[str, Any]) -> str | None:
+    """Extract product name from order item. Returns None if not found."""
+    # Try nested product dict first
+    product_dict = item.get("product")
+    if isinstance(product_dict, dict):
+        name = product_dict.get("name")
+        if name is not None:
+            return str(name)
+
+    # Try direct product_name
+    if "product_name" in item:
+        name = item["product_name"]
+        if name is not None:
+            return str(name)
+
+    return None
+
+
+def _extract_name_from_product(product: Any) -> str | None:
+    """Extract product name from product object. Returns None if not found."""
+    if not product:
+        return None
+
+    if isinstance(product, dict):
+        name = product.get("name")
+        if name is not None:
+            return str(name)
+    else:
+        name = getattr(product, "name", None)
+        if name is not None:
+            return str(name)
+
+    return None
+
+
 def _derive_product_name(items: list[dict[str, Any]] | None, product: Any) -> str:
     """Derive product name from order items, falling back to product object.
 
@@ -26,26 +61,18 @@ def _derive_product_name(items: list[dict[str, Any]] | None, product: Any) -> st
         Product name string
 
     """
+    # Try to extract from first item
     if items:
-        # Get first item's product name
         first_item = items[0]
         if isinstance(first_item, dict):
-            # Try nested product dict first
-            if "product" in first_item and isinstance(first_item["product"], dict):
-                name = first_item["product"].get("name", "Unknown")
-                return str(name) if name is not None else "Unknown"
-            # Try direct product_name
-            if "product_name" in first_item:
-                name = first_item["product_name"]
-                return str(name) if name is not None else "Unknown"
+            name = _extract_name_from_item(first_item)
+            if name:
+                return name
 
     # Fallback to product object
-    if product:
-        if isinstance(product, dict):
-            name = product.get("name", "Unknown")
-            return str(name) if name is not None else "Unknown"
-        name = getattr(product, "name", "Unknown")
-        return str(name) if name is not None else "Unknown"
+    name = _extract_name_from_product(product)
+    if name:
+        return name
 
     return "Unknown"
 

@@ -25,27 +25,19 @@ balance_router = APIRouter()
 # =============================================================================
 
 
-async def _calculate_amount_to_credit(
-    currency: str,
-    balance_currency: str,
-    amount: float,
-    currency_service: Any,
-) -> float:
-    """Calculate amount to credit in balance currency (reduces cognitive complexity)."""
-    if currency == balance_currency:
+def _convert_to_usd(currency: str, amount: float, currency_service: Any) -> float:
+    """Convert amount from payment currency to USD."""
+    if currency == "USD":
         return amount
 
-    if currency in ["USD", "RUB"] and balance_currency in ["USD", "RUB"]:
-        amount_decimal = await currency_service.convert_balance(currency, balance_currency, amount)
-        return float(amount_decimal)
+    payment_rate = currency_service.get_exchange_rate(currency)
+    return amount / payment_rate if payment_rate > 0 else amount
 
-    # Convert: payment_currency → USD → balance_currency
-    if currency == "USD":
-        amount_usd = amount
-    else:
-        payment_rate = currency_service.get_exchange_rate(currency)
-        amount_usd = amount / payment_rate if payment_rate > 0 else amount
 
+async def _convert_usd_to_balance_currency(
+    amount_usd: float, balance_currency: str, currency_service: Any
+) -> float:
+    """Convert amount from USD to balance currency."""
     if balance_currency == "USD":
         return amount_usd
 
@@ -56,6 +48,27 @@ async def _calculate_amount_to_credit(
     logger.warning("Unexpected balance_currency: %s (expected USD or RUB)", balance_currency)
     balance_rate = currency_service.get_exchange_rate(balance_currency)
     return amount_usd * balance_rate
+
+
+async def _calculate_amount_to_credit(
+    currency: str,
+    balance_currency: str,
+    amount: float,
+    currency_service: Any,
+) -> float:
+    """Calculate amount to credit in balance currency (reduces cognitive complexity)."""
+    # Same currency - no conversion needed
+    if currency == balance_currency:
+        return amount
+
+    # Direct conversion between USD and RUB
+    if currency in ["USD", "RUB"] and balance_currency in ["USD", "RUB"]:
+        amount_decimal = await currency_service.convert_balance(currency, balance_currency, amount)
+        return float(amount_decimal)
+
+    # Convert: payment_currency → USD → balance_currency
+    amount_usd = _convert_to_usd(currency, amount, currency_service)
+    return await _convert_usd_to_balance_currency(amount_usd, balance_currency, currency_service)
 
 
 @balance_router.post("/profile/topup")

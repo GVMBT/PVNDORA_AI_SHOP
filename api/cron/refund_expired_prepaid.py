@@ -159,8 +159,6 @@ async def _process_single_refund(
     """Process refund for a single expired item. Returns True on success."""
     from core.services.money import to_float
 
-    item_id = item.get("id")
-    order_id = item.get("order_id")
     order_data = item.get("orders") if isinstance(item.get("orders"), dict) else {}
     product_data = item.get("products") if isinstance(item.get("products"), dict) else {}
 
