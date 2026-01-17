@@ -63,6 +63,12 @@ function usePaymentRedirect() {
   return useState<string | null>(() => {
     if (globalThis.window === undefined) return null;
 
+    // Check sessionStorage first (preserved after URL cleanup)
+    const storedId = sessionStorage.getItem("payment_redirect_id");
+    if (storedId) {
+      return storedId;
+    }
+
     if (globalThis.location.pathname === "/payment/result") {
       const urlParams = new URLSearchParams(globalThis.location.search);
       const orderId = urlParams.get("order_id");
@@ -339,9 +345,17 @@ function NewAppInner() {
     [hud]
   );
 
-  // Payment redirect URL cleanup
+  // Payment redirect URL cleanup - preserve order_id before clearing URL
   useEffect(() => {
     if (isPaymentRedirect && globalThis.location.pathname === "/payment/result") {
+      // Save order_id to sessionStorage before clearing URL to prevent reload loop
+      const urlParams = new URLSearchParams(globalThis.location.search);
+      const orderId = urlParams.get("order_id");
+      const topupId = urlParams.get("topup_id");
+      if (orderId || topupId) {
+        sessionStorage.setItem("payment_redirect_id", topupId ? `topup_${topupId}` : orderId || "");
+      }
+      // Clear URL to prevent infinite redirects
       globalThis.history.replaceState({}, "", "/");
     }
   }, [isPaymentRedirect]);
@@ -423,11 +437,15 @@ function NewAppInner() {
           orderId={actualId}
           isTopUp={isTopUp}
           onComplete={() => {
+            // Clear payment redirect state to prevent reload loop
             setIsPaymentRedirect(null);
+            sessionStorage.removeItem("payment_redirect_id");
             setCurrentView(isTopUp ? "profile" : "home");
           }}
           onViewOrders={() => {
+            // Clear payment redirect state to prevent reload loop
             setIsPaymentRedirect(null);
+            sessionStorage.removeItem("payment_redirect_id");
             setCurrentView(isTopUp ? "profile" : "orders");
           }}
         />

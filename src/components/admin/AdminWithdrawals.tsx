@@ -192,10 +192,7 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
     }
   };
 
-  const formatAmountWithCurrency = (
-    amount: number,
-    currency?: string | null,
-  ) => {
+  const formatAmountWithCurrency = (amount: number, currency?: string | null) => {
     // Use the actual currency from the withdrawal request
     const currencySymbol = currency === "USD" ? "$" : "₽";
     return `${Math.round(amount)} ${currencySymbol}`;
@@ -238,10 +235,7 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                 </span>
               </div>
               <div className="font-bold text-white text-sm mb-1">
-                {formatAmountWithCurrency(
-                  w.amount_debited ?? w.amount,
-                  w.balance_currency,
-                )}
+                {formatAmountWithCurrency(w.amount_debited ?? w.amount, w.balance_currency)}
               </div>
               <div className="text-xs text-gray-400 mb-1">
                 {w.first_name || w.username || `Пользователь ${w.telegram_id || "Неизвестно"}`}
@@ -295,7 +289,7 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                   <div className="text-white font-mono text-lg font-bold">
                     {formatAmountWithCurrency(
                       selectedWithdrawal.amount_debited ?? selectedWithdrawal.amount,
-                      selectedWithdrawal.balance_currency,
+                      selectedWithdrawal.balance_currency
                     )}
                   </div>
                   {selectedWithdrawal.amount_to_pay && (
@@ -334,7 +328,7 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                       ? "Н/Д"
                       : formatAmountWithCurrency(
                           selectedWithdrawal.user_balance,
-                          selectedWithdrawal.balance_currency,
+                          selectedWithdrawal.balance_currency
                         )}
                   </div>
                 </div>
