@@ -766,7 +766,7 @@ const renderSupportContent = (isRussian: boolean) => {
 };
 
 const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
-  const { t, locale } = useLocale();
+  const { t, tEn, locale } = useLocale();
 
   const renderContent = () => {
     const isRussian = locale === "ru";
@@ -827,9 +827,9 @@ const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
             <ArrowLeft size={12} /> {t("legalPage.returnToBase")}
           </button>
           <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4">
-            {t("legalPage.legal")} <br />{" "}
+            {tEn("legalPage.pageTitlePrefix")} <br />{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">
-              {t("legalPage.protocol")}
+              {tEn("legalPage.pageTitle")}
             </span>
           </h1>
           <div className="flex items-center gap-2 text-[10px] font-mono text-pandora-cyan tracking-widest uppercase">

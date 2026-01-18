@@ -273,7 +273,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
   onFilterChange,
   activeFilter = "all_time",
 }) => {
-  const { t } = useLocale();
+  const { t, tEn } = useLocale();
   const { currency: contextCurrency } = useLocaleContext();
   // Use controlled filter from parent or internal state
   const [internalFilter, setInternalFilter] = useState<"weekly" | "all_time">("all_time");
@@ -398,9 +398,9 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
               <ArrowLeft size={12} /> {t("empty.returnToBase").toUpperCase()}
             </button>
             <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4">
-              {t("leaderboard.titlePrefix")} <br />{" "}
+              {tEn("leaderboard.pageTitlePrefix")} <br />{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">
-                {t("leaderboard.title")}
+                {tEn("leaderboard.pageTitle")}
               </span>
             </h1>
             <div className="text-sm font-mono text-gray-500 uppercase tracking-widest mb-4">

@@ -32,7 +32,7 @@ const Orders: React.FC<OrdersProps> = ({
   onOpenSupport,
   onSubmitReview,
 }) => {
-  const { t } = useLocale();
+  const { t, tEn } = useLocale();
   // Use provided orders - NO MOCK fallback
   const ordersData = propOrders || [];
   const [activeTab, setActiveTab] = useState<"all" | "active" | "log">("all");
@@ -220,7 +220,7 @@ const Orders: React.FC<OrdersProps> = ({
             <ArrowLeft size={12} /> {t("empty.returnToBase").toUpperCase()}
           </button>
           <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4">
-            {t("orders.title").toUpperCase()}
+            {tEn("orders.pageTitle")}
           </h1>
           <div className="flex items-center gap-2 text-[10px] font-mono text-pandora-cyan tracking-widest uppercase">
             <Terminal size={12} />

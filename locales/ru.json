@@ -505,7 +505,15 @@
   "profile": {
     "career": {
       "title": "Уровень // Карьера",
-      "howItWorks": "КАК ЭТО РАБОТАЕТ"
+      "howItWorks": "КАК ЭТО РАБОТАЕТ",
+      "currentRank": "Текущий ранг",
+      "turnover": "Оборот:",
+      "nextLevelFormat": "ДАЛЕЕ: {label} ({price})",
+      "maxLevel": "МАКС. УРОВЕНЬ",
+      "nextUnlock": "След. разблок",
+      "maximumClearance": "МАКС. ДОПУСК",
+      "eliteOperatorApply": "ELITE_OPERATOR | РЕГИСТРАЦИЯ",
+      "eliteOperatorActive": "ELITE_OPERATOR | АКТИВЕН"
     },
     "title": "МОЙ ПРОФИЛЬ",
     "balance": "БАЛАНС",

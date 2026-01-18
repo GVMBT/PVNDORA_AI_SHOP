@@ -81,7 +81,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
           {/* Current Status Info */}
           <div className="w-full md:w-48 shrink-0">
-            <div className="text-[10px] text-gray-500 font-mono uppercase mb-1">Current Rank</div>
+            <div className="text-[10px] text-gray-500 font-mono uppercase mb-1">{t("profile.career.currentRank")}</div>
             <div
               className={`text-2xl font-display font-bold ${currentLevel.color} flex items-center gap-2`}
             >
@@ -89,7 +89,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
               {getLevelIcon(currentLevel.id)}
             </div>
             <div className="text-[10px] text-gray-600 mt-1 font-mono">
-              Turnover:{" "}
+              {t("profile.career.turnover")}{" "}
               <span className="text-white font-bold">{formatPrice(currentTurnover, currency)}</span>{" "}
               {maxTurnover === Infinity ? "" : `/ ${formatPrice(maxTurnover, currency)}`}
             </div>
@@ -115,10 +115,13 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
               <span>{formatPrice(currentLevel.min, currency)}</span>
               {nextLevel ? (
                 <span>
-                  NEXT: {nextLevel.label} ({formatPrice(nextLevel.min, currency)})
+                  {t("profile.career.nextLevelFormat", {
+                    label: nextLevel.label,
+                    price: formatPrice(nextLevel.min, currency),
+                  })}
                 </span>
               ) : (
-                <span>MAX LEVEL</span>
+                <span>{t("profile.career.maxLevel")}</span>
               )}
             </div>
           </div>
@@ -127,11 +130,11 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
           <div className="hidden md:flex flex-col items-end w-40 shrink-0 text-right opacity-80">
             {nextLevel ? (
               <>
-                <div className="text-[9px] text-gray-500 font-mono uppercase mb-1">Next Unlock</div>
+                <div className="text-[9px] text-gray-500 font-mono uppercase mb-1">{t("profile.career.nextUnlock")}</div>
                 <div className={`text-sm font-bold ${nextLevel.color}`}>{nextLevel.label}</div>
               </>
             ) : (
-              <div className="text-pandora-cyan font-bold text-sm">MAXIMUM CLEARANCE</div>
+              <div className="text-pandora-cyan font-bold text-sm">{t("profile.career.maximumClearance")}</div>
             )}
           </div>
         </div>
@@ -160,7 +163,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
               <span className="relative z-10 flex items-center gap-2">
                 <ShieldCheck size={14} className="group-hover:scale-110 transition-transform" />
                 <span className="group-hover:text-white transition-colors">
-                  ELITE_OPERATOR | РЕГИСТРАЦИЯ
+                  {t("profile.career.eliteOperatorApply")}
                 </span>
                 <Star
                   size={12}
@@ -178,7 +181,7 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
           <div className="mt-6 pt-4 border-t border-white/10 text-center">
             <div className="inline-flex items-center gap-2 text-pandora-cyan font-mono text-xs uppercase bg-pandora-cyan/10 border border-pandora-cyan/30 px-4 py-2">
               <ShieldCheck size={14} />
-              <span>ELITE_OPERATOR | АКТИВЕН</span>
+              <span>{t("profile.career.eliteOperatorActive")}</span>
               <Star size={12} />
             </div>
           </div>

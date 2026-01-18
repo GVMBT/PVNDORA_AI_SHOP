@@ -137,7 +137,7 @@ def _determine_stream_keys(channels_param: str, user_id: str | None) -> list[str
     return stream_keys
 
 
-@router.get("/api/realtime")
+@router.get("/realtime")
 async def realtime_stream(
     request: Request, user: Any = None  # Optional auth via verify_telegram_auth
 ) -> StreamingResponse:

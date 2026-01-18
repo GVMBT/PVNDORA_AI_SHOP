@@ -278,30 +278,32 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
             </div>
           </div>
 
-          {/* Reward Toggle - shown for all users with referrals */}
-          <div className="mt-4 flex items-center justify-between text-[10px] font-mono text-gray-500 border-t border-white/5 pt-3">
-            <span>{t("profile.uplink.rewardPreference").toUpperCase()}:</span>
-            <button
-              type="button"
-              onClick={onToggleRewardMode}
-              className={`flex items-center gap-2 font-bold px-3 py-1 border rounded-sm transition-colors ${
-                rewardMode === "cash"
-                  ? "border-green-500 text-green-500 bg-green-500/10"
-                  : "border-purple-500 text-purple-500 bg-purple-500/10"
-              }`}
-            >
-              {rewardMode === "cash" ? (
-                <>
-                  <Wallet size={12} /> {t("profile.uplink.cashOut").toUpperCase()}
-                </>
-              ) : (
-                <>
-                  <Percent size={12} /> {t("profile.uplink.discount").toUpperCase()}
-                </>
-              )}
-              <RefreshCw size={12} className="ml-1 opacity-50" />
-            </button>
-          </div>
+          {/* Reward Toggle - VIP only */}
+          {user.isVip && (
+            <div className="mt-4 flex items-center justify-between text-[10px] font-mono text-gray-500 border-t border-white/5 pt-3">
+              <span>{t("profile.uplink.rewardPreference").toUpperCase()}:</span>
+              <button
+                type="button"
+                onClick={onToggleRewardMode}
+                className={`flex items-center gap-2 font-bold px-3 py-1 border rounded-sm transition-colors ${
+                  rewardMode === "cash"
+                    ? "border-green-500 text-green-500 bg-green-500/10"
+                    : "border-purple-500 text-purple-500 bg-purple-500/10"
+                }`}
+              >
+                {rewardMode === "cash" ? (
+                  <>
+                    <Wallet size={12} /> {t("profile.uplink.cashOut").toUpperCase()}
+                  </>
+                ) : (
+                  <>
+                    <Percent size={12} /> {t("profile.uplink.discount").toUpperCase()}
+                  </>
+                )}
+                <RefreshCw size={12} className="ml-1 opacity-50" />
+              </button>
+            </div>
+          )}
 
           {/* Language Settings (Currency removed after RUB-only migration) */}
           {onUpdatePreferences && (

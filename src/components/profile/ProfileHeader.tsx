@@ -7,6 +7,7 @@
 import { ArrowLeft, Crown, LayoutDashboard, User } from "lucide-react";
 import type React from "react";
 import { memo } from "react";
+import { useLocale } from "../../hooks/useLocale";
 import type { ProfileDataProp } from "./types";
 
 interface ProfileHeaderProps {
@@ -16,6 +17,7 @@ interface ProfileHeaderProps {
 }
 
 const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onBack, onAdminEnter }) => {
+  const { t, tEn } = useLocale();
   return (
     <>
       {/* Unified Header */}
@@ -25,12 +27,12 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onBack, onAdminEnte
           onClick={onBack}
           className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
         >
-          <ArrowLeft size={12} /> RETURN_TO_BASE
+          <ArrowLeft size={12} /> {t("empty.returnToBase")}
         </button>
         <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4">
-          OPERATIVE <br />{" "}
+          {tEn("profile.header.pageTitlePrefix")} <br />{" "}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">
-            PROFILE
+            {tEn("profile.header.pageTitle")}
           </span>
         </h1>
         <div className="flex items-center gap-2 text-[10px] font-mono text-pandora-cyan tracking-widest uppercase">

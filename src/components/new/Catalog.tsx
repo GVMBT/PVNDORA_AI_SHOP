@@ -67,7 +67,7 @@ const Catalog: React.FC<CatalogProps> = ({
   onAddToCart,
   onHaptic,
 }) => {
-  const { t } = useLocale();
+  const { t, tEn } = useLocale();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [activeAvailability, setActiveAvailability] = useState<AvailabilityFilter>("All");
@@ -196,7 +196,7 @@ const Catalog: React.FC<CatalogProps> = ({
         <div>
           <h2 className="text-3xl font-display font-bold text-white mb-2 flex items-center gap-3">
             <span className="w-2 h-8 bg-pandora-cyan block rounded-sm shadow-[0_0_10px_#00FFFF]"></span>
-            {t("catalog.title")}
+            {tEn("catalog.pageTitle")}
           </h2>
           <p className="text-gray-500 font-mono text-xs tracking-widest uppercase flex items-center gap-2">
             <Cpu size={12} className="text-pandora-cyan" />

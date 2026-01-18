@@ -178,6 +178,7 @@
 
   "orders": {
     "title": "TRANSACTION LOGS",
+    "pageTitle": "TRANSACTION LOGS",
     "subtitle": "Access Keys & History",
     "empty": "NO LOGS FOUND",
     "emptyHint": "Initialize your first Node to generate logs.",
@@ -262,6 +263,8 @@
   "leaderboard": {
     "titlePrefix": "PROTOCOL:",
     "title": "SYSTEM_BYPASS",
+    "pageTitlePrefix": "LEADERBOARD:",
+    "pageTitle": "TOP_SAVINGS",
     "subtitle": "ELITE_OPERATIVES",
     "yourRank": "Your Rank",
     "yourSavings": "Your Profit",
@@ -502,9 +505,21 @@
   },
 
   "profile": {
+    "header": {
+      "pageTitlePrefix": "OPERATIVE",
+      "pageTitle": "PROFILE"
+    },
     "career": {
       "title": "Network Clearance // Career Path",
-      "howItWorks": "HOW IT WORKS"
+      "howItWorks": "HOW IT WORKS",
+      "currentRank": "Current Rank",
+      "turnover": "Turnover:",
+      "nextLevelFormat": "NEXT: {label} ({price})",
+      "maxLevel": "MAX LEVEL",
+      "nextUnlock": "Next Unlock",
+      "maximumClearance": "MAXIMUM CLEARANCE",
+      "eliteOperatorApply": "ELITE_OPERATOR | REGISTRATION",
+      "eliteOperatorActive": "ELITE_OPERATOR | ACTIVE"
     },
     "title": "OPERATIVE PROFILE",
     "balance": "CREDITS",
@@ -785,6 +800,8 @@
     "returnToBase": "RETURN_TO_BASE",
     "legal": "LEGAL",
     "protocol": "PROTOCOL",
+    "pageTitlePrefix": "LEGAL",
+    "pageTitle": "PROTOCOL",
     "documentId": "DOCUMENT_ID",
     "docHash": "DOC_HASH",
     "lastUpdated": "LAST_UPDATED"

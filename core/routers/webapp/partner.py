@@ -236,13 +236,16 @@ async def get_partner_dashboard(user=Depends(verify_telegram_auth)):
 async def set_partner_mode(
     request: PartnerModeRequest, user: Any = Depends(verify_telegram_auth)
 ) -> dict[str, Any]:
-    """Toggle partner mode between commission and discount."""
+    """Toggle partner mode between commission and discount.
+
+    VIP (is_partner) only. _verify_partner_access enforces this.
+    """
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail=ERR_USER_NOT_FOUND)
 
-    await _verify_partner_access(db, db_user.id)
+    await _verify_partner_access(db, db_user.id)  # VIP (is_partner) only
 
     if request.mode not in ["commission", "discount"]:
         raise HTTPException(status_code=400, detail="Mode must be 'commission' or 'discount'")

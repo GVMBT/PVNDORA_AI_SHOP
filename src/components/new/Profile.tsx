@@ -170,7 +170,7 @@ const Profile: React.FC<ProfileProps> = ({
   };
 
   const toggleRewardMode = async () => {
-    if (!user.isVip && !user.role.includes("ADMIN")) return;
+    if (!user.isVip) return;  // VIP only
     if (onHaptic) onHaptic("medium");
 
     const newMode = rewardMode === "cash" ? "discount" : "cash";
