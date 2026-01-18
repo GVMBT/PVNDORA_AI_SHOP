@@ -10,10 +10,11 @@ import { logger } from "../utils/logger";
 interface AdminRealtimeCallbacks {
   onWithdrawalUpdate?: () => void;
   onOrderCreated?: () => void;
+  onAccountingUpdate?: () => void;
 }
 
 export function useAdminRealtime(callbacks: AdminRealtimeCallbacks) {
-  const { onWithdrawalUpdate, onOrderCreated } = callbacks;
+  const { onWithdrawalUpdate, onOrderCreated, onAccountingUpdate } = callbacks;
 
   // Subscribe to withdrawal updates
   useRealtime({

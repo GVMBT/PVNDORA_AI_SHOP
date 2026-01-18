@@ -5,7 +5,7 @@
  */
 
 import { useRealtime } from "@upstash/realtime/client";
-import { useOrdersTyped } from "./api/useApiTyped";
+import { useOrdersTyped } from "./useApiTyped";
 import { logger } from "../utils/logger";
 
 export function useOrdersRealtime() {

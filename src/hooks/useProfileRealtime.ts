@@ -4,7 +4,6 @@
  * Subscribes to profile.updated events and refreshes profile data automatically.
  */
 
-import { useEffect } from "react";
 import { useRealtime } from "@upstash/realtime/client";
 import { useProfileTyped } from "./api/useProfileApi";
 import { logger } from "../utils/logger";
