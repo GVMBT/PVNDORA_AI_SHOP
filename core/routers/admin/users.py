@@ -424,6 +424,14 @@ async def admin_update_user_balance(
             logger.error(f"Failed to update balance via RPC: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to update user balance")
 
+        # Emit realtime event for profile update
+        try:
+            from core.realtime import emit_profile_update
+
+            await emit_profile_update(user_id, {"balance_updated": True, "admin_adjustment": True})
+        except Exception as e:
+            logger.warning(f"Failed to emit profile.updated event: {e}", exc_info=True)
+
         return {
             "success": True,
             "old_balance": current_balance,
@@ -519,6 +527,14 @@ async def admin_toggle_vip(
         )
 
         await _send_vip_notification(telegram_id, is_partner)
+
+        # Emit realtime event for profile update (VIP status changed)
+        try:
+            from core.realtime import emit_profile_update
+
+            await emit_profile_update(user_id, {"vip_status_changed": True, "is_partner": is_partner})
+        except Exception as e:
+            logger.warning(f"Failed to emit profile.updated event: {e}", exc_info=True)
 
         return {
             "success": True,

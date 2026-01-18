@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCart } from "../../contexts/CartContext";
 import { useLocaleContext } from "../../contexts/LocaleContext";
 import { useProfileTyped } from "../../hooks/useApiTyped";
+import { useProfileRealtime } from "../../hooks/useProfileRealtime";
 import { useClipboard } from "../../hooks/useClipboard";
 import { useLocale } from "../../hooks/useLocale";
 import { useTelegram } from "../../hooks/useTelegram";
@@ -75,6 +76,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
     };
     init();
   }, [getProfile, updateFromProfile]);
+
+  // Real-time updates for profile
+  useProfileRealtime();
 
   // Auto-refresh profile when page becomes visible (handles returning from Telegram notifications)
   useEffect(() => {

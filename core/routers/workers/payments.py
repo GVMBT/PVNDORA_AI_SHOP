@@ -111,6 +111,14 @@ async def _update_order_expenses(db: Any, order_id: str, cashback_usd: float) ->
         logger.info(
             f"Updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD",
         )
+        
+        # Emit realtime event for accounting update
+        try:
+            from core.realtime import emit_admin_accounting_update
+
+            await emit_admin_accounting_update("cashback_updated", order_id=order_id)
+        except Exception as e:
+            logger.warning(f"Failed to emit admin.accounting.updated event: {e}", exc_info=True)
     else:
         # Create order_expenses first
         logger.warning(
@@ -126,6 +134,14 @@ async def _update_order_expenses(db: Any, order_id: str, cashback_usd: float) ->
         logger.info(
             f"Created and updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD",
         )
+        
+        # Emit realtime event for accounting update
+        try:
+            from core.realtime import emit_admin_accounting_update
+
+            await emit_admin_accounting_update("cashback_updated", order_id=order_id)
+        except Exception as e:
+            logger.warning(f"Failed to emit admin.accounting.updated event: {e}", exc_info=True)
 
 
 async def _convert_to_usd(amount: float, currency: str) -> float:

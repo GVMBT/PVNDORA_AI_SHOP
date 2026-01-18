@@ -296,6 +296,17 @@ async def request_withdrawal(
     except Exception as e:
         logger.warning(f"Failed to send withdrawal alert: {e}")
 
+    # Emit realtime events
+    try:
+        from core.realtime import emit_profile_update, emit_admin_withdrawal_update
+
+        # Emit profile update (balance reserved)
+        await emit_profile_update(str(db_user.id), {"withdrawal_created": True})
+        # Emit admin event (new withdrawal)
+        await emit_admin_withdrawal_update(request_id, "pending", str(db_user.id))
+    except Exception as e:
+        logger.warning(f"Failed to emit realtime events: {e}", exc_info=True)
+
     return {
         "success": True,
         "message": "Withdrawal request submitted",
@@ -371,6 +382,17 @@ async def cancel_withdrawal(
                 },
             ).execute()
             logger.info(f"Returned {amount_debited} {balance_currency} to user after withdrawal cancellation")
+            
+            # Emit realtime events
+            try:
+                from core.realtime import emit_profile_update, emit_admin_withdrawal_update
+
+                # Emit profile update (balance returned)
+                await emit_profile_update(str(db_user.id), {"withdrawal_cancelled": True})
+                # Emit admin event (withdrawal cancelled)
+                await emit_admin_withdrawal_update(withdrawal_id, "cancelled", str(db_user.id))
+            except Exception as e:
+                logger.warning(f"Failed to emit realtime events: {e}", exc_info=True)
         except Exception:
             logger.exception("Failed to return balance after withdrawal cancellation")
             raise HTTPException(

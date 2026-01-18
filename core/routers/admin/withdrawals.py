@@ -386,6 +386,15 @@ async def reject_withdrawal(
             .execute()
         )
 
+        # Emit realtime events
+        try:
+            from core.realtime import emit_admin_withdrawal_update
+
+            user_id = withdrawal.get("user_id")
+            await emit_admin_withdrawal_update(withdrawal_id, "rejected", user_id)
+        except Exception as e:
+            logger.warning(f"Failed to emit admin.withdrawal.updated event: {e}", exc_info=True)
+
         logger.info(
             "Admin %s rejected withdrawal %s",
             sanitize_id_for_logging(admin_id),
@@ -479,6 +488,15 @@ async def complete_withdrawal(
             .eq("id", withdrawal_id)
             .execute()
         )
+
+        # Emit realtime events
+        try:
+            from core.realtime import emit_admin_withdrawal_update
+
+            user_id = withdrawal.get("user_id")
+            await emit_admin_withdrawal_update(withdrawal_id, "completed", user_id)
+        except Exception as e:
+            logger.warning(f"Failed to emit admin.withdrawal.updated event: {e}", exc_info=True)
 
         logger.info(
             "Admin %s marked withdrawal %s as completed",

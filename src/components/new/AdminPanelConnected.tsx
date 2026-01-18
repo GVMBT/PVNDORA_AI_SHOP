@@ -9,6 +9,7 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type PromoCodeData, useAdminPromoTyped } from "../../hooks/api/useAdminPromoApi";
 import { useAdmin } from "../../hooks/useAdmin";
+import { useAdminRealtime } from "../../hooks/useAdminRealtime";
 import {
   type AdminProduct,
   useAdminAnalyticsTyped,
@@ -341,6 +342,13 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
     getPromoCodes,
     getUsers,
   ]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Real-time updates for admin panel
+  useAdminRealtime({
+    onWithdrawalUpdate: fetchWithdrawals,
+    onOrderCreated: () => getOrders(undefined, 50),
+    onAccountingUpdate: () => fetchAccounting("all", undefined, undefined, "RUB"),
+  });
 
   // ALL useMemo hooks MUST be before any conditional returns (Rules of Hooks)
 

@@ -14,6 +14,7 @@ from .orders import router as orders_router
 from .partner import router as partner_router
 from .profile import router as profile_router
 from .public import router as public_router
+from .realtime import router as realtime_router
 
 # Create main router with prefix
 router = APIRouter(prefix="/api/webapp", tags=["webapp"])
@@ -27,6 +28,7 @@ router.include_router(orders_router)
 router.include_router(cart_router)
 router.include_router(misc_router)
 router.include_router(ai_chat_router)
+router.include_router(realtime_router)
 
 # Export for backward compatibility
 __all__ = ["router"]

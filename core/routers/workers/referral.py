@@ -620,6 +620,27 @@ async def worker_calculate_referral(request: Request) -> dict[str, Any]:
         # Send notifications to referrers about earned bonuses
         await _send_referral_bonus_notifications(db, notification_service, bonuses, user_id, amount)
 
+        # Emit realtime events for profile and leaderboard updates
+        try:
+            from core.realtime import emit_profile_update, emit_leaderboard_update
+
+            # Update buyer profile (turnover changed)
+            if level_up:
+                await emit_profile_update(user_id, {"turnover_updated": True, "level_up": True})
+
+            # Update referrers' profiles (bonuses credited)
+            bonuses_data = bonuses.get("bonuses", []) if isinstance(bonuses, dict) else []
+            for bonus in bonuses_data:
+                if isinstance(bonus, dict):
+                    referrer_id = bonus.get("user_id")
+                    if referrer_id:
+                        await emit_profile_update(str(referrer_id), {"bonus_received": True})
+
+            # Leaderboard update (turnover changed)
+            await emit_leaderboard_update(user_id)
+        except Exception as e:
+            logger.warning(f"Failed to emit realtime events after referral bonus: {e}", exc_info=True)
+
         return {
             "success": True,
             "turnover": turnover_data,

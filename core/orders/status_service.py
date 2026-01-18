@@ -134,6 +134,29 @@ class OrderStatusService:
                 logger.warning("[StatusService] NO ROWS UPDATED! Order might not exist.")
                 return False
 
+            # Emit realtime event for order status change
+            try:
+                from core.realtime import emit_order_status_change
+
+                # Get user_id from order (for user-specific events)
+                order_result = (
+                    await self.db.client.table("orders")
+                    .select("user_id, status")
+                    .eq("id", order_id)
+                    .single()
+                    .execute()
+                )
+                if order_result.data and isinstance(order_result.data, dict):
+                    user_id = order_result.data.get("user_id")
+                    current_status = order_result.data.get("status", new_status)
+                    items_delivered = current_status in ("delivered", "partial")
+                    if user_id:
+                        await emit_order_status_change(
+                            order_id, str(user_id), str(current_status), items_delivered
+                        )
+            except Exception as e:
+                logger.warning(f"Failed to emit order.status.changed event: {e}", exc_info=True)
+
             logger.info("Updated order status successfully")
             return True
         except Exception:
@@ -274,6 +297,20 @@ class OrderStatusService:
 
             # Create order_expenses for accounting
             await self._create_order_expenses_if_needed(update_result, order_id)
+
+            # Emit realtime events for frontend updates
+            try:
+                from core.realtime import emit_order_status_change, emit_profile_update
+
+                # Emit order status change
+                items_delivered = final_status in ("delivered", "partial")
+                await emit_order_status_change(order_id, user_id or "", final_status, items_delivered)
+
+                # Emit profile update (balance changed)
+                if user_id:
+                    await emit_profile_update(user_id, {"balance_updated": True})
+            except Exception as e:
+                logger.warning(f"Failed to emit realtime events: {e}", exc_info=True)
 
             return final_status
 
@@ -798,6 +835,14 @@ class OrderStatusService:
             logger.debug("[mark_payment_confirmed] Creating order_expenses")
             await self.db.client.rpc("calculate_order_expenses", {"p_order_id": order_id}).execute()
             logger.debug("[mark_payment_confirmed] Successfully created order_expenses")
+            
+            # Emit realtime event for accounting update
+            try:
+                from core.realtime import emit_admin_accounting_update
+
+                await emit_admin_accounting_update("order_expenses_created", order_id=order_id)
+            except Exception as e:
+                logger.warning(f"Failed to emit admin.accounting.updated event: {e}", exc_info=True)
         except Exception:
             logger.warning("Failed to create order_expenses", exc_info=True)
             # Non-critical - don't fail payment confirmation

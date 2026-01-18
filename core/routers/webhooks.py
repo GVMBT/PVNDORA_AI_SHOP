@@ -600,6 +600,14 @@ async def _process_topup_balance_update(
         f"CrystalPay TOPUP webhook: SUCCESS! User {user_id} balance: {current_balance:.2f} -> {new_balance:.2f} {balance_currency}",
     )
 
+    # Emit realtime event for profile update
+    try:
+        from core.realtime import emit_profile_update
+
+        await emit_profile_update(user_id, {"balance_updated": True})
+    except Exception as e:
+        logger.warning(f"Failed to emit profile.updated event: {e}", exc_info=True)
+
     return amount_to_add, balance_currency, user_telegram_id, new_balance
 
 

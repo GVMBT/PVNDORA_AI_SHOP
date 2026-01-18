@@ -1465,6 +1465,14 @@ async def recalculate_order_expenses(order_id: str, admin=Depends(verify_admin))
 
     await db.client.rpc("calculate_order_expenses", {"p_order_id": order_id}).execute()
 
+    # Emit realtime event for accounting update
+    try:
+        from core.realtime import emit_admin_accounting_update
+
+        await emit_admin_accounting_update("order_expenses_recalculated", order_id=order_id)
+    except Exception as e:
+        logger.warning(f"Failed to emit admin.accounting.updated event: {e}", exc_info=True)
+
     # Fetch updated expenses
     expenses = (
         await db.client.table("order_expenses")
@@ -1560,6 +1568,15 @@ async def create_expense(expense: ExpenseCreate, admin=Depends(verify_admin)):
     }
 
     result = await db.client.table("expenses").insert(data).execute()
+    
+    # Emit realtime event for accounting update
+    try:
+        from core.realtime import emit_admin_accounting_update
+
+        expense_id = result.data[0].get("id") if result.data else None
+        await emit_admin_accounting_update("expense_created", expense_id=expense_id)
+    except Exception as e:
+        logger.warning(f"Failed to emit admin.accounting.updated event: {e}", exc_info=True)
 
     return {"success": True, "expense": result.data[0] if result.data else data}
 

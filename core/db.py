@@ -113,6 +113,147 @@ except ImportError:
             resp.raise_for_status()
             return True
 
+        async def publish(self, channel: str, message: str) -> int:
+            """Publish message to Redis channel (Pub/Sub).
+
+            Args:
+                channel: Channel name
+                message: Message to publish
+
+            Returns:
+                Number of subscribers that received the message
+            """
+            # Upstash REST API: POST /publish/{channel} with body
+            resp = await self.client.post(
+                f"/publish/{channel}",
+                content=message,
+                headers={"Content-Type": "text/plain"},
+            )
+            resp.raise_for_status()
+            result = resp.json().get("result", 0)
+            return int(result) if result else 0
+
+        async def xadd(self, stream_key: str, fields: dict[str, str], entry_id: str = "*") -> str:
+            """Add entry to Redis Stream (XADD command).
+
+            Args:
+                stream_key: Stream key name
+                fields: Dictionary of field-value pairs
+                entry_id: Entry ID (default: "*" for auto-generate)
+
+            Returns:
+                Entry ID
+            """
+            # Upstash REST API: POST /xadd/{stream_key}/{id} with fields as body
+            # Format: {"field1": "value1", "field2": "value2"}
+            resp = await self.client.post(
+                f"/xadd/{stream_key}/{entry_id}",
+                json=fields,
+            )
+            resp.raise_for_status()
+            result = resp.json().get("result", "")
+            return str(result) if result else entry_id
+            # Upstash REST API: POST /xadd/{stream_key}/{entry_id} with fields as body
+            # Format: {"field1": "value1", "field2": "value2"}
+            resp = await self.client.post(
+                f"/xadd/{stream_key}/{entry_id}",
+                json=fields,
+            )
+            resp.raise_for_status()
+            result = resp.json().get("result", "")
+            return str(result) if result else entry_id
+
+        async def xread(
+            self,
+            streams: dict[str, str],
+            count: int | None = None,
+            block: int | None = None,
+        ) -> list[tuple[str, list[tuple[str, dict[str, str]]]]]:
+            """Read entries from Redis Streams (XREAD command).
+
+            Args:
+                streams: Dictionary mapping stream keys to entry IDs (e.g., {"stream1": "0"})
+                count: Maximum number of entries per stream
+                block: Block time in milliseconds (0 for non-blocking)
+
+            Returns:
+                List of (stream_key, [(entry_id, {field: value, ...}), ...]) tuples
+            """
+            # Upstash REST API: POST /xread with streams, count, block
+            params: dict[str, Any] = {"streams": streams}
+            if count is not None:
+                params["count"] = count
+            if block is not None:
+                params["block"] = block
+
+            resp = await self.client.post("/xread", json=params)
+            resp.raise_for_status()
+            result = resp.json().get("result", [])
+            return self._parse_xread_result(result)
+
+        def _parse_xread_result(
+            self, result: Any
+        ) -> list[tuple[str, list[tuple[str, dict[str, str]]]]]:
+            """Parse XREAD result into structured format (reduces cognitive complexity).
+
+            Args:
+                result: Raw result from Redis XREAD
+
+            Returns:
+                List of (stream_key, [(entry_id, {field: value, ...}), ...]) tuples
+            """
+            parsed: list[tuple[str, list[tuple[str, dict[str, str]]]]] = []
+            if not isinstance(result, list):
+                return parsed
+
+            for stream_data in result:
+                if not isinstance(stream_data, list) or len(stream_data) < 2:
+                    continue
+
+                stream_key = str(stream_data[0])
+                entries_raw = stream_data[1] if isinstance(stream_data[1], list) else []
+                entries = self._parse_stream_entries(entries_raw)
+                parsed.append((stream_key, entries))
+
+            return parsed
+
+        def _parse_stream_entries(
+            self, entries_raw: list[Any]
+        ) -> list[tuple[str, dict[str, str]]]:
+            """Parse stream entries (reduces cognitive complexity).
+
+            Args:
+                entries_raw: Raw entries list from stream
+
+            Returns:
+                List of (entry_id, fields_dict) tuples
+            """
+            entries: list[tuple[str, dict[str, str]]] = []
+            for entry_raw in entries_raw:
+                if not isinstance(entry_raw, list) or len(entry_raw) < 2:
+                    continue
+
+                entry_id = str(entry_raw[0])
+                fields_raw = entry_raw[1] if isinstance(entry_raw[1], list) else []
+                fields = self._parse_entry_fields(fields_raw)
+                entries.append((entry_id, fields))
+
+            return entries
+
+        def _parse_entry_fields(self, fields_raw: list[Any]) -> dict[str, str]:
+            """Parse entry fields from [field, value, ...] to {field: value, ...}.
+
+            Args:
+                fields_raw: Raw fields list [field1, value1, field2, value2, ...]
+
+            Returns:
+                Dictionary mapping field names to values
+            """
+            fields: dict[str, str] = {}
+            for i in range(0, len(fields_raw) - 1, 2):
+                fields[str(fields_raw[i])] = str(fields_raw[i + 1])
+            return fields
+
     # Use fallback for both sync/async interfaces
     AsyncRedis = AsyncRedisFallback  # type: ignore
     Redis = AsyncRedisFallback  # type: ignore

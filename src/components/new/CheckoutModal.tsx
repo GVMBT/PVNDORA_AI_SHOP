@@ -254,52 +254,106 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
             {step === "success" && (
               <motion.div
                 key="success"
-                initial={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="py-12 sm:py-16 flex flex-col items-center justify-center text-center min-h-[400px]"
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                className="py-12 sm:py-20 flex flex-col items-center justify-center text-center min-h-[450px]"
               >
-                {/* Icon Container with proper spacing */}
-                <div className="relative mb-8 pb-4">
+                {/* Icon Container with enhanced visual effects */}
+                <div className="relative mb-10 pb-6">
+                  {/* Glow effect behind icon */}
                   <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                    className="w-20 h-20 rounded-full bg-green-500/10 border-2 border-green-500 flex items-center justify-center mx-auto"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.1, duration: 0.6 }}
+                    className="absolute inset-0 -top-2 -bottom-2 -left-2 -right-2 bg-green-500/20 rounded-full blur-xl"
+                  />
+                  
+                  {/* Pulsing ring effect */}
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.6, 0.3] }}
+                    transition={{
+                      delay: 0.3,
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                    className="absolute inset-0 rounded-full border-2 border-green-500/40"
+                  />
+
+                  {/* Main icon container */}
+                  <motion.div
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{
+                      delay: 0.2,
+                      type: "spring",
+                      stiffness: 200,
+                      damping: 15,
+                    }}
+                    className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-green-500/10 border-2 border-green-500 flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(34,197,94,0.3)]"
                   >
-                    <CheckCircle size={48} className="text-green-500" />
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.4, type: "spring", stiffness: 300 }}
+                    >
+                      <CheckCircle size={56} className="text-green-500 sm:w-14 sm:h-14" strokeWidth={2.5} />
+                    </motion.div>
                   </motion.div>
+
+                  {/* Status badge with improved styling */}
                   <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-mono text-green-500 bg-green-900/30 px-2 py-0.5 rounded whitespace-nowrap"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6, duration: 0.4 }}
+                    className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[10px] font-mono font-bold text-green-400 bg-green-950/60 border border-green-500/30 px-3 py-1 rounded-full whitespace-nowrap backdrop-blur-sm shadow-[0_0_10px_rgba(34,197,94,0.2)]"
                   >
                     {t("checkout.success.status")}
                   </motion.div>
                 </div>
 
-                {/* Title with proper spacing */}
-                <h3 className="text-xl sm:text-2xl font-display font-bold text-white mb-3 px-4">
+                {/* Title with improved typography and spacing */}
+                <motion.h3
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5, duration: 0.5 }}
+                  className="text-2xl sm:text-3xl font-display font-bold text-white mb-4 px-4 tracking-tight"
+                >
                   {t("checkout.success.title")}
-                </h3>
+                </motion.h3>
 
-                {/* Description with proper spacing */}
-                <p className="text-xs sm:text-sm font-mono text-gray-400 max-w-xs mb-8 px-4 leading-relaxed">
-                  {t("checkout.success.description1")}
-                  <br className="hidden sm:block" />
-                  <span className="sm:hidden"> </span>
-                  {t("checkout.success.description2")}
-                </p>
+                {/* Description with better readability */}
+                <motion.div
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7, duration: 0.5 }}
+                  className="text-sm sm:text-base font-mono text-gray-300 max-w-sm mb-10 px-4 leading-relaxed space-y-2"
+                >
+                  <p>{t("checkout.success.description1")}</p>
+                  <p className="text-gray-400">{t("checkout.success.description2")}</p>
+                </motion.div>
 
-                {/* Button with proper spacing */}
-                <button
+                {/* Enhanced button with better visual feedback */}
+                <motion.button
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.9, duration: 0.4 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   type="button"
                   onClick={closeSuccess}
-                  className="bg-white text-black font-bold py-3 px-8 hover:bg-gray-200 transition-colors text-sm sm:text-base"
+                  className="relative bg-white text-black font-display font-bold py-4 px-10 sm:px-12 hover:bg-gray-100 transition-all duration-200 text-sm sm:text-base uppercase tracking-wider shadow-[0_4px_20px_rgba(255,255,255,0.2)] hover:shadow-[0_6px_30px_rgba(255,255,255,0.3)] overflow-hidden group"
                 >
-                  {t("checkout.success.button")}
-                </button>
+                  {/* Subtle shine effect on hover */}
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"
+                    initial={false}
+                  />
+                  <span className="relative z-10">{t("checkout.success.button")}</span>
+                </motion.button>
               </motion.div>
             )}
           </AnimatePresence>

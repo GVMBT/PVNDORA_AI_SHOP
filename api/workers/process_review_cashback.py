@@ -158,6 +158,14 @@ async def _credit_user_balance(
         .execute()
     )
 
+    # Emit realtime event for profile update (cashback received)
+    try:
+        from core.realtime import emit_profile_update
+
+        await emit_profile_update(str(user.id), {"balance_updated": True, "cashback_received": True})
+    except Exception as e:
+        logger.warning(f"Failed to emit profile.updated event: {e}", exc_info=True)
+
     return new_balance
 
 

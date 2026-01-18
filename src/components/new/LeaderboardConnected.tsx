@@ -9,6 +9,7 @@ import type React from "react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { PAGINATION } from "../../config";
 import { useLeaderboardTyped } from "../../hooks/useApiTyped";
+import { useLeaderboardRealtime } from "../../hooks/useLeaderboardRealtime";
 import { useLocale } from "../../hooks/useLocale";
 import Leaderboard from "./Leaderboard";
 
@@ -31,6 +32,9 @@ const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) =
     };
     init();
   }, [getLeaderboard]);
+
+  // Real-time updates for leaderboard
+  useLeaderboardRealtime();
 
   // Handle filter change - reset and reload with new period
   const handleFilterChange = useCallback(

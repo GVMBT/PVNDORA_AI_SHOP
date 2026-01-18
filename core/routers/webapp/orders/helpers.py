@@ -529,6 +529,18 @@ async def create_order_with_items(
             detail="Failed to create order items. Please try again.",
         )
 
+    # Emit realtime event for admin panel (new order created)
+    try:
+        from core.realtime import emit_admin_order_created
+
+        await emit_admin_order_created(
+            order_id=order.id,
+            user_id=str(db_user.id),
+            total_amount=to_float(total_amount),
+        )
+    except Exception as e:
+        logger.warning(f"Failed to emit admin.order.created event: {e}", exc_info=True)
+
     return order
 
 

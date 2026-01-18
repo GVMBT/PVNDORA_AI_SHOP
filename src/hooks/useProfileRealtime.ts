@@ -1,0 +1,25 @@
+/**
+ * Profile Realtime Hook
+ *
+ * Subscribes to profile.updated events and refreshes profile data automatically.
+ */
+
+import { useEffect } from "react";
+import { useRealtime } from "@upstash/realtime/client";
+import { useProfileTyped } from "./api/useProfileApi";
+import { logger } from "../utils/logger";
+
+export function useProfileRealtime() {
+  const { getProfile } = useProfileTyped();
+
+  useRealtime({
+    event: "profile.updated",
+    onData: (data) => {
+      logger.debug("Profile updated via realtime", data);
+      // Refresh profile data
+      getProfile().catch((err) => {
+        logger.error("Failed to refresh profile after realtime event", err);
+      });
+    },
+  });
+}

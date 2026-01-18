@@ -697,4 +697,18 @@ async def _deliver_items_for_order(
             db,
         )
 
+    # Emit realtime events for order status change
+    if order_data:
+        try:
+            from core.realtime import emit_order_status_change
+
+            user_id = order_data.get("user_id")
+            items_delivered = new_status in ("delivered", "partial")
+            if user_id:
+                await emit_order_status_change(
+                    order_id, str(user_id), new_status, items_delivered
+                )
+        except Exception as e:
+            logger.warning(f"Failed to emit order.status.changed event: {e}", exc_info=True)
+
     return {"delivered": delivered_count, "waiting": waiting_count}

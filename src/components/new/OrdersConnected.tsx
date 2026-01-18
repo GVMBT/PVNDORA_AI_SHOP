@@ -7,6 +7,7 @@
 import type React from "react";
 import { memo, useCallback, useEffect, useState } from "react";
 import { useOrdersTyped, useReviewsTyped } from "../../hooks/useApiTyped";
+import { useOrdersRealtime } from "../../hooks/useOrdersRealtime";
 import { useLocale } from "../../hooks/useLocale";
 import { logger } from "../../utils/logger";
 import Orders, { type RefundContext } from "./Orders";
@@ -29,6 +30,9 @@ const OrdersConnected: React.FC<OrdersConnectedProps> = ({ onBack, onOpenSupport
     };
     init();
   }, [getOrders]);
+
+  // Real-time updates for orders
+  useOrdersRealtime();
 
   const handleSubmitReview = useCallback(
     async (orderId: string, rating: number, text?: string, orderItemId?: string) => {

@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { RealtimeProvider } from "@upstash/realtime/client";
 import { ErrorBoundary } from "./components/app";
 import { CartProvider } from "./contexts/CartContext";
 import { AudioEngine } from "./lib/AudioEngine";
@@ -59,9 +60,17 @@ if (!rootElement) {
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <CartProvider>
-        <NewApp />
-      </CartProvider>
+      <RealtimeProvider
+        api={{
+          url: "/api/webapp/realtime",
+          withCredentials: false,
+        }}
+        maxReconnectAttempts={5}
+      >
+        <CartProvider>
+          <NewApp />
+        </CartProvider>
+      </RealtimeProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );
