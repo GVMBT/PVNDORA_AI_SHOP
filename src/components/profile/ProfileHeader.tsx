@@ -4,7 +4,7 @@
  * User identity card with avatar, name, handle, and admin access button.
  */
 
-import { ArrowLeft, Crown, LayoutDashboard, User } from "lucide-react";
+import { ArrowLeft, Crown, LayoutDashboard, Sparkles, User } from "lucide-react";
 import type React from "react";
 import { memo } from "react";
 import { useLocale } from "../../hooks/useLocale";
@@ -14,9 +14,10 @@ interface ProfileHeaderProps {
   user: ProfileDataProp;
   onBack: () => void;
   onAdminEnter?: () => void;
+  onStudioEnter?: () => void;
 }
 
-const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onBack, onAdminEnter }) => {
+const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onBack, onAdminEnter, onStudioEnter }) => {
   const { t, tEn } = useLocale();
   return (
     <>
@@ -83,17 +84,31 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onBack, onAdminEnte
             </div>
           </div>
         </div>
-        {/* Admin Entry */}
-        {user.role === "ADMIN" && (
-          <button
-            type="button"
-            onClick={onAdminEnter}
-            className="flex items-center gap-2 bg-red-900/10 border border-red-500/30 text-red-500 px-4 py-2 hover:bg-red-500 hover:text-white transition-all text-xs font-mono font-bold uppercase tracking-widest"
-          >
-            <LayoutDashboard size={14} />
-            ACCESS_ADMIN_PANEL
-          </button>
-        )}
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          {/* Studio Entry - visible for admins */}
+          {user.role === "ADMIN" && onStudioEnter && (
+            <button
+              type="button"
+              onClick={onStudioEnter}
+              className="flex items-center gap-2 bg-yellow-900/10 border border-yellow-500/30 text-yellow-500 px-4 py-2 hover:bg-yellow-500 hover:text-black transition-all text-xs font-mono font-bold uppercase tracking-widest"
+            >
+              <Sparkles size={14} />
+              STUDIO_BETA
+            </button>
+          )}
+          {/* Admin Entry */}
+          {user.role === "ADMIN" && onAdminEnter && (
+            <button
+              type="button"
+              onClick={onAdminEnter}
+              className="flex items-center gap-2 bg-red-900/10 border border-red-500/30 text-red-500 px-4 py-2 hover:bg-red-500 hover:text-white transition-all text-xs font-mono font-bold uppercase tracking-widest"
+            >
+              <LayoutDashboard size={14} />
+              ACCESS_ADMIN_PANEL
+            </button>
+          )}
+        </div>
       </div>
     </>
   );

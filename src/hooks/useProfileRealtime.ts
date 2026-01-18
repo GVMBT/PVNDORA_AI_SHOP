@@ -5,8 +5,8 @@
  */
 
 import { useRealtime } from "@upstash/realtime/client";
-import { useProfileTyped } from "./api/useProfileApi";
 import { logger } from "../utils/logger";
+import { useProfileTyped } from "./api/useProfileApi";
 
 export function useProfileRealtime() {
   const { getProfile } = useProfileTyped();

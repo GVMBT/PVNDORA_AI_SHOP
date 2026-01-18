@@ -81,7 +81,9 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
           {/* Current Status Info */}
           <div className="w-full md:w-48 shrink-0">
-            <div className="text-[10px] text-gray-500 font-mono uppercase mb-1">{t("profile.career.currentRank")}</div>
+            <div className="text-[10px] text-gray-500 font-mono uppercase mb-1">
+              {t("profile.career.currentRank")}
+            </div>
             <div
               className={`text-2xl font-display font-bold ${currentLevel.color} flex items-center gap-2`}
             >
@@ -130,11 +132,15 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
           <div className="hidden md:flex flex-col items-end w-40 shrink-0 text-right opacity-80">
             {nextLevel ? (
               <>
-                <div className="text-[9px] text-gray-500 font-mono uppercase mb-1">{t("profile.career.nextUnlock")}</div>
+                <div className="text-[9px] text-gray-500 font-mono uppercase mb-1">
+                  {t("profile.career.nextUnlock")}
+                </div>
                 <div className={`text-sm font-bold ${nextLevel.color}`}>{nextLevel.label}</div>
               </>
             ) : (
-              <div className="text-pandora-cyan font-bold text-sm">{t("profile.career.maximumClearance")}</div>
+              <div className="text-pandora-cyan font-bold text-sm">
+                {t("profile.career.maximumClearance")}
+              </div>
             )}
           </div>
         </div>

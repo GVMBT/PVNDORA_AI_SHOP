@@ -6,8 +6,8 @@
 
 import { useRealtime } from "@upstash/realtime/client";
 import { PAGINATION } from "../config";
-import { useLeaderboardTyped } from "./api/useLeaderboardApi";
 import { logger } from "../utils/logger";
+import { useLeaderboardTyped } from "./api/useLeaderboardApi";
 
 export function useLeaderboardRealtime() {
   const { getLeaderboard } = useLeaderboardTyped();

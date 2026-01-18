@@ -407,6 +407,14 @@ async def _update_user_total_saved(db: Any, order_data: dict[str, Any], order_id
         logger.info(
             f"deliver-goods: Updated total_saved for user {user_id}: {current_saved:.2f} -> {new_saved:.2f}",
         )
+
+        # Emit leaderboard update (savings changed affects leaderboard)
+        try:
+            from core.realtime import emit_leaderboard_update
+
+            await emit_leaderboard_update(user_id)
+        except Exception as e:
+            logger.warning(f"Failed to emit leaderboard update: {e}")
     except Exception:
         logger.exception(f"deliver-goods: Failed to update total_saved for order {order_id}")
 

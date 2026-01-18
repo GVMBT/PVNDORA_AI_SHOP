@@ -269,7 +269,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     transition={{ delay: 0.1, duration: 0.6 }}
                     className="absolute inset-0 -top-2 -bottom-2 -left-2 -right-2 bg-green-500/20 rounded-full blur-xl"
                   />
-                  
+
                   {/* Pulsing ring effect */}
                   <motion.div
                     initial={{ scale: 0.8, opacity: 0 }}
@@ -300,7 +300,11 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       animate={{ scale: 1 }}
                       transition={{ delay: 0.4, type: "spring", stiffness: 300 }}
                     >
-                      <CheckCircle size={56} className="text-green-500 sm:w-14 sm:h-14" strokeWidth={2.5} />
+                      <CheckCircle
+                        size={56}
+                        className="text-green-500 sm:w-14 sm:h-14"
+                        strokeWidth={2.5}
+                      />
                     </motion.div>
                   </motion.div>
 

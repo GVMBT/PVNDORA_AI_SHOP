@@ -27,6 +27,7 @@ const LeaderboardConnected = lazyWithRetry(() => import("../new/LeaderboardConne
 const OrdersConnected = lazyWithRetry(() => import("../new/OrdersConnected"));
 const ProfileConnected = lazyWithRetry(() => import("../new/ProfileConnected"));
 const Legal = lazyWithRetry(() => import("../new/Legal"));
+const StudioContainer = lazyWithRetry(() => import("../studio/StudioPage"));
 
 export type ViewType =
   | "home"
@@ -35,6 +36,7 @@ export type ViewType =
   | "leaderboard"
   | "legal"
   | "admin"
+  | "studio"
   | "payment-result";
 
 interface AppRouterProps {
@@ -86,6 +88,20 @@ function renderAdminView(onNavigate: (view: ViewType) => void) {
   );
 }
 
+// Helper: Render studio view
+function renderStudioView(onNavigate: (view: ViewType) => void) {
+  return (
+    <Suspense fallback={<ViewLoader />}>
+      <StudioContainer
+        key="studio"
+        userBalance={1000}
+        onNavigateHome={() => onNavigate("home")}
+        onTopUp={() => onNavigate("profile")}
+      />
+    </Suspense>
+  );
+}
+
 // Helper: Render profile view
 function renderProfileView(
   onNavigate: (view: ViewType) => void,
@@ -98,6 +114,7 @@ function renderProfileView(
         onBack={() => onNavigate("home")}
         onHaptic={onHaptic}
         onAdminEnter={() => onNavigate("admin")}
+        onStudioEnter={() => onNavigate("studio")}
       />
     </Suspense>
   );
@@ -199,6 +216,9 @@ function AppRouterComponent({
     }
     if (currentView === "admin") {
       return renderAdminView(onNavigate);
+    }
+    if (currentView === "studio") {
+      return renderStudioView(onNavigate);
     }
     if (currentView === "profile") {
       return renderProfileView(onNavigate, onHaptic);

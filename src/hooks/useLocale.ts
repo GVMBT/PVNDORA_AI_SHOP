@@ -91,36 +91,33 @@ export function useLocale(): UseLocaleReturn {
     [locale]
   );
 
-  const tEn = useCallback(
-    (key: string, params: Record<string, string | number> = {}): string => {
-      const resolveLocaleValue = (
-        localeObj: LocaleObject,
-        keysArray: string[]
-      ): LocaleValue | undefined => {
-        let value: LocaleValue | undefined = localeObj;
-        for (const k of keysArray) {
-          if (value && typeof value === "object" && k in value) {
-            value = value[k];
-          } else {
-            return undefined;
-          }
+  const tEn = useCallback((key: string, params: Record<string, string | number> = {}): string => {
+    const resolveLocaleValue = (
+      localeObj: LocaleObject,
+      keysArray: string[]
+    ): LocaleValue | undefined => {
+      let value: LocaleValue | undefined = localeObj;
+      for (const k of keysArray) {
+        if (value && typeof value === "object" && k in value) {
+          value = value[k];
+        } else {
+          return undefined;
         }
-        return value;
-      };
-      const replaceParams = (text: string, paramsObj: Record<string, string | number>): string => {
-        if (Object.keys(paramsObj).length === 0) return text;
-        return text.replaceAll(/\{(\w+)\}/g, (_: string, paramKey: string) =>
-          String(paramsObj[paramKey] ?? `{${paramKey}}`)
-        );
-      };
-      const keys = key.split(".");
-      const value = resolveLocaleValue(locales.en, keys);
-      if (value === undefined) return key;
-      if (typeof value === "string") return replaceParams(value, params);
-      return key;
-    },
-    []
-  );
+      }
+      return value;
+    };
+    const replaceParams = (text: string, paramsObj: Record<string, string | number>): string => {
+      if (Object.keys(paramsObj).length === 0) return text;
+      return text.replaceAll(/\{(\w+)\}/g, (_: string, paramKey: string) =>
+        String(paramsObj[paramKey] ?? `{${paramKey}}`)
+      );
+    };
+    const keys = key.split(".");
+    const value = resolveLocaleValue(locales.en, keys);
+    if (value === undefined) return key;
+    if (typeof value === "string") return replaceParams(value, params);
+    return key;
+  }, []);
 
   const formatPrice = useCallback(
     (amount: number, currencyOverride: CurrencyCode | null = null): string => {

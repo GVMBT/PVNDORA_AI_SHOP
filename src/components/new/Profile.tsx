@@ -28,6 +28,7 @@ interface ProfileProps {
   onBack: () => void;
   onHaptic?: (type?: "light" | "medium") => void;
   onAdminEnter?: () => void;
+  onStudioEnter?: () => void;
   onCopyLink?: () => void;
   onShare?: () => void;
   shareLoading?: boolean;
@@ -49,6 +50,7 @@ const Profile: React.FC<ProfileProps> = ({
   onBack,
   onHaptic,
   onAdminEnter,
+  onStudioEnter,
   onCopyLink,
   onShare: onShareProp,
   shareLoading: _shareLoading,
@@ -170,7 +172,7 @@ const Profile: React.FC<ProfileProps> = ({
   };
 
   const toggleRewardMode = async () => {
-    if (!user.isVip) return;  // VIP only
+    if (!user.isVip) return; // VIP only
     if (onHaptic) onHaptic("medium");
 
     const newMode = rewardMode === "cash" ? "discount" : "cash";
@@ -198,7 +200,7 @@ const Profile: React.FC<ProfileProps> = ({
       className="min-h-screen text-white pt-20 md:pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
     >
       <div className="max-w-7xl mx-auto relative z-10">
-        <ProfileHeader user={user} onBack={onBack} onAdminEnter={onAdminEnter} />
+        <ProfileHeader user={user} onBack={onBack} onAdminEnter={onAdminEnter} onStudioEnter={onStudioEnter} />
 
         <ProfileStats
           user={user}

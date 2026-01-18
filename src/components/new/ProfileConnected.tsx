@@ -9,9 +9,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCart } from "../../contexts/CartContext";
 import { useLocaleContext } from "../../contexts/LocaleContext";
 import { useProfileTyped } from "../../hooks/useApiTyped";
-import { useProfileRealtime } from "../../hooks/useProfileRealtime";
 import { useClipboard } from "../../hooks/useClipboard";
 import { useLocale } from "../../hooks/useLocale";
+import { useProfileRealtime } from "../../hooks/useProfileRealtime";
 import { useTelegram } from "../../hooks/useTelegram";
 import type { WebApp } from "../../types/telegram";
 import type { CurrencyCode } from "../../utils/currency";
@@ -24,9 +24,10 @@ interface ProfileConnectedProps {
   onBack: () => void;
   onHaptic?: (type?: "light" | "medium") => void;
   onAdminEnter?: () => void;
+  onStudioEnter?: () => void;
 }
 
-const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, onAdminEnter }) => {
+const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, onAdminEnter, onStudioEnter }) => {
   const {
     profile,
     getProfile,
@@ -506,6 +507,7 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, o
         onBack={onBack}
         onHaptic={onHaptic}
         onAdminEnter={onAdminEnter}
+        onStudioEnter={onStudioEnter}
         onCopyLink={handleCopyLink}
         onShare={handleShare}
         shareLoading={shareLoading}

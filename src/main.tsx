@@ -1,6 +1,6 @@
+import { RealtimeProvider } from "@upstash/realtime/client";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { RealtimeProvider } from "@upstash/realtime/client";
 import { ErrorBoundary } from "./components/app";
 import { CartProvider } from "./contexts/CartContext";
 import { AudioEngine } from "./lib/AudioEngine";
