@@ -78,6 +78,9 @@ assets/
 # Cursor IDE - ignore everything
 .cursor/
 
+# OpenCode config (contains API keys)
+opencode.json
+
 # OS
 .DS_Store
 .DS_Store?
