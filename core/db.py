@@ -133,16 +133,20 @@ except ImportError:
             result = resp.json().get("result", 0)
             return int(result) if result else 0
 
-        async def xadd(self, stream_key: str, fields: dict[str, str], entry_id: str = "*") -> str:
+        async def xadd(
+            self, stream_key: str, entry_id: str, fields: dict[str, str]
+        ) -> str:
             """Add entry to Redis Stream (XADD command).
 
             Args:
                 stream_key: Stream key name
+                entry_id: Entry ID ("*" for auto-generate)
                 fields: Dictionary of field-value pairs
-                entry_id: Entry ID (default: "*" for auto-generate)
 
             Returns:
                 Entry ID
+
+            Note: Signature matches upstash-redis library: xadd(name, id, data)
             """
             # Upstash REST API: POST /xadd/{stream_key}/{id} with fields as body
             # Format: {"field1": "value1", "field2": "value2"}
@@ -153,15 +157,48 @@ except ImportError:
             resp.raise_for_status()
             result = resp.json().get("result", "")
             return str(result) if result else entry_id
-            # Upstash REST API: POST /xadd/{stream_key}/{entry_id} with fields as body
-            # Format: {"field1": "value1", "field2": "value2"}
-            resp = await self.client.post(
-                f"/xadd/{stream_key}/{entry_id}",
-                json=fields,
-            )
+
+        async def xrange(
+            self,
+            stream_key: str,
+            min: str = "-",
+            max: str = "+",
+            count: int | None = None,
+        ) -> list[tuple[str, dict[str, str]]]:
+            """Read entries from Redis Stream using XRANGE.
+
+            Args:
+                stream_key: Stream key name
+                min: Minimum entry ID (use "-" for earliest, "(id" for exclusive)
+                max: Maximum entry ID (use "+" for latest)
+                count: Maximum number of entries to return
+
+            Returns:
+                List of (entry_id, {field: value, ...}) tuples
+            """
+            # Build command parts for Upstash REST API
+            # Format: /xrange/{key}/{start}/{end}[/COUNT/{count}]
+            url = f"/xrange/{stream_key}/{min}/{max}"
+            if count is not None:
+                url += f"/COUNT/{count}"
+
+            resp = await self.client.get(url)
             resp.raise_for_status()
-            result = resp.json().get("result", "")
-            return str(result) if result else entry_id
+            result = resp.json().get("result", [])
+
+            # Parse result: [[entry_id, [field1, value1, ...]], ...]
+            parsed: list[tuple[str, dict[str, str]]] = []
+            if isinstance(result, list):
+                for entry in result:
+                    if isinstance(entry, list) and len(entry) >= 2:
+                        entry_id = str(entry[0])
+                        fields_list = entry[1] if isinstance(entry[1], list) else []
+                        fields_dict: dict[str, str] = {}
+                        # Convert [field1, value1, field2, value2, ...] to dict
+                        for i in range(0, len(fields_list) - 1, 2):
+                            fields_dict[str(fields_list[i])] = str(fields_list[i + 1])
+                        parsed.append((entry_id, fields_dict))
+            return parsed
 
         async def xread(
             self,

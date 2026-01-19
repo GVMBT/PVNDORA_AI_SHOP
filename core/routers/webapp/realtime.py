@@ -18,8 +18,10 @@ logger = get_logger(__name__)
 
 router = APIRouter(tags=["realtime"])
 
-# Polling interval for reading new stream entries (milliseconds)
-POLL_INTERVAL_MS = 1000  # 1 second
+# Polling interval for reading new stream entries (seconds)
+# Note: upstash-redis REST API does NOT support blocking xread,
+# so we use asyncio.sleep() for polling instead
+POLL_INTERVAL_SECS = 1.0  # 1 second
 
 # Redis Stream key prefixes (constants to avoid duplication)
 STREAM_PREFIX_PROFILE = "stream:realtime:profile:"
@@ -72,15 +74,44 @@ async def _stream_events_generator(
 
     while True:
         try:
-            streams_dict = _build_streams_dict(stream_keys, last_ids)
-            results = await redis.xread(streams=streams_dict, count=1, block=POLL_INTERVAL_MS)
+            # Read from all streams (non-blocking, upstash REST doesn't support block)
+            # We read entries after last_ids for each stream
+            has_events = False
+            for stream_key in stream_keys:
+                last_id = last_ids.get(stream_key, "$")
+                # Use xrange to get entries after last_id (or from beginning if $)
+                if last_id == "$":
+                    # For $, we skip initial read and wait for new entries
+                    # Set to "0" to start reading from next poll
+                    last_ids[stream_key] = "0"
+                    continue
 
-            for event in _process_stream_results(results, last_ids):
-                yield event
+                try:
+                    # Read entries after last_id using xrange
+                    # Format: XRANGE stream_key (last_id +inf COUNT 10
+                    entries = await redis.xrange(stream_key, min=f"({last_id}", max="+", count=10)
+                    if entries:
+                        has_events = True
+                        for entry_id, fields in entries:
+                            last_ids[stream_key] = entry_id
+                            data = fields.get("data", "{}")
+                            if isinstance(data, str):
+                                try:
+                                    parsed = json.loads(data)
+                                    yield f"data: {json.dumps(parsed)}\n\n"
+                                except json.JSONDecodeError:
+                                    logger.warning(f"Invalid JSON in stream {stream_key}: {data}")
+                            else:
+                                yield f"data: {json.dumps(data)}\n\n"
+                except Exception as stream_err:
+                    logger.warning(f"Error reading stream {stream_key}: {stream_err}")
 
             # Send keep-alive if no new entries
-            if not results:
+            if not has_events:
                 yield ": keep-alive\n\n"
+
+            # Wait before next poll (non-blocking polling)
+            await asyncio.sleep(POLL_INTERVAL_SECS)
 
         except asyncio.CancelledError:
             logger.debug("Realtime stream cancelled")

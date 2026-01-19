@@ -40,7 +40,7 @@ async def emit_profile_update(user_id: str, data: dict[str, Any]) -> None:
             "user_id": user_id,
             "data": data,
         }
-        await redis.xadd(stream_key, {"data": json.dumps(payload)})
+        await redis.xadd(stream_key, "*", {"data": json.dumps(payload)})
         logger.debug(f"Emitted profile.updated for user {user_id}")
     except Exception as e:
         logger.warning(f"Failed to emit profile.updated: {e}", exc_info=True)
@@ -67,7 +67,7 @@ async def emit_order_status_change(
             "status": status,
             "items_delivered": items_delivered,
         }
-        await redis.xadd(stream_key, {"data": json.dumps(payload)})
+        await redis.xadd(stream_key, "*", {"data": json.dumps(payload)})
         logger.debug(f"Emitted order.status.changed for order {order_id}")
     except Exception as e:
         logger.warning(f"Failed to emit order.status.changed: {e}", exc_info=True)
@@ -93,12 +93,12 @@ async def emit_admin_withdrawal_update(
             "status": status,
             "user_id": user_id,
         }
-        await redis.xadd(stream_key, {"data": json.dumps(payload)})
+        await redis.xadd(stream_key, "*", {"data": json.dumps(payload)})
 
         # Also send to user if provided
         if user_id:
             user_stream_key = f"stream:realtime:profile:{user_id}"
-            await redis.xadd(user_stream_key, {"data": json.dumps(payload)})
+            await redis.xadd(user_stream_key, "*", {"data": json.dumps(payload)})
 
         logger.debug(f"Emitted admin.withdrawal.updated for withdrawal {withdrawal_id}")
     except Exception as e:
@@ -122,7 +122,7 @@ async def emit_admin_order_created(order_id: str, user_id: str, total_amount: fl
             "user_id": user_id,
             "total_amount": total_amount,
         }
-        await redis.xadd(stream_key, {"data": json.dumps(payload)})
+        await redis.xadd(stream_key, "*", {"data": json.dumps(payload)})
         logger.debug(f"Emitted admin.order.created for order {order_id}")
     except Exception as e:
         logger.warning(f"Failed to emit admin.order.created: {e}", exc_info=True)
@@ -143,7 +143,7 @@ async def emit_leaderboard_update(user_id: str, new_rank: int | None = None) -> 
             "user_id": user_id,
             "new_rank": new_rank,
         }
-        await redis.xadd(stream_key, {"data": json.dumps(payload)})
+        await redis.xadd(stream_key, "*", {"data": json.dumps(payload)})
         logger.debug(f"Emitted leaderboard.updated for user {user_id}")
     except Exception as e:
         logger.warning(f"Failed to emit leaderboard.updated: {e}", exc_info=True)
@@ -168,7 +168,7 @@ async def emit_admin_accounting_update(
             "order_id": order_id,
             "expense_id": expense_id,
         }
-        await redis.xadd(stream_key, {"data": json.dumps(payload)})
+        await redis.xadd(stream_key, "*", {"data": json.dumps(payload)})
         logger.debug(f"Emitted admin.accounting.updated: {change_type}")
     except Exception as e:
         logger.warning(f"Failed to emit admin.accounting.updated: {e}", exc_info=True)

@@ -77,37 +77,77 @@ def _calculate_refund_amount(
     return round(item_price * rate)
 
 
-async def _update_order_status_if_all_refunded(
+async def _update_order_status_after_refund(
     db: Any,
     order_id: str,
+    user_id: str | None,
     processed_orders: set[str],
     results: dict[str, Any],
 ) -> None:
-    """Update order status to refunded if all items are refunded."""
+    """Update order status after refunding items.
+
+    Logic:
+    - If ALL items are in final state (delivered/refunded/cancelled):
+      - If any item is 'delivered' → order.status = 'delivered'
+      - Else (all refunded/cancelled) → order.status = 'refunded'
+    - If some items still pending/prepaid → don't change order status
+    """
     if order_id in processed_orders:
         return
 
-    remaining_items = (
+    # Get all items for this order with their statuses
+    all_items = (
         await db.client.table("order_items")
-        .select("id")
+        .select("id, status")
         .eq("order_id", order_id)
-        .not_.eq("status", "refunded")
         .execute()
     )
 
-    if not remaining_items.data:
-        await (
-            db.client.table("orders")
-            .update(
-                {
-                    "status": "refunded",
-                    "refund_reason": "Auto-refund: fulfillment deadline exceeded",
-                },
-            )
-            .eq("id", order_id)
-            .execute()
-        )
-        results["orders_updated"] += 1
+    if not all_items.data:
+        processed_orders.add(order_id)
+        return
+
+    statuses = [item.get("status", "") for item in all_items.data if isinstance(item, dict)]
+    pending_statuses = {"pending", "prepaid"}
+
+    # Check if any items are still pending
+    has_pending = any(s in pending_statuses for s in statuses)
+    if has_pending:
+        # Some items not yet processed - emit event but don't change order status
+        if user_id:
+            try:
+                from core.realtime import emit_order_status_change
+
+                await emit_order_status_change(order_id, user_id, "partial_refund")
+            except Exception as e:
+                logger.warning(f"Failed to emit order status change: {e}")
+        processed_orders.add(order_id)
+        return
+
+    # All items in final state - determine new order status
+    has_delivered = any(s == "delivered" for s in statuses)
+    new_status = "delivered" if has_delivered else "refunded"
+
+    update_data: dict[str, Any] = {"status": new_status}
+    if new_status == "refunded":
+        update_data["refund_reason"] = "Auto-refund: fulfillment deadline exceeded"
+
+    await (
+        db.client.table("orders")
+        .update(update_data)
+        .eq("id", order_id)
+        .execute()
+    )
+    results["orders_updated"] += 1
+
+    # Emit realtime event for frontend update
+    if user_id:
+        try:
+            from core.realtime import emit_order_status_change
+
+            await emit_order_status_change(order_id, user_id, new_status)
+        except Exception as e:
+            logger.warning(f"Failed to emit order status change: {e}")
 
     processed_orders.add(order_id)
 
@@ -208,8 +248,16 @@ async def _process_single_refund(
             },
         ).execute()
 
-    # 3. Check if order should be marked as refunded
-    await _update_order_status_if_all_refunded(db, str(order_id), processed_orders, results)
+        # Emit profile update for balance change
+        try:
+            from core.realtime import emit_profile_update
+
+            await emit_profile_update(str(user_id), {"balance_changed": True, "refund": True})
+        except Exception as e:
+            logger.warning(f"Failed to emit profile update: {e}")
+
+    # 3. Update order status if all items are in final state
+    await _update_order_status_after_refund(db, str(order_id), user_id, processed_orders, results)
 
     # 4. Notify user
     if telegram_id:
@@ -241,6 +289,30 @@ async def refund_expired_prepaid_entrypoint(request: Request) -> Response:
     }
 
     try:
+        # Step 1: Find orders with expired fulfillment_deadline
+        # fulfillment_deadline is on orders table, not order_items!
+        expired_orders = (
+            await db.client.table("orders")
+            .select("id")
+            .in_("status", ["prepaid", "partial", "paid"])
+            .not_.is_("fulfillment_deadline", "null")
+            .lt("fulfillment_deadline", now.isoformat())
+            .limit(100)
+            .execute()
+        )
+
+        expired_order_ids = [
+            str(o["id"]) for o in (expired_orders.data or []) if isinstance(o, dict) and o.get("id")
+        ]
+
+        if not expired_order_ids:
+            logger.info("refund_expired_prepaid: No expired orders found")
+            return JSONResponse(results)
+
+        logger.info(f"refund_expired_prepaid: Found {len(expired_order_ids)} expired orders")
+
+        # Step 2: Find undelivered items for these orders
+        # Items can be 'pending' or 'prepaid' - both need refund if order deadline expired
         expired_items = (
             await db.client.table("order_items")
             .select(
@@ -253,8 +325,8 @@ async def refund_expired_prepaid_entrypoint(request: Request) -> Response:
                 orders(id, user_id, user_telegram_id, amount, fiat_amount, fiat_currency)
                 """,
             )
-            .eq("status", "prepaid")
-            .lt("fulfillment_deadline", now.isoformat())
+            .in_("order_id", expired_order_ids)
+            .in_("status", ["pending", "prepaid"])
             .limit(50)
             .execute()
         )
