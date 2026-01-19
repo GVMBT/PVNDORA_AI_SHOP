@@ -46,52 +46,52 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
   return (
     <div className="space-y-6">
       {/* Операционные метрики */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard
-          label="Заказов сегодня"
-          value={String(displayStats.ordersToday || 0)}
-          trend={`${displayStats.ordersWeek || 0} за неделю`}
           icon={<ShoppingBag size={20} />}
+          label="Заказов сегодня"
+          trend={`${displayStats.ordersWeek || 0} за неделю`}
+          value={String(displayStats.ordersToday || 0)}
         />
         <StatCard
-          label="Ожидают выдачи"
-          value={String(displayStats.pendingOrders || 0)}
-          trend="Требуют внимания"
-          isNegative={displayStats.pendingOrders > 0}
           icon={<Package size={20} />}
+          isNegative={displayStats.pendingOrders > 0}
+          label="Ожидают выдачи"
+          trend="Требуют внимания"
+          value={String(displayStats.pendingOrders || 0)}
         />
         <StatCard
-          label="Пользователей"
-          value={displayStats.totalUsers.toLocaleString()}
-          trend="Всего зарегистрировано"
           icon={<Users size={20} />}
+          label="Пользователей"
+          trend="Всего зарегистрировано"
+          value={displayStats.totalUsers.toLocaleString()}
         />
         <StatCard
-          label="Открытые тикеты"
-          value={String(displayStats.openTickets || 0)}
-          trend="Требуют ответа"
-          isNegative={displayStats.openTickets > 0}
           icon={<LifeBuoy size={20} />}
+          isNegative={displayStats.openTickets > 0}
+          label="Открытые тикеты"
+          trend="Требуют ответа"
+          value={String(displayStats.openTickets || 0)}
         />
       </div>
 
       {/* График активности */}
-      <div className="bg-[#0e0e0e] border border-white/10 rounded-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-          <span className="text-xs font-mono text-gray-400 uppercase">Выручка за 12 дней</span>
-          <div className="flex items-center gap-2 text-xs text-gray-500">
+      <div className="overflow-hidden rounded-sm border border-white/10 bg-[#0e0e0e]">
+        <div className="flex items-center justify-between border-white/10 border-b px-4 py-3">
+          <span className="font-mono text-gray-400 text-xs uppercase">Выручка за 12 дней</span>
+          <div className="flex items-center gap-2 text-gray-500 text-xs">
             <TrendingUp size={12} />
             <span>${displayStats.totalRevenue?.toFixed(0) || 0} всего</span>
           </div>
         </div>
-        <div className="p-6 h-48 flex items-end justify-between gap-2">
+        <div className="flex h-48 items-end justify-between gap-2 p-6">
           {chartBars.map((bar) => (
             <div
+              className="group relative flex-1 cursor-pointer rounded-t-sm bg-white/5 transition-colors hover:bg-pandora-cyan"
               key={bar.date}
-              className="flex-1 bg-white/5 hover:bg-pandora-cyan transition-colors rounded-t-sm relative group cursor-pointer"
               style={{ height: `${bar.height}%` }}
             >
-              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-black/90 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+              <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-black/90 px-2 py-1 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">
                 {bar.date.slice(5)}: ${bar.amount.toFixed(0)}
               </div>
             </div>
@@ -100,37 +100,37 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ stats }) => {
       </div>
 
       {/* Быстрые действия */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <div className="bg-[#0e0e0e] border border-white/10 p-4 rounded-sm hover:border-pandora-cyan/50 transition-colors cursor-pointer">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+        <div className="cursor-pointer rounded-sm border border-white/10 bg-[#0e0e0e] p-4 transition-colors hover:border-pandora-cyan/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-pandora-cyan/10 rounded-sm flex items-center justify-center">
-              <Package size={18} className="text-pandora-cyan" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-sm bg-pandora-cyan/10">
+              <Package className="text-pandora-cyan" size={18} />
             </div>
             <div>
-              <div className="text-sm font-bold text-white">Каталог</div>
-              <div className="text-xs text-gray-500">Управление товарами</div>
+              <div className="font-bold text-sm text-white">Каталог</div>
+              <div className="text-gray-500 text-xs">Управление товарами</div>
             </div>
           </div>
         </div>
-        <div className="bg-[#0e0e0e] border border-white/10 p-4 rounded-sm hover:border-pandora-cyan/50 transition-colors cursor-pointer">
+        <div className="cursor-pointer rounded-sm border border-white/10 bg-[#0e0e0e] p-4 transition-colors hover:border-pandora-cyan/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-500/10 rounded-sm flex items-center justify-center">
-              <TrendingUp size={18} className="text-green-500" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-sm bg-green-500/10">
+              <TrendingUp className="text-green-500" size={18} />
             </div>
             <div>
-              <div className="text-sm font-bold text-white">Бухгалтерия</div>
-              <div className="text-xs text-gray-500">P&L и финансы</div>
+              <div className="font-bold text-sm text-white">Бухгалтерия</div>
+              <div className="text-gray-500 text-xs">P&L и финансы</div>
             </div>
           </div>
         </div>
-        <div className="bg-[#0e0e0e] border border-white/10 p-4 rounded-sm hover:border-pandora-cyan/50 transition-colors cursor-pointer">
+        <div className="cursor-pointer rounded-sm border border-white/10 bg-[#0e0e0e] p-4 transition-colors hover:border-pandora-cyan/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-500/10 rounded-sm flex items-center justify-center">
-              <Clock size={18} className="text-red-500" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-sm bg-red-500/10">
+              <Clock className="text-red-500" size={18} />
             </div>
             <div>
-              <div className="text-sm font-bold text-white">Поддержка</div>
-              <div className="text-xs text-gray-500">{displayStats.openTickets || 0} тикетов</div>
+              <div className="font-bold text-sm text-white">Поддержка</div>
+              <div className="text-gray-500 text-xs">{displayStats.openTickets || 0} тикетов</div>
             </div>
           </div>
         </div>

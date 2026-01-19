@@ -290,93 +290,93 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
       `}</style>
 
       <div
-        className={`fixed right-4 md:bottom-12 md:right-12 z-[100] flex flex-col items-end pointer-events-none transition-all duration-500 ease-in-out ${raiseOnMobile ? "bottom-48" : "bottom-24"}`}
+        className={`pointer-events-none fixed right-4 z-[100] flex flex-col items-end transition-all duration-500 ease-in-out md:right-12 md:bottom-12 ${raiseOnMobile ? "bottom-48" : "bottom-24"}`}
       >
         {/* Chat Window */}
         <AnimatePresence>
           {isOpen && (
             <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
+              className="pointer-events-auto relative mb-4 flex h-[450px] w-[360px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden border border-pandora-cyan/30 bg-[#050505] shadow-[0_0_40px_rgba(0,255,255,0.15)]"
               exit={{ opacity: 0, y: 20, scale: 0.9 }}
+              initial={{ opacity: 0, y: 20, scale: 0.9 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="pointer-events-auto w-[360px] max-w-[calc(100vw-2rem)] h-[450px] bg-[#050505] border border-pandora-cyan/30 flex flex-col shadow-[0_0_40px_rgba(0,255,255,0.15)] mb-4 relative overflow-hidden"
             >
               {/* Header */}
-              <div className="p-3 border-b border-pandora-cyan/20 bg-gradient-to-r from-pandora-cyan/10 to-transparent flex items-center justify-between shrink-0">
+              <div className="flex shrink-0 items-center justify-between border-pandora-cyan/20 border-b bg-gradient-to-r from-pandora-cyan/10 to-transparent p-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-black/50 border border-pandora-cyan/30 flex items-center justify-center rounded-sm">
-                    <Terminal size={14} className="text-pandora-cyan" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-sm border border-pandora-cyan/30 bg-black/50">
+                    <Terminal className="text-pandora-cyan" size={14} />
                   </div>
                   <div>
-                    <div className="font-mono font-bold text-[10px] tracking-widest text-white">
+                    <div className="font-bold font-mono text-[10px] text-white tracking-widest">
                       UPLINK_SECURE
                     </div>
-                    <div className="font-mono text-[9px] text-pandora-cyan flex items-center gap-1">
-                      <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse" />
+                    <div className="flex items-center gap-1 font-mono text-[9px] text-pandora-cyan">
+                      <span className="h-1 w-1 animate-pulse rounded-full bg-green-500" />
                       <span>CHANNEL_OPEN</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    type="button"
+                    className="rounded p-1 transition-colors hover:bg-white/10"
                     onClick={handleClear}
-                    className="p-1 hover:bg-white/10 rounded transition-colors"
                     title="Clear history"
+                    type="button"
                   >
-                    <Trash2 size={14} className="text-gray-400 hover:text-red-400" />
+                    <Trash2 className="text-gray-400 hover:text-red-400" size={14} />
                   </button>
                   <button
-                    type="button"
+                    className="rounded p-1 transition-colors hover:bg-white/10"
                     onClick={handleRefresh}
-                    className="p-1 hover:bg-white/10 rounded transition-colors"
                     title="Refresh history"
+                    type="button"
                   >
                     <RefreshCw
-                      size={14}
                       className={`text-gray-400 hover:text-pandora-cyan ${loading ? "animate-spin" : ""}`}
+                      size={14}
                     />
                   </button>
                   <button
-                    type="button"
+                    className="rounded p-1 transition-colors hover:bg-white/10"
                     onClick={toggleChat}
-                    className="p-1 hover:bg-white/10 rounded transition-colors"
+                    type="button"
                   >
-                    <ChevronDown size={18} className="text-gray-400 hover:text-white" />
+                    <ChevronDown className="text-gray-400 hover:text-white" size={18} />
                   </button>
                 </div>
               </div>
 
               {/* Messages */}
               <div
+                className="scrollbar-thin scrollbar-thumb-white/10 flex-1 space-y-3 overflow-y-auto p-4"
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin scrollbar-thumb-white/10"
               >
                 {messages.map((msg) => (
                   <motion.div
-                    key={msg.id}
-                    initial={{ opacity: 0, x: msg.sender === "user" ? 10 : -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+                    initial={{ opacity: 0, x: msg.sender === "user" ? 10 : -10 }}
+                    key={msg.id}
                   >
                     <div
-                      className={`max-w-[85%] p-2.5 text-xs font-mono ${getMessageClasses(msg.sender)}`}
+                      className={`max-w-[85%] p-2.5 font-mono text-xs ${getMessageClasses(msg.sender)}`}
                     >
                       {/* Render HTML safely for agent messages */}
                       {msg.sender === "agent" ? (
                         <p
-                          className="leading-relaxed whitespace-pre-wrap"
+                          className="whitespace-pre-wrap leading-relaxed"
                           // biome-ignore lint/security/noDangerouslySetInnerHtml: Intentional - AI agent returns sanitized HTML
                           dangerouslySetInnerHTML={{ __html: msg.text }}
                         />
                       ) : (
-                        <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                        <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
                       )}
                       <span
-                        className={`block text-[9px] mt-1 ${
+                        className={`mt-1 block text-[9px] ${
                           msg.sender === "user"
-                            ? "text-pandora-cyan/50 text-right"
+                            ? "text-right text-pandora-cyan/50"
                             : "text-gray-600"
                         }`}
                       >
@@ -391,13 +391,13 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
 
                 {isTyping && (
                   <motion.div
-                    initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     className="flex justify-start"
+                    initial={{ opacity: 0 }}
                   >
-                    <div className="bg-white/5 border border-white/10 p-2.5 text-xs font-mono text-gray-500">
+                    <div className="border border-white/10 bg-white/5 p-2.5 font-mono text-gray-500 text-xs">
                       <span className="flex items-center gap-2">
-                        <Sparkles size={12} className="animate-pulse text-pandora-cyan" />
+                        <Sparkles className="animate-pulse text-pandora-cyan" size={12} />
                         AI is thinking...
                       </span>
                     </div>
@@ -406,27 +406,27 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
               </div>
 
               {/* Input */}
-              <div className="p-3 border-t border-white/10 bg-black/50 shrink-0">
+              <div className="shrink-0 border-white/10 border-t bg-black/50 p-3">
                 <div className="flex items-center gap-2">
                   <input
-                    type="text"
-                    value={inputValue}
+                    className="flex-1 border border-white/10 bg-white/5 p-2.5 font-mono text-white text-xs placeholder:text-gray-600 focus:border-pandora-cyan/50 focus:outline-none disabled:opacity-50"
+                    disabled={loading || isTyping}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Ask anything..."
-                    disabled={loading || isTyping}
-                    className="flex-1 bg-white/5 border border-white/10 text-white text-xs font-mono p-2.5 focus:outline-none focus:border-pandora-cyan/50 placeholder:text-gray-600 disabled:opacity-50"
+                    type="text"
+                    value={inputValue}
                   />
                   <button
-                    type="button"
-                    onClick={handleSend}
+                    className="border border-pandora-cyan/50 bg-pandora-cyan/20 p-2.5 text-pandora-cyan transition-all hover:bg-pandora-cyan hover:text-black disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={!inputValue.trim() || loading || isTyping}
-                    className="p-2.5 bg-pandora-cyan/20 border border-pandora-cyan/50 text-pandora-cyan hover:bg-pandora-cyan hover:text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={handleSend}
+                    type="button"
                   >
                     <Send size={16} />
                   </button>
                 </div>
-                <p className="text-[9px] text-gray-600 mt-2 font-mono">
+                <p className="mt-2 font-mono text-[9px] text-gray-600">
                   AI powered by Gemini. Can help with products, orders & support.
                 </p>
               </div>
@@ -436,42 +436,42 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
 
         {/* Toggle Button (HUD widget style) */}
         <button
-          type="button"
+          className="group pointer-events-auto relative flex h-16 w-16 items-center justify-center md:h-20 md:w-20"
           onClick={toggleChat}
-          className="pointer-events-auto relative w-16 h-16 md:w-20 md:h-20 flex items-center justify-center group"
+          type="button"
         >
           {/* Status label (desktop) */}
           <motion.div
-            initial={{ x: 20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
+            className="pointer-events-none absolute top-1/2 right-full mr-6 hidden -translate-y-1/2 items-center gap-3 md:flex"
+            initial={{ x: 20, opacity: 0 }}
             transition={{ delay: 0.2 }}
-            className="absolute right-full mr-6 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-3 pointer-events-none"
           >
-            <div className="bg-black/80 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-sm shadow-xl">
-              <div className="text-[10px] font-bold text-pandora-cyan font-mono tracking-widest whitespace-nowrap flex items-center gap-2">
-                <Activity size={10} className="animate-pulse" />
+            <div className="rounded-sm border border-white/10 bg-black/80 px-3 py-1.5 shadow-xl backdrop-blur-md">
+              <div className="flex items-center gap-2 whitespace-nowrap font-bold font-mono text-[10px] text-pandora-cyan tracking-widest">
+                <Activity className="animate-pulse" size={10} />
                 {t("support.systemOnline")}
               </div>
             </div>
-            <div className="w-6 h-px bg-gradient-to-r from-white/20 to-pandora-cyan/50" />
+            <div className="h-px w-6 bg-gradient-to-r from-white/20 to-pandora-cyan/50" />
           </motion.div>
 
           {/* Rings */}
-          <div className="absolute inset-0 rounded-full border border-dashed border-white/20 hud-spin" />
-          <div className="absolute inset-1 rounded-full border border-t-transparent border-l-transparent border-pandora-cyan/30 hud-spin-rev" />
-          <div className="absolute inset-2 bg-pandora-cyan/5 rounded-full blur-md animate-pulse" />
+          <div className="hud-spin absolute inset-0 rounded-full border border-white/20 border-dashed" />
+          <div className="hud-spin-rev absolute inset-1 rounded-full border border-pandora-cyan/30 border-t-transparent border-l-transparent" />
+          <div className="absolute inset-2 animate-pulse rounded-full bg-pandora-cyan/5 blur-md" />
 
           {/* Hexagon core with chat icon */}
-          <div className="relative z-10 w-10 h-10 md:w-12 md:h-12 bg-[#0a0a0a] flex items-center justify-center clip-hexagon group-hover:bg-pandora-cyan transition-colors duration-300 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+          <div className="clip-hexagon relative z-10 flex h-10 w-10 items-center justify-center bg-[#0a0a0a] shadow-[0_0_20px_rgba(0,0,0,0.5)] transition-colors duration-300 group-hover:bg-pandora-cyan md:h-12 md:w-12">
             <MessageSquare
+              className="relative z-20 text-pandora-cyan transition-colors duration-300 group-hover:text-black"
               size={20}
-              className="text-pandora-cyan group-hover:text-black transition-colors duration-300 relative z-20"
             />
           </div>
 
           {/* Notification Dot (always on to match original) */}
-          <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-black z-20 shadow-[0_0_10px_red] animate-bounce">
-            <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-75" />
+          <div className="absolute top-2 right-2 z-20 h-3 w-3 animate-bounce rounded-full border-2 border-black bg-red-500 shadow-[0_0_10px_red]">
+            <span className="absolute inset-0 animate-ping rounded-full bg-red-500 opacity-75" />
           </div>
         </button>
       </div>

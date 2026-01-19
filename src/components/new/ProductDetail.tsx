@@ -166,7 +166,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
   const availabilityData = useMemo(() => {
     const hasStock = product.stock > 0;
     const isPreorder = !hasStock && product.fulfillment > 0;
-    const isDisabled = !hasStock && !isPreorder;
+    const isDisabled = !(hasStock || isPreorder);
     const state = getAvailabilityState(hasStock, isPreorder);
 
     const accessProtocol = getAccessProtocol(state);
@@ -272,9 +272,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
         <motion.div
           key="loading"
           {...motionProps}
-          className="flex items-center gap-3 w-full justify-center"
+          className="flex w-full items-center justify-center gap-3"
         >
-          <Loader2 size={20} className="animate-spin" />
+          <Loader2 className="animate-spin" size={20} />
           <span>
             {isPreorder ? t("product.allocatingQueue") : t("product.allocatingResources")}
           </span>
@@ -287,7 +287,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
         <motion.div
           key="success"
           {...motionProps}
-          className="flex items-center gap-3 w-full justify-center"
+          className="flex w-full items-center justify-center gap-3"
         >
           <CheckCircle size={20} />
           <span>{t("product.accessGranted")}</span>
@@ -296,12 +296,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
     }
 
     return (
-      <motion.div key="idle" {...motionProps} className="w-full flex items-center justify-between">
-        <span className="flex items-center gap-3 text-sm md:text-base group-hover:translate-x-1 transition-transform">
-          <Plus size={20} className="hidden sm:block" />
+      <motion.div key="idle" {...motionProps} className="flex w-full items-center justify-between">
+        <span className="flex items-center gap-3 text-sm transition-transform group-hover:translate-x-1 md:text-base">
+          <Plus className="hidden sm:block" size={20} />
           {isPreorder ? t("product.queueAllocation") : t("product.mountModule")}
         </span>
-        <span className="font-mono text-lg md:text-xl font-bold border-l border-black/20 pl-4 ml-4">
+        <span className="ml-4 border-black/20 border-l pl-4 font-bold font-mono text-lg md:text-xl">
           {formatPrice(product.price * quantity, product.currency)}
         </span>
       </motion.div>
@@ -310,25 +310,25 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      className="relative z-40 min-h-screen bg-transparent px-4 pt-20 pb-48 text-white md:px-8 md:pt-24 md:pb-32 md:pl-28"
       exit={{ opacity: 0 }}
-      className="min-h-screen text-white pt-20 md:pt-24 pb-48 md:pb-32 px-4 md:px-8 md:pl-28 relative z-40 bg-transparent"
+      initial={{ opacity: 0 }}
     >
-      <div className="max-w-7xl mx-auto relative z-10">
+      <div className="relative z-10 mx-auto max-w-7xl">
         {/* === UNIFIED HEADER (Leaderboard Style) === */}
         <div className="mb-8 md:mb-16">
           <button
-            type="button"
+            className="mb-4 flex items-center gap-2 font-mono text-[10px] text-gray-500 transition-colors hover:text-pandora-cyan"
             onClick={onBack}
-            className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
+            type="button"
           >
             <ArrowLeft size={12} /> {t("product.returnToCatalog")}
           </button>
-          <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4 break-words">
+          <h1 className="mb-4 break-words font-black font-display text-3xl text-white uppercase leading-[0.9] tracking-tighter sm:text-4xl md:text-6xl">
             {product.name}
           </h1>
-          <div className="flex items-center gap-2 text-[10px] font-mono text-pandora-cyan tracking-widest uppercase">
+          <div className="flex items-center gap-2 font-mono text-[10px] text-pandora-cyan uppercase tracking-widest">
             <DatabaseIcon category={product.category} />
             <span>
               {t("product.database")} {" // "} {product.category.toUpperCase()} {" // "}{" "}
@@ -337,86 +337,86 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12 mb-12 md:mb-16">
+        <div className="mb-12 grid grid-cols-1 gap-8 md:mb-16 md:gap-12 lg:grid-cols-12">
           {/* === LEFT COLUMN: VISUALIZER === */}
-          <div className="lg:col-span-5 perspective-1000">
+          <div className="perspective-1000 lg:col-span-5">
             <motion.div
-              style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
-              onMouseMove={handleMouseMove}
+              className="group relative aspect-square w-full cursor-crosshair overflow-hidden rounded-sm border border-white/10 bg-[#0a0a0a] shadow-2xl shadow-black/50"
               onMouseLeave={handleMouseLeave}
-              className="relative aspect-square w-full bg-[#0a0a0a] border border-white/10 group cursor-crosshair shadow-2xl shadow-black/50 rounded-sm overflow-hidden"
+              onMouseMove={handleMouseMove}
+              style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
             >
               {/* Visual Layer - Video Loop or Image */}
-              <div className="absolute inset-0 transform-style-3d">
+              <div className="transform-style-3d absolute inset-0">
                 {product.video ? (
                   // Video Loop for visual simulation
                   <video
-                    src={product.video}
                     autoPlay
+                    className="h-full w-full object-cover opacity-80 transition-opacity group-hover:opacity-100"
                     loop
                     muted
                     playsInline
-                    className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                    src={product.video}
                   />
                 ) : (
                   // Standard image for products without video
                   <img
-                    src={product.image}
                     alt={product.name}
-                    className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 grayscale group-hover:grayscale-0"
+                    className="h-full w-full object-cover opacity-60 grayscale transition-all duration-700 group-hover:scale-105 group-hover:opacity-100 group-hover:grayscale-0"
+                    src={product.image}
                   />
                 )}
               </div>
 
               {/* Holographic Overlays */}
               <div
-                className="absolute inset-0 opacity-20 mix-blend-overlay pointer-events-none"
+                className="pointer-events-none absolute inset-0 opacity-20 mix-blend-overlay"
                 style={{
                   backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
                 }}
               />
               <div className="absolute inset-0 bg-[linear-gradient(0deg,rgba(0,0,0,0.8)_0%,transparent_50%)]" />
               <motion.div
+                className="pointer-events-none absolute inset-0 z-20 hidden mix-blend-screen md:block"
                 style={{ background: sheenGradient }}
-                className="absolute inset-0 pointer-events-none z-20 mix-blend-screen hidden md:block"
               />
 
               {/* OVERLAY: Title & Version (Corner) */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 z-30 bg-gradient-to-t from-black/90 to-transparent">
-                <div className="text-3xl font-display font-bold text-white mb-1">
+              <div className="absolute right-0 bottom-0 left-0 z-30 bg-gradient-to-t from-black/90 to-transparent p-4">
+                <div className="mb-1 font-bold font-display text-3xl text-white">
                   {product.name}
                 </div>
-                <div className="text-[10px] font-mono text-pandora-cyan bg-pandora-cyan/10 px-2 py-0.5 inline-block border border-pandora-cyan/20">
+                <div className="inline-block border border-pandora-cyan/20 bg-pandora-cyan/10 px-2 py-0.5 font-mono text-[10px] text-pandora-cyan">
                   {t("product.sysVer")}: {product.version || "1.0.0"}
                 </div>
               </div>
 
               <div className="absolute top-4 right-4 z-30 flex flex-col items-end gap-2">
                 {product.popular && (
-                  <div className="text-[10px] bg-pandora-cyan text-black px-2 py-0.5 font-bold uppercase shadow-[0_0_10px_#00FFFF]">
+                  <div className="bg-pandora-cyan px-2 py-0.5 font-bold text-[10px] text-black uppercase shadow-[0_0_10px_#00FFFF]">
                     {t("product.trending")}
                   </div>
                 )}
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                <div className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
               </div>
             </motion.div>
 
             {/* System Check Visual */}
-            <div className="mt-4 bg-[#0a0a0a] border border-white/10 p-3 hidden md:block">
-              <div className="flex justify-between items-center text-[10px] font-mono text-gray-500 mb-2">
+            <div className="mt-4 hidden border border-white/10 bg-[#0a0a0a] p-3 md:block">
+              <div className="mb-2 flex items-center justify-between font-mono text-[10px] text-gray-500">
                 <span className="flex items-center gap-2">
                   <Cpu size={12} /> {t("product.compatibilityCheck")}
                 </span>
                 <span className="text-pandora-cyan">{systemCheck}%</span>
               </div>
-              <div className="w-full h-1 bg-gray-800 relative overflow-hidden">
+              <div className="relative h-1 w-full overflow-hidden bg-gray-800">
                 <div
                   className="h-full bg-pandora-cyan shadow-[0_0_10px_#00FFFF]"
                   style={{ width: `${systemCheck}%`, transition: "width 0.2s ease" }}
                 />
               </div>
               {systemCheck === 100 && (
-                <div className="mt-2 text-[10px] text-green-500 font-mono flex items-center gap-1">
+                <div className="mt-2 flex items-center gap-1 font-mono text-[10px] text-green-500">
                   <CheckCircle size={10} /> {t("product.systemOptimized")}
                 </div>
               )}
@@ -424,35 +424,35 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
           </div>
 
           {/* === RIGHT COLUMN: DATA MATRIX & SPECS === */}
-          <div className="lg:col-span-7 flex flex-col gap-8">
+          <div className="flex flex-col gap-8 lg:col-span-7">
             {/* 1. DATA MATRIX (Price & ID) - REWORKED LAYOUT */}
-            <div className="bg-[#0c0c0c] border border-white/10 p-1 rounded-sm">
+            <div className="rounded-sm border border-white/10 bg-[#0c0c0c] p-1">
               <div className="grid grid-cols-2 divide-x divide-white/10">
                 {/* Block 1: SKU & Status */}
-                <div className="p-4 flex flex-col justify-between h-24">
-                  <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest mb-1">
+                <div className="flex h-24 flex-col justify-between p-4">
+                  <div className="mb-1 font-mono text-[9px] text-gray-500 uppercase tracking-widest">
                     {t("product.moduleIdentifier")}
                   </div>
-                  <div className="text-lg font-mono text-white font-bold">{product.sku}</div>
+                  <div className="font-bold font-mono text-lg text-white">{product.sku}</div>
                   <div className="mt-auto flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full ${statusDotColor}`} />
-                    <span className={`text-[9px] font-mono uppercase ${nodeStatusColor}`}>
+                    <div className={`h-1.5 w-1.5 rounded-full ${statusDotColor}`} />
+                    <span className={`font-mono text-[9px] uppercase ${nodeStatusColor}`}>
                       {statusText}
                     </span>
                   </div>
                 </div>
                 {/* Block 2: Price */}
-                <div className="p-4 flex flex-col justify-between h-24 bg-white/[0.02]">
-                  <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest mb-1 text-right">
+                <div className="flex h-24 flex-col justify-between bg-white/[0.02] p-4">
+                  <div className="mb-1 text-right font-mono text-[9px] text-gray-500 uppercase tracking-widest">
                     {t("product.allocationCost")}
                   </div>
                   <div className="text-right">
                     {product.msrp && (
-                      <div className="text-xs text-gray-600 line-through decoration-red-500/50 mb-1">
+                      <div className="mb-1 text-gray-600 text-xs line-through decoration-red-500/50">
                         {formatPrice(product.msrp, product.currency)}
                       </div>
                     )}
-                    <div className="text-3xl font-display font-bold text-white text-shadow-glow flex justify-end gap-1">
+                    <div className="flex justify-end gap-1 font-bold font-display text-3xl text-shadow-glow text-white">
                       {formatPrice(product.price, product.currency)}
                     </div>
                   </div>
@@ -462,17 +462,17 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
 
             {/* 2. TABS & CONTENT */}
             <div className="flex-1">
-              <div className="flex border-b border-white/10 mb-6 gap-6 md:gap-8 overflow-x-auto scrollbar-hide">
+              <div className="scrollbar-hide mb-6 flex gap-6 overflow-x-auto border-white/10 border-b md:gap-8">
                 {(["specs", "files", "manifest"] as const).map((tab) => (
                   <button
-                    type="button"
-                    key={tab}
-                    onClick={() => handleTabChange(tab as TabType)}
-                    className={`pb-3 text-[10px] font-mono font-bold uppercase tracking-widest border-b-2 transition-all relative group whitespace-nowrap ${
+                    className={`group relative whitespace-nowrap border-b-2 pb-3 font-bold font-mono text-[10px] uppercase tracking-widest transition-all ${
                       activeTab === tab
                         ? "border-pandora-cyan text-pandora-cyan"
                         : "border-transparent text-gray-600 hover:text-white"
                     }`}
+                    key={tab}
+                    onClick={() => handleTabChange(tab as TabType)}
+                    type="button"
                   >
                     {getTabLabel(tab, t)}
                   </button>
@@ -485,11 +485,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
                   {activeTab === "specs" && (
                     <ProductSpecs
                       accessProtocol={accessProtocol}
-                      warrantyLabel={warrantyLabel}
-                      durationLabel={durationLabel}
                       deliveryLabel={deliveryLabel}
+                      durationLabel={durationLabel}
                       nodeStatus={nodeStatus}
                       nodeStatusColor={nodeStatusColor}
+                      warrantyLabel={warrantyLabel}
                     />
                   )}
 
@@ -510,16 +510,16 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
         </div>
 
         {/* === INCOMING TRANSMISSIONS (Rubber Spacing) === */}
-        <div className="border-t border-white/10 pt-8 mt-4 md:mt-8">
-          <div className="flex items-center gap-4 mb-6 md:mb-8">
-            <div className="w-10 h-10 bg-white/5 border border-white/10 flex items-center justify-center rounded-sm">
-              <Radio className="text-pandora-cyan animate-pulse" size={20} />
+        <div className="mt-4 border-white/10 border-t pt-8 md:mt-8">
+          <div className="mb-6 flex items-center gap-4 md:mb-8">
+            <div className="flex h-10 w-10 items-center justify-center rounded-sm border border-white/10 bg-white/5">
+              <Radio className="animate-pulse text-pandora-cyan" size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-display font-bold text-white uppercase tracking-wider">
+              <h3 className="font-bold font-display text-lg text-white uppercase tracking-wider">
                 {t("product.incomingTransmissions")}
               </h3>
-              <div className="text-[10px] font-mono text-gray-500 uppercase flex items-center gap-3">
+              <div className="flex items-center gap-3 font-mono text-[10px] text-gray-500 uppercase">
                 <span>{t("product.userLogs")}</span>
                 <span className="text-pandora-cyan">● {t("product.liveFeed")}</span>
                 <span>
@@ -529,43 +529,43 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {(product.reviews || []).map((review, i) => (
               <div
+                className="group relative overflow-hidden border border-white/10 bg-black/40 p-5 transition-all hover:border-white/30"
                 key={review.id || i}
-                className="bg-black/40 border border-white/10 p-5 relative group overflow-hidden hover:border-white/30 transition-all"
               >
                 {/* Scanline for log effect */}
-                <div className="absolute top-0 left-0 w-full h-[1px] bg-pandora-cyan/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute top-0 left-0 h-[1px] w-full bg-pandora-cyan/30 opacity-0 transition-opacity group-hover:opacity-100" />
 
-                <div className="flex justify-between items-start mb-3">
+                <div className="mb-3 flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="font-mono text-xs font-bold text-pandora-cyan bg-pandora-cyan/10 px-2 py-0.5 border border-pandora-cyan/20 truncate max-w-[150px]">
+                    <div className="max-w-[150px] truncate border border-pandora-cyan/20 bg-pandora-cyan/10 px-2 py-0.5 font-bold font-mono text-pandora-cyan text-xs">
                       {review.user || "ANON"}
                     </div>
                     {review.verified && (
-                      <span className="flex items-center gap-1 text-[9px] text-green-500 font-mono border border-green-900 bg-green-900/10 px-1.5 py-0.5 rounded-sm">
+                      <span className="flex items-center gap-1 rounded-sm border border-green-900 bg-green-900/10 px-1.5 py-0.5 font-mono text-[9px] text-green-500">
                         <CheckCircle size={8} /> {t("product.verified")}
                       </span>
                     )}
                   </div>
-                  <div className="text-[10px] font-mono text-gray-600">{review.date}</div>
+                  <div className="font-mono text-[10px] text-gray-600">{review.date}</div>
                 </div>
 
-                <div className="font-mono text-sm text-gray-300 leading-relaxed mb-4 pl-4 border-l border-white/10">
+                <div className="mb-4 border-white/10 border-l pl-4 font-mono text-gray-300 text-sm leading-relaxed">
                   "{review.text}"
                 </div>
 
-                <div className="flex items-center justify-between border-t border-white/5 pt-3">
+                <div className="flex items-center justify-between border-white/5 border-t pt-3">
                   <div className="flex gap-1">
                     {Array.from({ length: 5 }).map((_, starIndex) => (
                       <div
+                        className={`h-1.5 w-1.5 rounded-full ${starIndex < review.rating ? "bg-pandora-cyan" : "bg-gray-800"}`}
                         key={`star-${review.id}-${starIndex}`}
-                        className={`w-1.5 h-1.5 rounded-full ${starIndex < review.rating ? "bg-pandora-cyan" : "bg-gray-800"}`}
                       />
                     ))}
                   </div>
-                  <div className="text-[9px] font-mono text-gray-600 uppercase">
+                  <div className="font-mono text-[9px] text-gray-600 uppercase">
                     {t("product.signalStrength")}
                   </div>
                 </div>
@@ -575,43 +575,43 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
         </div>
 
         {/* === CROSS SELL SECTION: COMPATIBLE MODULES === */}
-        <div className="mt-16 pt-8 border-t border-white/10">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xs font-mono font-bold text-gray-400 uppercase flex items-center gap-2">
+        <div className="mt-16 border-white/10 border-t pt-8">
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 font-bold font-mono text-gray-400 text-xs uppercase">
               <Server size={14} /> {t("product.compatibleModules")}
             </h3>
-            <div className="text-[9px] font-mono text-pandora-cyan">
+            <div className="font-mono text-[9px] text-pandora-cyan">
               {t("product.aiRecommendation")}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {relatedProducts.map((rel) => (
               <button
+                className="group flex cursor-pointer gap-3 border border-white/10 bg-[#0a0a0a] p-3 text-left transition-all hover:border-pandora-cyan/50 hover:bg-white/[0.02]"
                 key={rel.id}
-                type="button"
                 onClick={() => onProductSelect?.(rel)}
-                className="bg-[#0a0a0a] border border-white/10 p-3 flex gap-3 cursor-pointer hover:border-pandora-cyan/50 hover:bg-white/[0.02] transition-all group text-left"
+                type="button"
               >
-                <div className="w-12 h-12 bg-black shrink-0 border border-white/10 relative overflow-hidden">
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden border border-white/10 bg-black">
                   <img
-                    src={rel.image}
                     alt={rel.name}
-                    className="w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 group-hover:opacity-100 transition-all"
+                    className="h-full w-full object-cover opacity-60 grayscale transition-all group-hover:opacity-100 group-hover:grayscale-0"
+                    src={rel.image}
                   />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-white truncate group-hover:text-pandora-cyan transition-colors">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-bold text-white text-xs transition-colors group-hover:text-pandora-cyan">
                     {rel.name}
                   </div>
-                  <div className="text-[9px] font-mono text-gray-500 mb-1">
+                  <div className="mb-1 font-mono text-[9px] text-gray-500">
                     {rel.category} {" // "} {rel.stock > 0 ? "ONLINE" : "OFFLINE"}
                   </div>
-                  <div className="text-xs font-mono text-white font-bold">
+                  <div className="font-bold font-mono text-white text-xs">
                     {formatPrice(rel.price, rel.currency)}
                   </div>
                 </div>
-                <div className="flex items-center text-gray-600 group-hover:text-pandora-cyan group-hover:translate-x-1 transition-all">
+                <div className="flex items-center text-gray-600 transition-all group-hover:translate-x-1 group-hover:text-pandora-cyan">
                   <ArrowRight size={14} />
                 </div>
               </button>
@@ -621,24 +621,24 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
       </div>
 
       {/* --- STICKY FOOTER (CLEAN TACTICAL STYLE) --- */}
-      <div className="fixed bottom-0 left-0 md:left-20 right-0 bg-[#050505]/95 backdrop-blur-md border-t border-white/10 p-4 z-[60]">
-        <div className="max-w-7xl mx-auto flex gap-4 h-14 md:h-16">
+      <div className="fixed right-0 bottom-0 left-0 z-[60] border-white/10 border-t bg-[#050505]/95 p-4 backdrop-blur-md md:left-20">
+        <div className="mx-auto flex h-14 max-w-7xl gap-4 md:h-16">
           {/* QUANTITY CONTROL (Left) */}
-          <div className="flex items-center bg-black/50 border border-white/20 w-36 shrink-0 rounded-sm overflow-hidden">
+          <div className="flex w-36 shrink-0 items-center overflow-hidden rounded-sm border border-white/20 bg-black/50">
             <button
-              type="button"
+              className="flex h-full w-12 items-center justify-center border-white/10 border-r text-gray-400 transition-colors hover:bg-white/5 hover:text-white active:bg-white/10"
               onClick={() => adjustQuantity(-1)}
-              className="h-full w-12 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 active:bg-white/10 transition-colors border-r border-white/10"
+              type="button"
             >
               <Minus size={18} />
             </button>
-            <div className="flex-1 flex items-center justify-center font-mono font-bold text-white text-xl">
+            <div className="flex flex-1 items-center justify-center font-bold font-mono text-white text-xl">
               {quantity.toString().padStart(2, "0")}
             </div>
             <button
-              type="button"
+              className="flex h-full w-12 items-center justify-center border-white/10 border-l text-gray-400 transition-colors hover:bg-white/5 hover:text-white active:bg-white/10"
               onClick={() => adjustQuantity(1)}
-              className="h-full w-12 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/5 active:bg-white/10 transition-colors border-l border-white/10"
+              type="button"
             >
               <Plus size={18} />
             </button>
@@ -646,18 +646,16 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
 
           {/* BUY BUTTON (Right) - WITH MICRO-INTERACTION */}
           <button
-            type="button"
-            onClick={handleMountModule}
-            disabled={isDisabled || isAllocating || isSuccess}
-            className={`
-                        flex-1 font-display font-bold uppercase tracking-widest transition-all flex items-center justify-between px-6 rounded-sm group relative overflow-hidden
-                        ${getButtonClassName(isDisabled, isSuccess)}
+            className={`group relative flex flex-1 items-center justify-between overflow-hidden rounded-sm px-6 font-bold font-display uppercase tracking-widest transition-all ${getButtonClassName(isDisabled, isSuccess)}
                     `}
+            disabled={isDisabled || isAllocating || isSuccess}
+            onClick={handleMountModule}
+            type="button"
           >
             {/* Animated Background for Loading */}
             {isAllocating && (
               <div className="absolute inset-0 bg-white/20">
-                <div className="h-full w-full bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.5)_50%,transparent_100%)] animate-[scan_1s_infinite]" />
+                <div className="h-full w-full animate-[scan_1s_infinite] bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.5)_50%,transparent_100%)]" />
               </div>
             )}
 

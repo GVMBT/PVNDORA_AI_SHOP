@@ -22,9 +22,9 @@ import { useCallback, useEffect, useState } from "react";
 
 // Helper to get status icon (avoid nested ternary)
 const getStatusIcon = (status: string) => {
-  if (status === "pending") return <Loader2 className="w-10 h-10 animate-spin" />;
-  if (status === "approved") return <CheckCircle className="w-10 h-10" />;
-  return <AlertCircle className="w-10 h-10" />;
+  if (status === "pending") return <Loader2 className="h-10 w-10 animate-spin" />;
+  if (status === "approved") return <CheckCircle className="h-10 w-10" />;
+  return <AlertCircle className="h-10 w-10" />;
 };
 
 interface PartnerApplicationModalProps {
@@ -117,11 +117,13 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
       e.preventDefault();
 
       if (
-        !formData.email ||
-        !formData.phone ||
-        !formData.source ||
-        !formData.audienceSize ||
-        !formData.description
+        !(
+          formData.email &&
+          formData.phone &&
+          formData.source &&
+          formData.audienceSize &&
+          formData.description
+        )
       ) {
         setError("ОШИБКА: Заполните все обязательные поля");
         return;
@@ -183,60 +185,60 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-md"
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md"
+            initial={{ opacity: 0 }}
             onClick={onClose}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
+              className={`relative border bg-black/80 ${statusInfo.color} w-full max-w-md overflow-hidden p-6`}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className={`relative bg-black/80 border ${statusInfo.color} p-6 w-full max-w-md overflow-hidden`}
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Scanlines overlay */}
-              <div className="absolute inset-0 pointer-events-none bg-[repeating-linear-gradient(0deg,rgba(0,0,0,0.1)_0px,rgba(0,0,0,0.1)_1px,transparent_1px,transparent_2px)]" />
+              <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(0deg,rgba(0,0,0,0.1)_0px,rgba(0,0,0,0.1)_1px,transparent_1px,transparent_2px)]" />
 
               {/* Corner accents */}
-              <div className="absolute top-0 left-0 w-4 h-4 border-l-2 border-t-2 border-current opacity-50" />
-              <div className="absolute top-0 right-0 w-4 h-4 border-r-2 border-t-2 border-current opacity-50" />
-              <div className="absolute bottom-0 left-0 w-4 h-4 border-l-2 border-b-2 border-current opacity-50" />
-              <div className="absolute bottom-0 right-0 w-4 h-4 border-r-2 border-b-2 border-current opacity-50" />
+              <div className="absolute top-0 left-0 h-4 w-4 border-current border-t-2 border-l-2 opacity-50" />
+              <div className="absolute top-0 right-0 h-4 w-4 border-current border-t-2 border-r-2 opacity-50" />
+              <div className="absolute bottom-0 left-0 h-4 w-4 border-current border-b-2 border-l-2 opacity-50" />
+              <div className="absolute right-0 bottom-0 h-4 w-4 border-current border-r-2 border-b-2 opacity-50" />
 
               <div className="relative z-10">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="text-[10px] font-mono tracking-widest text-gray-500">
+                <div className="mb-6 flex items-center justify-between">
+                  <div className="font-mono text-[10px] text-gray-500 tracking-widest">
                     STATUS_CHECK | ELITE_PROGRAM
                   </div>
                   <button
-                    type="button"
+                    className="text-gray-500 transition-colors hover:text-white"
                     onClick={onClose}
-                    className="text-gray-500 hover:text-white transition-colors"
+                    type="button"
                   >
                     <X size={18} />
                   </button>
                 </div>
 
-                <div className="text-center py-6">
+                <div className="py-6 text-center">
                   <div
-                    className={`inline-flex items-center justify-center w-20 h-20 ${statusInfo.bg} border ${statusInfo.color} mb-4`}
+                    className={`inline-flex h-20 w-20 items-center justify-center ${statusInfo.bg} border ${statusInfo.color} mb-4`}
                   >
                     {getStatusIcon(existingApplication.status)}
                   </div>
                   <p
-                    className={`text-2xl font-mono font-bold tracking-wider ${statusInfo.color.split(" ")[0]}`}
+                    className={`font-bold font-mono text-2xl tracking-wider ${statusInfo.color.split(" ")[0]}`}
                   >
                     {statusInfo.text}
                   </p>
-                  <p className="text-gray-500 text-sm mt-2 font-mono">{statusInfo.subtext}</p>
-                  <p className="text-gray-600 text-xs mt-4 font-mono">
+                  <p className="mt-2 font-mono text-gray-500 text-sm">{statusInfo.subtext}</p>
+                  <p className="mt-4 font-mono text-gray-600 text-xs">
                     TIMESTAMP:{" "}
                     {new Date(existingApplication.created_at).toLocaleDateString("ru-RU")}
                   </p>
                   {existingApplication.admin_comment && (
-                    <div className="mt-4 p-3 bg-white/5 border border-white/10 text-xs text-gray-400 font-mono text-left">
+                    <div className="mt-4 border border-white/10 bg-white/5 p-3 text-left font-mono text-gray-400 text-xs">
                       <span className="text-pandora-cyan">&gt;</span>{" "}
                       {existingApplication.admin_comment}
                     </div>
@@ -244,9 +246,9 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
                 </div>
 
                 <button
-                  type="button"
+                  className="w-full border border-white/20 bg-white/5 py-3 font-mono text-sm text-white uppercase tracking-wider transition-all hover:bg-white/10"
                   onClick={onClose}
-                  className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/20 text-white font-mono text-sm uppercase tracking-wider transition-all"
+                  type="button"
                 >
                   Закрыть терминал
                 </button>
@@ -264,17 +266,17 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-md"
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md"
+            initial={{ opacity: 0 }}
             onClick={onClose}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
+              className="relative w-full max-w-md overflow-hidden border border-green-400/30 bg-black/80 p-6 text-center"
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-black/80 border border-green-400/30 p-6 w-full max-w-md text-center overflow-hidden"
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Glow effect */}
@@ -282,27 +284,27 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
 
               <div className="relative z-10">
                 <motion.div
-                  initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
+                  className="mb-4 inline-flex h-20 w-20 items-center justify-center border border-green-400/30 bg-green-400/10"
+                  initial={{ scale: 0 }}
                   transition={{ type: "spring", delay: 0.2 }}
-                  className="inline-flex items-center justify-center w-20 h-20 bg-green-400/10 border border-green-400/30 mb-4"
                 >
-                  <CheckCircle className="w-10 h-10 text-green-400" />
+                  <CheckCircle className="h-10 w-10 text-green-400" />
                 </motion.div>
 
-                <h2 className="text-xl font-mono font-bold text-green-400 mb-2 tracking-wider">
+                <h2 className="mb-2 font-bold font-mono text-green-400 text-xl tracking-wider">
                   ЗАПРОС ПРИНЯТ
                 </h2>
-                <p className="text-gray-400 mb-6 font-mono text-sm">
+                <p className="mb-6 font-mono text-gray-400 text-sm">
                   Ваша заявка в очереди на обработку.
                   <br />
                   Ожидайте ответ в течение 24-48 часов.
                 </p>
 
                 <button
-                  type="button"
+                  className="w-full border border-green-400/50 bg-green-400/20 py-3 font-mono text-green-400 text-sm uppercase tracking-wider transition-all hover:bg-green-400/30"
                   onClick={onClose}
-                  className="w-full py-3 bg-green-400/20 hover:bg-green-400/30 border border-green-400/50 text-green-400 font-mono text-sm uppercase tracking-wider transition-all"
+                  type="button"
                 >
                   Подтвердить
                 </button>
@@ -318,31 +320,31 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/90 p-4 backdrop-blur-md"
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-y-auto"
+          initial={{ opacity: 0 }}
           onClick={onClose}
         >
           <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="relative my-8 w-full max-w-lg overflow-hidden border border-pandora-cyan/30 bg-black/80"
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="relative bg-black/80 border border-pandora-cyan/30 w-full max-w-lg my-8 overflow-hidden"
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header bar */}
-            <div className="bg-pandora-cyan/10 border-b border-pandora-cyan/30 px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center justify-between border-pandora-cyan/30 border-b bg-pandora-cyan/10 px-4 py-3">
               <div className="flex items-center gap-3">
                 <Shield className="text-pandora-cyan" size={18} />
-                <span className="text-xs font-mono text-pandora-cyan tracking-wider">
+                <span className="font-mono text-pandora-cyan text-xs tracking-wider">
                   ELITE_OPERATOR | РЕГИСТРАЦИЯ
                 </span>
               </div>
               <button
-                type="button"
+                className="text-gray-500 transition-colors hover:text-pandora-cyan"
                 onClick={onClose}
-                className="text-gray-500 hover:text-pandora-cyan transition-colors"
+                type="button"
               >
                 <X size={18} />
               </button>
@@ -350,55 +352,55 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
 
             <div className="p-6">
               {/* Benefits Grid */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
+              <div className="mb-6 grid grid-cols-2 gap-3">
                 {BENEFITS.map((benefit) => (
                   <motion.div
-                    key={benefit.text}
-                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-white/5 border border-white/10 p-3 flex items-center gap-2"
+                    className="flex items-center gap-2 border border-white/10 bg-white/5 p-3"
+                    initial={{ opacity: 0, y: 10 }}
+                    key={benefit.text}
                   >
-                    <benefit.icon size={14} className="text-pandora-cyan flex-shrink-0" />
-                    <span className="text-[11px] font-mono text-gray-300">{benefit.text}</span>
+                    <benefit.icon className="flex-shrink-0 text-pandora-cyan" size={14} />
+                    <span className="font-mono text-[11px] text-gray-300">{benefit.text}</span>
                   </motion.div>
                 ))}
               </div>
 
               {/* Form */}
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form className="space-y-4" onSubmit={handleSubmit}>
                 {/* Email */}
                 <div>
                   <label
+                    className="mb-1 block font-mono text-[10px] text-gray-500 tracking-wider"
                     htmlFor="partner-email"
-                    className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider"
                   >
                     EMAIL_ADDRESS *
                   </label>
                   <input
+                    className="w-full border border-white/20 bg-black/50 px-3 py-2.5 font-mono text-sm text-white transition-all placeholder:text-gray-600 focus:border-pandora-cyan focus:bg-pandora-cyan/5 focus:outline-none"
                     id="partner-email"
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    placeholder="operator@network.sys"
                     type="email"
                     value={formData.email}
-                    onChange={(e) => handleChange("email", e.target.value)}
-                    className="w-full bg-black/50 border border-white/20 px-3 py-2.5 text-white text-sm font-mono focus:border-pandora-cyan focus:outline-none focus:bg-pandora-cyan/5 transition-all placeholder:text-gray-600"
-                    placeholder="operator@network.sys"
                   />
                 </div>
 
                 {/* Phone */}
                 <div>
                   <label
+                    className="mb-1 block font-mono text-[10px] text-gray-500 tracking-wider"
                     htmlFor="partner-phone"
-                    className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider"
                   >
                     CONTACT_LINE *
                   </label>
                   <input
+                    className="w-full border border-white/20 bg-black/50 px-3 py-2.5 font-mono text-sm text-white transition-all placeholder:text-gray-600 focus:border-pandora-cyan focus:bg-pandora-cyan/5 focus:outline-none"
                     id="partner-phone"
+                    onChange={(e) => handleChange("phone", e.target.value)}
+                    placeholder="+7 (XXX) XXX-XX-XX"
                     type="tel"
                     value={formData.phone}
-                    onChange={(e) => handleChange("phone", e.target.value)}
-                    className="w-full bg-black/50 border border-white/20 px-3 py-2.5 text-white text-sm font-mono focus:border-pandora-cyan focus:outline-none focus:bg-pandora-cyan/5 transition-all placeholder:text-gray-600"
-                    placeholder="+7 (XXX) XXX-XX-XX"
                   />
                 </div>
 
@@ -406,22 +408,22 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label
+                      className="mb-1 block font-mono text-[10px] text-gray-500 tracking-wider"
                       htmlFor="partner-source"
-                      className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider"
                     >
                       NETWORK_SOURCE *
                     </label>
                     <select
+                      className="w-full cursor-pointer appearance-none border border-white/20 bg-black/50 px-3 py-2.5 font-mono text-sm text-white focus:border-pandora-cyan focus:outline-none"
                       id="partner-source"
-                      value={formData.source}
                       onChange={(e) => handleChange("source", e.target.value)}
-                      className="w-full bg-black/50 border border-white/20 px-3 py-2.5 text-white text-sm font-mono focus:border-pandora-cyan focus:outline-none appearance-none cursor-pointer"
+                      value={formData.source}
                     >
-                      <option value="" className="bg-black">
+                      <option className="bg-black" value="">
                         Выбрать...
                       </option>
                       {AUDIENCE_SOURCES.map((s) => (
-                        <option key={s.value} value={s.value} className="bg-black">
+                        <option className="bg-black" key={s.value} value={s.value}>
                           {s.label}
                         </option>
                       ))}
@@ -430,22 +432,22 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
 
                   <div>
                     <label
+                      className="mb-1 block font-mono text-[10px] text-gray-500 tracking-wider"
                       htmlFor="partner-audience-size"
-                      className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider"
                     >
                       NETWORK_SIZE *
                     </label>
                     <select
+                      className="w-full cursor-pointer appearance-none border border-white/20 bg-black/50 px-3 py-2.5 font-mono text-sm text-white focus:border-pandora-cyan focus:outline-none"
                       id="partner-audience-size"
-                      value={formData.audienceSize}
                       onChange={(e) => handleChange("audienceSize", e.target.value)}
-                      className="w-full bg-black/50 border border-white/20 px-3 py-2.5 text-white text-sm font-mono focus:border-pandora-cyan focus:outline-none appearance-none cursor-pointer"
+                      value={formData.audienceSize}
                     >
-                      <option value="" className="bg-black">
+                      <option className="bg-black" value="">
                         Выбрать...
                       </option>
                       {AUDIENCE_SIZES.map((s) => (
-                        <option key={s.value} value={s.value} className="bg-black">
+                        <option className="bg-black" key={s.value} value={s.value}>
                           {s.label}
                         </option>
                       ))}
@@ -456,45 +458,45 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
                 {/* Description */}
                 <div>
                   <label
+                    className="mb-1 block font-mono text-[10px] text-gray-500 tracking-wider"
                     htmlFor="partner-description"
-                    className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider"
                   >
                     MISSION_BRIEF *
                   </label>
                   <textarea
+                    className="w-full resize-none border border-white/20 bg-black/50 px-3 py-2.5 font-mono text-sm text-white transition-all placeholder:text-gray-600 focus:border-pandora-cyan focus:bg-pandora-cyan/5 focus:outline-none"
                     id="partner-description"
-                    value={formData.description}
                     onChange={(e) => handleChange("description", e.target.value)}
-                    className="w-full bg-black/50 border border-white/20 px-3 py-2.5 text-white text-sm font-mono focus:border-pandora-cyan focus:outline-none focus:bg-pandora-cyan/5 transition-all resize-none placeholder:text-gray-600"
-                    rows={3}
                     placeholder="Опишите вашу деятельность, контент, аудиторию..."
+                    rows={3}
+                    value={formData.description}
                   />
                 </div>
 
                 {/* Expected Volume (optional) */}
                 <div>
                   <label
+                    className="mb-1 block font-mono text-[10px] text-gray-500 tracking-wider"
                     htmlFor="partner-volume"
-                    className="block text-[10px] font-mono text-gray-500 mb-1 tracking-wider"
                   >
                     PROJECTED_OUTPUT <span className="text-gray-600">(опционально)</span>
                   </label>
                   <input
+                    className="w-full border border-white/20 bg-black/50 px-3 py-2.5 font-mono text-sm text-white transition-all placeholder:text-gray-600 focus:border-pandora-cyan focus:bg-pandora-cyan/5 focus:outline-none"
                     id="partner-volume"
+                    onChange={(e) => handleChange("expectedVolume", e.target.value)}
+                    placeholder="10-20 операций/месяц"
                     type="text"
                     value={formData.expectedVolume || ""}
-                    onChange={(e) => handleChange("expectedVolume", e.target.value)}
-                    className="w-full bg-black/50 border border-white/20 px-3 py-2.5 text-white text-sm font-mono focus:border-pandora-cyan focus:outline-none focus:bg-pandora-cyan/5 transition-all placeholder:text-gray-600"
-                    placeholder="10-20 операций/месяц"
                   />
                 </div>
 
                 {/* Error */}
                 {error && (
                   <motion.div
-                    initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="flex items-center gap-2 text-red-400 text-xs font-mono bg-red-400/10 border border-red-400/30 p-3"
+                    className="flex items-center gap-2 border border-red-400/30 bg-red-400/10 p-3 font-mono text-red-400 text-xs"
+                    initial={{ opacity: 0, x: -10 }}
                   >
                     <AlertCircle size={14} />
                     {error}
@@ -503,18 +505,18 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
 
                 {/* Submit */}
                 <button
-                  type="submit"
+                  className="group flex w-full items-center justify-center gap-2 border border-pandora-cyan/50 bg-pandora-cyan/20 py-3.5 font-mono text-pandora-cyan text-sm uppercase tracking-wider transition-all hover:border-pandora-cyan hover:bg-pandora-cyan/30 disabled:cursor-not-allowed disabled:bg-gray-800"
                   disabled={submitting}
-                  className="w-full py-3.5 bg-pandora-cyan/20 hover:bg-pandora-cyan/30 disabled:bg-gray-800 disabled:cursor-not-allowed border border-pandora-cyan/50 hover:border-pandora-cyan text-pandora-cyan font-mono text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 group"
+                  type="submit"
                 >
                   {submitting ? (
                     <>
-                      <Loader2 size={16} className="animate-spin" />
+                      <Loader2 className="animate-spin" size={16} />
                       <span>ПЕРЕДАЧА ДАННЫХ...</span>
                     </>
                   ) : (
                     <>
-                      <Send size={16} className="group-hover:translate-x-1 transition-transform" />
+                      <Send className="transition-transform group-hover:translate-x-1" size={16} />
                       <span>ОТПРАВИТЬ ЗАПРОС</span>
                     </>
                   )}
@@ -522,7 +524,7 @@ export const PartnerApplicationModal: React.FC<PartnerApplicationModalProps> = (
               </form>
 
               {/* Footer note */}
-              <p className="text-[10px] font-mono text-gray-600 text-center mt-4">
+              <p className="mt-4 text-center font-mono text-[10px] text-gray-600">
                 После одобрения вы получите уведомление в Telegram
               </p>
             </div>

@@ -48,7 +48,7 @@ export function CartProvider({ children }: Readonly<{ children: ReactNode }>) {
   }, [get]);
 
   const addToCart = useCallback(
-    async (productId: string, quantity: number = 1): Promise<CartData> => {
+    async (productId: string, quantity = 1): Promise<CartData> => {
       try {
         const response: APICartResponse = await post("/cart/add", {
           product_id: productId,

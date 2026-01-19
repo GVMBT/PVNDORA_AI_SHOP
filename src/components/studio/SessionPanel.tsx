@@ -64,77 +64,75 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
         <>
           {/* Backdrop */}
           <motion.div
-            initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+            initial={{ opacity: 0 }}
             onClick={onClose}
           />
 
           {/* Panel */}
           <motion.div
-            initial={{ x: -320 }}
             animate={{ x: 0 }}
+            className="fixed top-0 left-0 z-50 flex h-full w-80 flex-col border-pandora-cyan/20 border-r bg-black/90"
             exit={{ x: -320 }}
+            initial={{ x: -320 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed left-0 top-0 h-full w-80 bg-black/90 border-r border-pandora-cyan/20 z-50 flex flex-col"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-pandora-cyan/10">
+            <div className="flex items-center justify-between border-pandora-cyan/10 border-b p-4">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-pandora-cyan rounded-full animate-pulse" />
-                <span className="text-sm font-medium text-gray-300">PROJECTS</span>
+                <div className="h-2 w-2 animate-pulse rounded-full bg-pandora-cyan" />
+                <span className="font-medium text-gray-300 text-sm">PROJECTS</span>
               </div>
               <button
-                type="button"
+                className="rounded-lg p-2 transition-colors hover:bg-white/5"
                 onClick={onClose}
-                className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+                type="button"
               >
-                <ChevronLeft size={18} className="text-gray-400" />
+                <ChevronLeft className="text-gray-400" size={18} />
               </button>
             </div>
 
             {/* New Project Button */}
-            <div className="p-3 border-b border-pandora-cyan/10">
+            <div className="border-pandora-cyan/10 border-b p-3">
               <button
-                type="button"
+                className="flex w-full items-center gap-2 rounded-lg border border-pandora-cyan/30 bg-pandora-cyan/10 px-3 py-2 text-sm transition-colors hover:bg-pandora-cyan/20"
                 onClick={handleCreateSession}
-                className="w-full flex items-center gap-2 px-3 py-2 bg-pandora-cyan/10 hover:bg-pandora-cyan/20 border border-pandora-cyan/30 rounded-lg transition-colors text-sm"
+                type="button"
               >
-                <FolderPlus size={16} className="text-pandora-cyan" />
+                <FolderPlus className="text-pandora-cyan" size={16} />
                 <span className="text-pandora-cyan">Новый проект</span>
               </button>
             </div>
 
             {/* Sessions List */}
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            <div className="flex-1 space-y-1 overflow-y-auto p-2">
               {sessionsLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className="w-6 h-6 border-2 border-pandora-cyan/30 border-t-pandora-cyan rounded-full animate-spin" />
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-pandora-cyan/30 border-t-pandora-cyan" />
                 </div>
               ) : sessions.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 text-sm">Нет проектов</div>
+                <div className="py-8 text-center text-gray-500 text-sm">Нет проектов</div>
               ) : (
                 sessions.map((session) => (
                   <div
-                    key={session.id}
-                    className={`
-                      group relative rounded-lg transition-colors
-                      ${
-                        session.id === activeSessionId
-                          ? "bg-pandora-cyan/10 border border-pandora-cyan/30"
-                          : "hover:bg-white/5 border border-transparent"
-                      }
+                    className={`group relative rounded-lg transition-colors ${
+                      session.id === activeSessionId
+                        ? "border border-pandora-cyan/30 bg-pandora-cyan/10"
+                        : "border border-transparent hover:bg-white/5"
+                    }
                     `}
+                    key={session.id}
                   >
                     {editingId === session.id ? (
                       // Edit mode
-                      <div className="p-3 flex items-center gap-2">
+                      <div className="flex items-center gap-2 p-3">
                         <input
-                          type="text"
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
+                          autoFocus
+                          className="flex-1 rounded border border-pandora-cyan/30 bg-black/50 px-2 py-1 text-sm text-white focus:border-pandora-cyan focus:outline-none"
                           onBlur={() => handleRename(session.id)}
+                          onChange={(e) => setEditingName(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") handleRename(session.id);
                             if (e.key === "Escape") {
@@ -143,47 +141,47 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
                             }
                           }}
                           // biome-ignore lint/a11y/noAutofocus: Auto-focus is intentional for better UX when editing session name
-                          autoFocus
-                          className="flex-1 bg-black/50 border border-pandora-cyan/30 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-pandora-cyan"
+                          type="text"
+                          value={editingName}
                         />
                         <button
-                          type="button"
+                          className="rounded p-1 hover:bg-white/10"
                           onClick={() => {
                             setEditingId(null);
                             setEditingName("");
                           }}
-                          className="p-1 hover:bg-white/10 rounded"
+                          type="button"
                         >
-                          <X size={14} className="text-gray-400" />
+                          <X className="text-gray-400" size={14} />
                         </button>
                       </div>
                     ) : (
                       // Normal mode
                       <button
-                        type="button"
-                        onClick={() => setActiveSession(session.id)}
                         className="w-full p-3 text-left"
+                        onClick={() => setActiveSession(session.id)}
+                        type="button"
                       >
                         <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm text-white truncate">{session.name}</div>
-                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm text-white">{session.name}</div>
+                            <div className="mt-1 flex items-center gap-3 text-gray-500 text-xs">
                               <span>{session.total_generations} генераций</span>
                               <span>{session.total_spent}₽</span>
                             </div>
                           </div>
 
                           {/* Menu button */}
-                          <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="opacity-0 transition-opacity group-hover:opacity-100">
                             <button
-                              type="button"
+                              className="rounded p-1.5 hover:bg-white/10"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setMenuOpenId(menuOpenId === session.id ? null : session.id);
                               }}
-                              className="p-1.5 hover:bg-white/10 rounded"
+                              type="button"
                             >
-                              <MoreVertical size={14} className="text-gray-400" />
+                              <MoreVertical className="text-gray-400" size={14} />
                             </button>
                           </div>
                         </div>
@@ -194,15 +192,15 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
                     <AnimatePresence>
                       {menuOpenId === session.id && (
                         <motion.div
-                          initial={{ opacity: 0, scale: 0.95 }}
                           animate={{ opacity: 1, scale: 1 }}
+                          className="absolute top-full right-2 z-10 mt-1 min-w-[140px] rounded-lg border border-pandora-cyan/20 bg-black/95 py-1 shadow-xl"
                           exit={{ opacity: 0, scale: 0.95 }}
-                          className="absolute right-2 top-full mt-1 bg-black/95 border border-pandora-cyan/20 rounded-lg shadow-xl z-10 py-1 min-w-[140px]"
+                          initial={{ opacity: 0, scale: 0.95 }}
                         >
                           <button
-                            type="button"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-gray-300 text-sm hover:bg-white/5"
                             onClick={() => startEditing(session)}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-white/5"
+                            type="button"
                           >
                             <Edit3 size={14} />
                             Переименовать
@@ -210,20 +208,20 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
                           {!session.is_default && (
                             <>
                               <button
-                                type="button"
+                                className="flex w-full items-center gap-2 px-3 py-2 text-gray-300 text-sm hover:bg-white/5"
                                 onClick={() => {
                                   // Archive functionality
                                   setMenuOpenId(null);
                                 }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-white/5"
+                                type="button"
                               >
                                 <Archive size={14} />
                                 Архивировать
                               </button>
                               <button
-                                type="button"
+                                className="flex w-full items-center gap-2 px-3 py-2 text-red-400 text-sm hover:bg-red-500/10"
                                 onClick={() => handleDelete(session.id)}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10"
+                                type="button"
                               >
                                 <Trash2 size={14} />
                                 Удалить
@@ -240,9 +238,9 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
 
             {/* Active Session Info */}
             {activeSession && (
-              <div className="p-4 border-t border-pandora-cyan/10">
-                <div className="text-xs text-gray-500 mb-1">Активный проект</div>
-                <div className="text-sm text-pandora-cyan truncate">{activeSession.name}</div>
+              <div className="border-pandora-cyan/10 border-t p-4">
+                <div className="mb-1 text-gray-500 text-xs">Активный проект</div>
+                <div className="truncate text-pandora-cyan text-sm">{activeSession.name}</div>
               </div>
             )}
           </motion.div>

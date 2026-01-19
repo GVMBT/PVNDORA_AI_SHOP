@@ -30,7 +30,7 @@ interface UseClipboardReturn {
  * </button>
  * ```
  */
-export function useClipboard(timeout: number = 2000): UseClipboardReturn {
+export function useClipboard(timeout = 2000): UseClipboardReturn {
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 

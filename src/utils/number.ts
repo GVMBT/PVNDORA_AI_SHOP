@@ -9,15 +9,15 @@
  */
 export function formatCompactNumber(num: number): string {
   if (num < 1000) return num.toString();
-  if (num < 1000000) return `${(num / 1000).toFixed(1)}K`;
-  if (num < 1000000000) return `${(num / 1000000).toFixed(1)}M`;
-  return `${(num / 1000000000).toFixed(1)}B`;
+  if (num < 1_000_000) return `${(num / 1000).toFixed(1)}K`;
+  if (num < 1_000_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  return `${(num / 1_000_000_000).toFixed(1)}B`;
 }
 
 /**
  * Format number with thousand separators (e.g., 1,234,567)
  */
-export function formatNumber(num: number, decimals: number = 0): string {
+export function formatNumber(num: number, decimals = 0): string {
   return num.toLocaleString("en-US", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
@@ -27,14 +27,14 @@ export function formatNumber(num: number, decimals: number = 0): string {
 /**
  * Format percentage (e.g., 45.5%)
  */
-export function formatPercentage(value: number, decimals: number = 1): string {
+export function formatPercentage(value: number, decimals = 1): string {
   return `${value.toFixed(decimals)}%`;
 }
 
 /**
  * Format percentage with sign (e.g., +5.2%, -3.1%)
  */
-export function formatPercentageWithSign(value: number, decimals: number = 1): string {
+export function formatPercentageWithSign(value: number, decimals = 1): string {
   const sign = value >= 0 ? "+" : "";
   return `${sign}${formatPercentage(value, decimals)}`;
 }
@@ -42,7 +42,7 @@ export function formatPercentageWithSign(value: number, decimals: number = 1): s
 /**
  * Format bytes to human-readable size (e.g., 1.5 MB, 2.3 GB)
  */
-export function formatBytes(bytes: number, decimals: number = 2): string {
+export function formatBytes(bytes: number, decimals = 2): string {
   if (bytes === 0) return "0 Bytes";
 
   const k = 1024;

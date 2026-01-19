@@ -191,7 +191,7 @@ function formatDateWithTimezone(dateString: string): string {
  */
 function calculateItemWarrantyUntil(
   deliveredAt: string | null | undefined,
-  warrantyDays: number = 7
+  warrantyDays = 7
 ): string | null {
   if (!deliveredAt) return null;
 
@@ -291,26 +291,26 @@ function adaptOrderItem(
     name: item.product_name,
     type: item.fulfillment_type === "instant" ? "instant" : "preorder",
     status: itemStatus,
-    credentials: credentials,
+    credentials,
     instructions: item.delivery_instructions || null,
     expiry: item.expires_at ? new Date(item.expires_at).toLocaleDateString("ru-RU") : null,
     hasReview: item.has_review ?? false,
     estimatedDelivery: item.fulfillment_type === "preorder" ? "24H" : null,
     progress: null, // Progress bar removed - simplified status model
-    deadline: deadline,
-    deadlineRaw: deadlineRaw, // For countdown timer
+    deadline,
+    deadlineRaw, // For countdown timer
     reason: null,
     orderRawStatus: normalizeRawStatus(orderStatus), // Pass parent order status
     deliveredAt: itemDeliveredAt,
     canRequestRefund: canRefund,
-    warrantyUntil: warrantyUntil,
+    warrantyUntil,
   };
 }
 
 /**
  * Adapt a single API order
  */
-export function adaptOrder(apiOrder: APIOrder, currency: string = "USD"): Order {
+export function adaptOrder(apiOrder: APIOrder, currency = "USD"): Order {
   const rawStatus = normalizeRawStatus(apiOrder.status);
   const paymentConfirmed = isPaymentConfirmed(rawStatus);
   const statusMessage = getStatusMessage(rawStatus);
@@ -392,7 +392,7 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = "USD"): Order 
         hasReview: false,
         estimatedDelivery: null,
         progress: null,
-        deadline: deadline,
+        deadline,
         reason: null,
         orderRawStatus: rawStatus, // Pass parent order status
         deliveredAt: apiOrder.delivered_at || null,
@@ -403,7 +403,7 @@ export function adaptOrder(apiOrder: APIOrder, currency: string = "USD"): Order 
     payment_url: apiOrder.payment_url || null,
     payment_id: apiOrder.payment_id || null,
     payment_gateway: apiOrder.payment_gateway || null,
-    deadline: deadline, // Payment deadline for pending orders
+    deadline, // Payment deadline for pending orders
     rawStatus,
     paymentConfirmed,
     statusMessage,

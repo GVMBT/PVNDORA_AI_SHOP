@@ -133,60 +133,60 @@ const LoginPage = ({
   }, [botUsername, handleTelegramAuth, onLoginSuccess, redirectPath]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-black">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-black p-4">
       {/* Background Effects */}
       <div className="fixed inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-b from-pandora-cyan/5 via-transparent to-transparent" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-pandora-cyan/10 blur-[120px] rounded-full" />
+        <div className="absolute top-0 left-1/2 h-[400px] w-[800px] -translate-x-1/2 rounded-full bg-pandora-cyan/10 blur-[120px]" />
       </div>
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
         className="relative z-10 w-full max-w-sm"
+        initial={{ opacity: 0, y: 20 }}
+        transition={{ duration: 0.5 }}
       >
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="mb-8 text-center">
           <motion.div
-            initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
-            className="inline-flex items-center justify-center w-16 h-16 bg-pandora-cyan/10 border border-pandora-cyan/30 rounded-xl mb-4"
+            className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-xl border border-pandora-cyan/30 bg-pandora-cyan/10"
+            initial={{ scale: 0.8 }}
           >
-            <Shield size={32} className="text-pandora-cyan" />
+            <Shield className="text-pandora-cyan" size={32} />
           </motion.div>
 
-          <h1 className="text-2xl font-display font-black text-white tracking-tight mb-1">
+          <h1 className="mb-1 font-black font-display text-2xl text-white tracking-tight">
             PVNDORA
           </h1>
-          <p className="text-xs text-gray-500 font-mono">AI Subscription Marketplace</p>
+          <p className="font-mono text-gray-500 text-xs">AI Subscription Marketplace</p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-gray-900/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 space-y-6">
+        <div className="space-y-6 rounded-2xl border border-white/10 bg-gray-900/50 p-6 backdrop-blur-xl">
           {/* Header */}
           <div className="text-center">
-            <h2 className="text-lg font-semibold text-white mb-1">Sign in with Telegram</h2>
-            <p className="text-sm text-gray-400">Secure authentication via Telegram</p>
+            <h2 className="mb-1 font-semibold text-lg text-white">Sign in with Telegram</h2>
+            <p className="text-gray-400 text-sm">Secure authentication via Telegram</p>
           </div>
 
           {/* Telegram Widget */}
           <div className="flex flex-col items-center gap-4">
             {loading ? (
               <div className="flex items-center gap-3 py-6 text-pandora-cyan">
-                <Loader2 size={24} className="animate-spin" />
+                <Loader2 className="animate-spin" size={24} />
                 <span className="text-sm">Connecting...</span>
               </div>
             ) : (
               <>
                 {/* Telegram Login Widget Container */}
                 <div
+                  className="flex min-h-[44px] justify-center py-2"
                   id="telegram-login-container"
-                  className="flex justify-center min-h-[44px] py-2"
                 >
                   {!widgetLoaded && (
                     <div className="flex items-center gap-2 text-gray-500 text-sm">
-                      <Loader2 size={16} className="animate-spin" />
+                      <Loader2 className="animate-spin" size={16} />
                       <span>Loading...</span>
                     </div>
                   )}
@@ -195,11 +195,11 @@ const LoginPage = ({
                 {/* Error Message */}
                 {error && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="w-full p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-center"
+                    className="w-full rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-center"
+                    initial={{ opacity: 0, scale: 0.95 }}
                   >
-                    <p className="text-sm text-red-400">{error}</p>
+                    <p className="text-red-400 text-sm">{error}</p>
                   </motion.div>
                 )}
               </>
@@ -209,7 +209,7 @@ const LoginPage = ({
           {/* Divider */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/10" />
+              <div className="w-full border-white/10 border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-gray-900/50 px-3 text-gray-500">or</span>
@@ -218,23 +218,23 @@ const LoginPage = ({
 
           {/* Mini App Link */}
           <a
+            className="flex w-full items-center justify-center gap-3 rounded-xl bg-[#2AABEE] px-4 py-3 font-medium text-white transition-colors hover:bg-[#229ED9]"
             href={`https://t.me/${botUsername}?start=app`}
-            target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-3 w-full py-3 px-4 bg-[#2AABEE] hover:bg-[#229ED9] text-white font-medium rounded-xl transition-colors"
+            target="_blank"
           >
             <Send size={18} />
             <span>Open in Telegram</span>
-            <ExternalLink size={14} className="opacity-60" />
+            <ExternalLink className="opacity-60" size={14} />
           </a>
 
-          <p className="text-center text-xs text-gray-500">
+          <p className="text-center text-gray-500 text-xs">
             For the best experience, use our{" "}
             <a
-              href={`https://t.me/${botUsername}`}
               className="text-pandora-cyan hover:underline"
-              target="_blank"
+              href={`https://t.me/${botUsername}`}
               rel="noopener noreferrer"
+              target="_blank"
             >
               Telegram Mini App
             </a>
@@ -244,31 +244,31 @@ const LoginPage = ({
         {/* Features */}
         <div className="mt-6 flex items-center justify-center gap-8">
           <div className="flex items-center gap-2 text-gray-400">
-            <Zap size={14} className="text-pandora-cyan shrink-0" />
-            <span className="text-xs whitespace-nowrap">Instant access</span>
+            <Zap className="shrink-0 text-pandora-cyan" size={14} />
+            <span className="whitespace-nowrap text-xs">Instant access</span>
           </div>
           <div className="flex items-center gap-2 text-gray-400">
-            <Shield size={14} className="text-pandora-cyan shrink-0" />
-            <span className="text-xs whitespace-nowrap">E2E encrypted</span>
+            <Shield className="shrink-0 text-pandora-cyan" size={14} />
+            <span className="whitespace-nowrap text-xs">E2E encrypted</span>
           </div>
         </div>
 
         {/* Footer - Legal Links */}
-        <div className="mt-8 text-center space-y-2">
+        <div className="mt-8 space-y-2 text-center">
           <p className="text-[10px] text-gray-600">
             By signing in, you agree to our{" "}
             <button
-              type="button"
-              onClick={() => onNavigateLegal?.("terms")}
               className="text-pandora-cyan hover:underline"
+              onClick={() => onNavigateLegal?.("terms")}
+              type="button"
             >
               Terms of Service
             </button>{" "}
             and{" "}
             <button
-              type="button"
-              onClick={() => onNavigateLegal?.("privacy")}
               className="text-pandora-cyan hover:underline"
+              onClick={() => onNavigateLegal?.("privacy")}
+              type="button"
             >
               Privacy Policy
             </button>

@@ -14,7 +14,7 @@ export const generateShortId = (): string => {
 /**
  * Generate a hash-like ID (12 hex characters by default)
  */
-export const generateHashId = (length: number = 12): string => {
+export const generateHashId = (length = 12): string => {
   const uuid = uuidv4().replaceAll("-", "");
   return uuid.slice(0, length).toUpperCase();
 };

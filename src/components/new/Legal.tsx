@@ -21,7 +21,7 @@ const legalContent = {
     ru: {
       title: "Пользовательское соглашение",
       content: (
-        <div className="space-y-6 text-gray-400 font-mono text-xs md:text-sm leading-relaxed">
+        <div className="space-y-6 font-mono text-gray-400 text-xs leading-relaxed md:text-sm">
           <p>
             Настоящее Пользовательское соглашение (далее – «Соглашение») является публичной офертой
             и определяет условия использования сервиса <strong>PVNDORA</strong>, включающего
@@ -75,7 +75,7 @@ const legalContent = {
             соответствии с его целевым назначением и в рамках действующего законодательства.
           </p>
           <p>3.2. Пользователь не имеет права:</p>
-          <ul className="list-disc list-inside ml-4 space-y-1">
+          <ul className="ml-4 list-inside list-disc space-y-1">
             <li>
               Пытаться получить несанкционированный доступ к информации, содержащейся в сервисе.
             </li>
@@ -183,17 +183,17 @@ const legalContent = {
           </p>
           <p>
             Email:{" "}
-            <a href="mailto:support@pvndora.app" className="text-pandora-cyan hover:underline">
+            <a className="text-pandora-cyan hover:underline" href="mailto:support@pvndora.app">
               support@pvndora.app
             </a>
           </p>
           <p>
             Telegram:{" "}
             <a
-              href="https://t.me/pvndora_support"
-              target="_blank"
-              rel="noopener noreferrer"
               className="text-pandora-cyan hover:underline"
+              href="https://t.me/pvndora_support"
+              rel="noopener noreferrer"
+              target="_blank"
             >
               @pvndora_support
             </a>
@@ -204,7 +204,7 @@ const legalContent = {
     en: {
       title: "Terms of Service",
       content: (
-        <div className="space-y-6 text-gray-400 font-mono text-xs md:text-sm leading-relaxed">
+        <div className="space-y-6 font-mono text-gray-400 text-xs leading-relaxed md:text-sm">
           <p>1. GENERAL PROVISIONS</p>
           <p>
             1.1. This User Agreement (hereinafter — Agreement) governs the relationship between
@@ -270,7 +270,7 @@ const legalContent = {
     ru: {
       title: "Политика конфиденциальности",
       content: (
-        <div className="space-y-6 text-gray-400 font-mono text-xs md:text-sm leading-relaxed">
+        <div className="space-y-6 font-mono text-gray-400 text-xs leading-relaxed md:text-sm">
           <p>
             Настоящее соглашение о конфиденциальности использования персональных данных (далее —
             Соглашение о конфиденциальности) регулирует порядок сбора, использования и разглашения
@@ -298,7 +298,7 @@ const legalContent = {
             конкретному лицу).
           </p>
           <p>1.2. Администрации доступна информация, получаемая следующими способами:</p>
-          <ul className="list-disc list-inside ml-4 space-y-1">
+          <ul className="ml-4 list-inside list-disc space-y-1">
             <li>
               Информация, полученная при переписке Администрации с Пользователями сервиса PVNDORA
               посредством электронной почты или мессенджера Telegram;
@@ -382,7 +382,7 @@ const legalContent = {
             <strong>3. ИСПОЛЬЗОВАНИЕ ДАННЫХ</strong>
           </p>
           <p>3.1. Данные используются исключительно для:</p>
-          <ul className="list-disc list-inside ml-4 space-y-1">
+          <ul className="ml-4 list-inside list-disc space-y-1">
             <li>Обработки заказов и доставки товаров;</li>
             <li>Связи с Пользователем по вопросам заказов;</li>
             <li>Улучшения качества сервиса;</li>
@@ -403,15 +403,15 @@ const legalContent = {
           </p>
           <p>
             4.2. Для реализации прав пользователя необходимо обратиться в службу поддержки:{" "}
-            <a href="mailto:support@pvndora.app" className="text-pandora-cyan hover:underline">
+            <a className="text-pandora-cyan hover:underline" href="mailto:support@pvndora.app">
               support@pvndora.app
             </a>{" "}
             или{" "}
             <a
-              href="https://t.me/pvndora_support"
-              target="_blank"
-              rel="noopener noreferrer"
               className="text-pandora-cyan hover:underline"
+              href="https://t.me/pvndora_support"
+              rel="noopener noreferrer"
+              target="_blank"
             >
               @pvndora_support
             </a>
@@ -449,7 +449,7 @@ const legalContent = {
     en: {
       title: "Privacy Policy",
       content: (
-        <div className="space-y-6 text-gray-400 font-mono text-xs md:text-sm leading-relaxed">
+        <div className="space-y-6 font-mono text-gray-400 text-xs leading-relaxed md:text-sm">
           <p>1. DATA COLLECTION</p>
           <p>1.1. We collect the minimum necessary data to fulfill our obligations to the User:</p>
           <p>— Telegram ID and username (for identification and communication)</p>
@@ -507,7 +507,7 @@ const legalContent = {
     ru: {
       title: "Политика возврата",
       content: (
-        <div className="space-y-6 text-gray-400 font-mono text-xs md:text-sm leading-relaxed">
+        <div className="space-y-6 font-mono text-gray-400 text-xs leading-relaxed md:text-sm">
           <p>1. ЦИФРОВЫЕ УСЛУГИ</p>
           <p>
             1.1. В соответствии с законодательством, цифровые услуги по предоставлению доступа к
@@ -550,7 +550,7 @@ const legalContent = {
     en: {
       title: "Refund Policy",
       content: (
-        <div className="space-y-6 text-gray-400 font-mono text-xs md:text-sm leading-relaxed">
+        <div className="space-y-6 font-mono text-gray-400 text-xs leading-relaxed md:text-sm">
           <p>1. DIGITAL SERVICES</p>
           <p>
             1.1. In accordance with the law, digital services for providing access to subscriptions
@@ -594,7 +594,7 @@ const legalContent = {
     ru: {
       title: "Оплата и доставка",
       content: (
-        <div className="space-y-6 text-gray-400 font-mono text-xs md:text-sm leading-relaxed">
+        <div className="space-y-6 font-mono text-gray-400 text-xs leading-relaxed md:text-sm">
           <p>1. ПРОЦЕСС ОПЛАТЫ</p>
           <p>
             Выбор товара → Переход к оплате → Выбор метода оплаты (внутренний баланс / внешний
@@ -620,7 +620,7 @@ const legalContent = {
     en: {
       title: "Payment and Delivery",
       content: (
-        <div className="space-y-6 text-gray-400 font-mono text-xs md:text-sm leading-relaxed">
+        <div className="space-y-6 font-mono text-gray-400 text-xs leading-relaxed md:text-sm">
           <p>1. PAYMENT PROCESS</p>
           <p>
             Product selection → Proceed to checkout → Choose payment method (internal balance /
@@ -653,7 +653,7 @@ const renderStandardDocument = (
 ) => {
   return (
     <div>
-      <h2 className="text-white font-display text-xl mb-4">{content.title}</h2>
+      <h2 className="mb-4 font-display text-white text-xl">{content.title}</h2>
       {content.content}
     </div>
   );
@@ -694,13 +694,13 @@ const renderFAQContent = (isRussian: boolean) => {
 
   return (
     <div className="space-y-8">
-      <h2 className="text-white font-display text-xl mb-6">
+      <h2 className="mb-6 font-display text-white text-xl">
         FAQ {isRussian ? "(Частые вопросы)" : "(Frequently Asked Questions)"}
       </h2>
       {faqItems.map((item) => (
-        <div key={item.question} className="border border-white/10 p-4 bg-white/5">
-          <h3 className="text-white font-bold mb-2">{item.question}</h3>
-          <p className="text-gray-400 font-mono text-xs">{item.answer}</p>
+        <div className="border border-white/10 bg-white/5 p-4" key={item.question}>
+          <h3 className="mb-2 font-bold text-white">{item.question}</h3>
+          <p className="font-mono text-gray-400 text-xs">{item.answer}</p>
         </div>
       ))}
     </div>
@@ -711,51 +711,51 @@ const renderFAQContent = (isRussian: boolean) => {
 const renderSupportContent = (isRussian: boolean) => {
   return (
     <div className="space-y-8">
-      <h2 className="text-white font-display text-xl mb-6">
+      <h2 className="mb-6 font-display text-white text-xl">
         {isRussian ? "Техническая поддержка" : "Technical Support"}
       </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="border border-white/10 p-6 bg-[#0a0a0a] flex flex-col items-center text-center">
-          <div className="w-12 h-12 bg-pandora-cyan text-black rounded-full flex items-center justify-center mb-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="flex flex-col items-center border border-white/10 bg-[#0a0a0a] p-6 text-center">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-pandora-cyan text-black">
             <Terminal size={24} />
           </div>
-          <h3 className="text-white font-bold mb-2">Telegram Support</h3>
-          <p className="text-gray-500 text-xs font-mono mb-4">
+          <h3 className="mb-2 font-bold text-white">Telegram Support</h3>
+          <p className="mb-4 font-mono text-gray-500 text-xs">
             {isRussian
               ? "Самый быстрый способ получить ответ."
               : "The fastest way to get an answer."}
           </p>
           <a
+            className="font-bold text-pandora-cyan hover:underline"
             href="https://t.me/pvndora_support"
-            target="_blank"
             rel="noopener noreferrer"
-            className="text-pandora-cyan font-bold hover:underline"
+            target="_blank"
           >
             @pvndora_support
           </a>
         </div>
 
-        <div className="border border-white/10 p-6 bg-[#0a0a0a] flex flex-col items-center text-center">
-          <div className="w-12 h-12 bg-white/10 text-white rounded-full flex items-center justify-center mb-4">
+        <div className="flex flex-col items-center border border-white/10 bg-[#0a0a0a] p-6 text-center">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white">
             <Mail size={24} />
           </div>
-          <h3 className="text-white font-bold mb-2">Email</h3>
-          <p className="text-gray-500 text-xs font-mono mb-4">
+          <h3 className="mb-2 font-bold text-white">Email</h3>
+          <p className="mb-4 font-mono text-gray-500 text-xs">
             {isRussian
               ? "Для деловых предложений и жалоб."
               : "For business inquiries and complaints."}
           </p>
-          <a href="mailto:support@pvndora.app" className="text-white font-bold hover:underline">
+          <a className="font-bold text-white hover:underline" href="mailto:support@pvndora.app">
             support@pvndora.app
           </a>
         </div>
       </div>
 
-      <div className="bg-white/5 p-4 border-l-2 border-pandora-cyan">
+      <div className="border-pandora-cyan border-l-2 bg-white/5 p-4">
         <p className="text-gray-300 text-sm">
           {isRussian ? "Время работы поддержки: " : "Support hours: "}
-          <span className="text-white font-bold">
+          <span className="font-bold text-white">
             {isRussian ? "10:00 - 22:00 (МСК)" : "10:00 - 22:00 (MSC)"}
           </span>
           {isRussian ? ", без выходных." : ", daily."}
@@ -811,28 +811,28 @@ const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      className="relative min-h-screen px-4 pt-24 pb-32 text-white md:px-8 md:pl-28"
       exit={{ opacity: 0 }}
-      className="min-h-screen text-white pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
+      initial={{ opacity: 0 }}
     >
-      <div className="max-w-4xl mx-auto relative z-10">
+      <div className="relative z-10 mx-auto max-w-4xl">
         {/* === UNIFIED HEADER (Leaderboard Style) === */}
         <div className="mb-8 md:mb-16">
           <button
-            type="button"
+            className="mb-4 flex items-center gap-2 font-mono text-[10px] text-gray-500 transition-colors hover:text-pandora-cyan"
             onClick={onBack}
-            className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
+            type="button"
           >
             <ArrowLeft size={12} /> {t("legalPage.returnToBase")}
           </button>
-          <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4">
+          <h1 className="mb-4 font-black font-display text-3xl text-white uppercase leading-[0.9] tracking-tighter sm:text-4xl md:text-6xl">
             {tEn("legalPage.pageTitlePrefix")} <br />{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">
+            <span className="bg-gradient-to-r from-pandora-cyan to-white/50 bg-clip-text text-transparent">
               {tEn("legalPage.pageTitle")}
             </span>
           </h1>
-          <div className="flex items-center gap-2 text-[10px] font-mono text-pandora-cyan tracking-widest uppercase">
+          <div className="flex items-center gap-2 font-mono text-[10px] text-pandora-cyan uppercase tracking-widest">
             <Shield size={12} />
             <span>
               {t("legalPage.documentId")}: {getTitle()}
@@ -841,14 +841,14 @@ const Legal: React.FC<LegalProps> = ({ doc, onBack }) => {
         </div>
 
         {/* Document Container */}
-        <div className="bg-[#080808] border border-white/10 p-8 md:p-12 relative overflow-hidden shadow-2xl">
+        <div className="relative overflow-hidden border border-white/10 bg-[#080808] p-8 shadow-2xl md:p-12">
           {/* Decor */}
           <div className="absolute top-0 right-0 p-4 opacity-20">{getDocumentIcon(doc)}</div>
 
           {renderContent()}
 
           {/* Footer Signature */}
-          <div className="mt-12 pt-8 border-t border-white/5 flex justify-between items-center text-[10px] font-mono text-gray-600">
+          <div className="mt-12 flex items-center justify-between border-white/5 border-t pt-8 font-mono text-[10px] text-gray-600">
             <span>
               {t("legalPage.docHash")}: {generateHashId(12)}
             </span>

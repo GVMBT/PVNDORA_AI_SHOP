@@ -84,7 +84,7 @@ export function getRetryDelay(error: ApiError, attempt: number): number {
 
   // Exponential backoff: 1s, 2s, 4s, 8s, max 30s
   const baseDelay = 1000;
-  const maxDelay = 30000;
+  const maxDelay = 30_000;
   const delay = Math.min(baseDelay * 2 ** (attempt - 1), maxDelay);
 
   // Add jitter (±20%)

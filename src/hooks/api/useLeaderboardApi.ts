@@ -25,8 +25,8 @@ export function useLeaderboardTyped() {
   const getLeaderboard = useCallback(
     async (
       limit: number = PAGINATION.LEADERBOARD_LIMIT,
-      offset: number = 0,
-      append: boolean = false
+      offset = 0,
+      append = false
     ): Promise<LeaderboardUser[]> => {
       if (append && loadedOffsetsRef.current.has(offset)) {
         logger.debug(`[Leaderboard] Skipping duplicate request for offset ${offset}`);

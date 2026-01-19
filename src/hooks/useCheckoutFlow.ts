@@ -241,10 +241,9 @@ export function useCheckoutFlow({
           // After payment, CrystalPay will redirect to /payment/result for polling
           globalThis.location.href = result.payment_url;
           return;
-        } else {
-          await showAlert(t("checkout.orderCreated"));
-          onSuccess();
         }
+        await showAlert(t("checkout.orderCreated"));
+        onSuccess();
       } catch (err) {
         hapticFeedback("notification", "error");
         const errorMessage = err instanceof Error ? err.message : "Unknown error";

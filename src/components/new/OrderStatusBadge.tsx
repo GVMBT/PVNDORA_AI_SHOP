@@ -29,7 +29,7 @@ const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ rawStatus, status }
 
   if (rawStatus === "delivered") {
     return (
-      <span className="text-[10px] font-bold bg-green-500/20 text-green-400 px-2 py-0.5 border border-green-500/30">
+      <span className="border border-green-500/30 bg-green-500/20 px-2 py-0.5 font-bold text-[10px] text-green-400">
         [ DELIVERED ]
       </span>
     );
@@ -37,7 +37,7 @@ const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ rawStatus, status }
 
   if (rawStatus === "paid") {
     return (
-      <span className="text-[10px] font-bold bg-blue-500/20 text-blue-400 px-2 py-0.5 border border-blue-500/30 animate-pulse">
+      <span className="animate-pulse border border-blue-500/30 bg-blue-500/20 px-2 py-0.5 font-bold text-[10px] text-blue-400">
         [ PROCESSING ]
       </span>
     );
@@ -45,7 +45,7 @@ const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ rawStatus, status }
 
   if (rawStatus === "partial") {
     return (
-      <span className="text-[10px] font-bold bg-yellow-500/20 text-yellow-400 px-2 py-0.5 border border-yellow-500/30">
+      <span className="border border-yellow-500/30 bg-yellow-500/20 px-2 py-0.5 font-bold text-[10px] text-yellow-400">
         [ PARTIAL ]
       </span>
     );
@@ -53,7 +53,7 @@ const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ rawStatus, status }
 
   if (rawStatus === "prepaid") {
     return (
-      <span className="text-[10px] font-bold bg-purple-500/20 text-purple-400 px-2 py-0.5 border border-purple-500/30 animate-pulse">
+      <span className="animate-pulse border border-purple-500/30 bg-purple-500/20 px-2 py-0.5 font-bold text-[10px] text-purple-400">
         [ PAID • WAITING_STOCK ]
       </span>
     );
@@ -61,7 +61,7 @@ const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ rawStatus, status }
 
   if (rawStatus === "pending") {
     return (
-      <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 px-2 py-0.5 border border-orange-500/30 animate-pulse">
+      <span className="animate-pulse border border-orange-500/30 bg-orange-500/20 px-2 py-0.5 font-bold text-[10px] text-orange-400">
         [ UNPAID ]
       </span>
     );
@@ -69,7 +69,7 @@ const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ rawStatus, status }
 
   if (rawStatus === "expired") {
     return (
-      <span className="text-[10px] font-bold bg-gray-500/20 text-gray-400 px-2 py-0.5 border border-gray-500/30">
+      <span className="border border-gray-500/30 bg-gray-500/20 px-2 py-0.5 font-bold text-[10px] text-gray-400">
         [ EXPIRED ]
       </span>
     );
@@ -77,7 +77,7 @@ const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ rawStatus, status }
 
   if (rawStatus === "cancelled" || rawStatus === "refunded") {
     return (
-      <span className="text-[10px] font-bold bg-red-500/10 text-red-500 px-2 py-0.5 border border-red-500/20">
+      <span className="border border-red-500/20 bg-red-500/10 px-2 py-0.5 font-bold text-[10px] text-red-500">
         [ {rawStatus.toUpperCase()} ]
       </span>
     );
@@ -85,7 +85,7 @@ const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ rawStatus, status }
 
   if (rawStatus === "failed") {
     return (
-      <span className="text-[10px] font-bold bg-red-500/20 text-red-500 px-2 py-0.5 border border-red-500/30">
+      <span className="border border-red-500/30 bg-red-500/20 px-2 py-0.5 font-bold text-[10px] text-red-500">
         [ FAILED ]
       </span>
     );
@@ -94,7 +94,7 @@ const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ rawStatus, status }
   // Fallback for old data without rawStatus
   if (!rawStatus && status === "paid") {
     return (
-      <span className="text-[10px] font-bold bg-green-500/20 text-green-400 px-2 py-0.5 border border-green-500/30">
+      <span className="border border-green-500/30 bg-green-500/20 px-2 py-0.5 font-bold text-[10px] text-green-400">
         [ STATUS: OK ]
       </span>
     );
@@ -102,7 +102,7 @@ const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ rawStatus, status }
 
   if (!rawStatus && status === "processing") {
     return (
-      <span className="text-[10px] font-bold bg-orange-500/20 text-orange-400 px-2 py-0.5 border border-orange-500/30 animate-pulse">
+      <span className="animate-pulse border border-orange-500/30 bg-orange-500/20 px-2 py-0.5 font-bold text-[10px] text-orange-400">
         [ STATUS: PENDING ]
       </span>
     );
@@ -110,7 +110,7 @@ const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ rawStatus, status }
 
   if (!rawStatus && status === "refunded") {
     return (
-      <span className="text-[10px] font-bold bg-red-500/10 text-red-500 px-2 py-0.5 border border-red-500/20">
+      <span className="border border-red-500/20 bg-red-500/10 px-2 py-0.5 font-bold text-[10px] text-red-500">
         [ STATUS: VOID ]
       </span>
     );

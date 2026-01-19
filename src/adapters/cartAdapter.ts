@@ -26,7 +26,7 @@ function adaptCartItem(item: APICartItem, currency: string): CartItem {
     priceUsd: item.unit_price_usd || item.final_price_usd || item.unit_price || 0,
     currency: item.currency || currency,
     quantity: item.quantity,
-    image: item.image_url || `/noise.png`,
+    image: item.image_url || "/noise.png",
   };
 }
 

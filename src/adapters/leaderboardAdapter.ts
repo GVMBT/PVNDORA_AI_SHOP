@@ -67,7 +67,7 @@ function adaptLeaderboardEntry(entry: APILeaderboardEntry): LeaderboardUser {
 export function adaptLeaderboard(
   response: APILeaderboardResponse,
   _currentUserId?: string, // Not needed anymore, backend sets is_current_user
-  currency: string = "USD" // Currency for formatting saved amounts
+  currency = "USD" // Currency for formatting saved amounts
 ): LeaderboardUser[] {
   const { leaderboard, user_rank, user_saved } = response;
 

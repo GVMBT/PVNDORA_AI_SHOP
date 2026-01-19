@@ -296,10 +296,10 @@ const Modal: React.FC<{
     <AnimatePresence>
       {state.isOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
           className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          exit={{ opacity: 0 }}
+          initial={{ opacity: 0 }}
           onClick={onClose}
         >
           {/* Backdrop */}
@@ -307,41 +307,41 @@ const Modal: React.FC<{
 
           {/* Modal */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative w-full max-w-md overflow-hidden border border-white/10 bg-[#0a0a0a] shadow-2xl"
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-md bg-[#0a0a0a] border border-white/10 shadow-2xl overflow-hidden"
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
           >
             {/* Corner decorations */}
-            <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-pandora-cyan" />
-            <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-pandora-cyan" />
-            <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-pandora-cyan" />
-            <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-pandora-cyan" />
+            <div className="absolute top-0 left-0 h-4 w-4 border-pandora-cyan border-t-2 border-l-2" />
+            <div className="absolute top-0 right-0 h-4 w-4 border-pandora-cyan border-t-2 border-r-2" />
+            <div className="absolute bottom-0 left-0 h-4 w-4 border-pandora-cyan border-b-2 border-l-2" />
+            <div className="absolute right-0 bottom-0 h-4 w-4 border-pandora-cyan border-r-2 border-b-2" />
 
             {/* Glow effect */}
-            <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-40 h-40 bg-pandora-cyan/10 blur-3xl pointer-events-none" />
+            <div className="pointer-events-none absolute -top-20 left-1/2 h-40 w-40 -translate-x-1/2 bg-pandora-cyan/10 blur-3xl" />
 
             {/* Header */}
-            <div className="relative px-6 pt-6 pb-4 border-b border-white/5">
+            <div className="relative border-white/5 border-b px-6 pt-6 pb-4">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-white/10 bg-white/5">
                   {getIcon()}
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-display font-bold text-white uppercase tracking-wider">
+                  <h3 className="font-bold font-display text-lg text-white uppercase tracking-wider">
                     {state.title}
                   </h3>
                   {/* Show message in header only for non-alert/confirm types (like prompt) */}
                   {state.message && state.type !== "alert" && state.type !== "confirm" && (
-                    <p className="text-xs text-gray-500 font-mono mt-1">{state.message}</p>
+                    <p className="mt-1 font-mono text-gray-500 text-xs">{state.message}</p>
                   )}
                 </div>
                 <button
-                  type="button"
+                  className="flex h-8 w-8 items-center justify-center rounded text-gray-500 transition-colors hover:bg-white/10 hover:text-white"
                   onClick={onClose}
-                  className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 transition-colors rounded"
+                  type="button"
                 >
                   <X size={18} />
                 </button>
@@ -354,11 +354,11 @@ const Modal: React.FC<{
               {state.type === "topup" && (
                 <div className="space-y-4">
                   {/* Balance Display */}
-                  <div className="bg-white/5 border border-white/10 p-4 rounded">
-                    <div className="text-[10px] text-gray-500 font-mono uppercase mb-1">
+                  <div className="rounded border border-white/10 bg-white/5 p-4">
+                    <div className="mb-1 font-mono text-[10px] text-gray-500 uppercase">
                       {t("modal.topUp.currentBalance")}
                     </div>
-                    <div className="text-2xl font-display font-bold text-pandora-cyan">
+                    <div className="font-bold font-display text-2xl text-pandora-cyan">
                       {state.balance?.toLocaleString()} {currencySymbol}
                     </div>
                   </div>
@@ -366,21 +366,21 @@ const Modal: React.FC<{
                   {/* Amount Input */}
                   <div>
                     <label
+                      className="mb-2 block font-mono text-[10px] text-gray-500 uppercase"
                       htmlFor="topup-amount"
-                      className="text-[10px] text-gray-500 font-mono uppercase mb-2 block"
                     >
                       {t("modal.topUp.amount")}
                     </label>
                     <div className="relative">
                       <input
+                        className="w-full border border-white/20 bg-black px-4 py-3 font-mono text-lg text-white outline-none transition-colors focus:border-pandora-cyan"
                         id="topup-amount"
-                        type="number"
-                        value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         placeholder={`Min: ${state.minAmount}`}
-                        className="w-full bg-black border border-white/20 focus:border-pandora-cyan px-4 py-3 text-white font-mono text-lg outline-none transition-colors"
+                        type="number"
+                        value={inputValue}
                       />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-mono">
+                      <span className="absolute top-1/2 right-4 -translate-y-1/2 font-mono text-gray-500">
                         {currencySymbol}
                       </span>
                     </div>
@@ -390,14 +390,14 @@ const Modal: React.FC<{
                   <div className="flex gap-2">
                     {getPresetAmounts.map((amount) => (
                       <button
-                        type="button"
+                        className={`flex-1 border py-2 font-mono text-xs transition-colors ${
+                          inputValue === String(amount)
+                            ? "border-pandora-cyan bg-pandora-cyan/20 text-pandora-cyan"
+                            : "border-white/10 bg-white/5 text-gray-400 hover:border-white/30"
+                        }`}
                         key={amount}
                         onClick={() => setInputValue(String(amount))}
-                        className={`flex-1 py-2 text-xs font-mono border transition-colors ${
-                          inputValue === String(amount)
-                            ? "bg-pandora-cyan/20 border-pandora-cyan text-pandora-cyan"
-                            : "bg-white/5 border-white/10 text-gray-400 hover:border-white/30"
-                        }`}
+                        type="button"
                       >
                         {amount.toLocaleString()}
                         {currencySymbol}
@@ -411,31 +411,31 @@ const Modal: React.FC<{
               {state.type === "withdraw" && (
                 <div className="space-y-4">
                   {/* Balance Display */}
-                  <div className="bg-white/5 border border-white/10 p-4 rounded">
-                    <div className="text-[10px] text-gray-500 font-mono uppercase mb-1">
+                  <div className="rounded border border-white/10 bg-white/5 p-4">
+                    <div className="mb-1 font-mono text-[10px] text-gray-500 uppercase">
                       {t("modal.withdraw.availableBalance")}
                     </div>
-                    <div className="text-2xl font-display font-bold text-green-500">
+                    <div className="font-bold font-display text-2xl text-green-500">
                       {state.balance?.toLocaleString()} {currencySymbol}
                     </div>
                   </div>
 
                   {/* Amount Input */}
                   <div>
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="mb-2 flex items-center justify-between">
                       <label
+                        className="font-mono text-[10px] text-gray-500 uppercase"
                         htmlFor="withdraw-amount"
-                        className="text-[10px] text-gray-500 font-mono uppercase"
                       >
                         {t("modal.withdraw.amount")}
                       </label>
                       {state.maxAmount && state.maxAmount > 0 && (
                         <button
-                          type="button"
+                          className="font-mono text-[10px] text-purple-400 uppercase transition-colors hover:text-purple-300"
                           onClick={() => {
                             setInputValue(state.maxAmount?.toString());
                           }}
-                          className="text-[10px] text-purple-400 font-mono uppercase hover:text-purple-300 transition-colors"
+                          type="button"
                         >
                           {t("modal.withdraw.max") || "МАКС"}
                         </button>
@@ -443,16 +443,16 @@ const Modal: React.FC<{
                     </div>
                     <div className="relative">
                       <input
+                        className="w-full border border-white/20 bg-black px-4 py-3 pr-16 font-mono text-lg text-white outline-none transition-colors focus:border-purple-500"
                         id="withdraw-amount"
-                        type="number"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        placeholder={`Min: ${state.minAmount}`}
                         max={state.maxAmount || state.balance}
                         min={state.minAmount}
-                        className="w-full bg-black border border-white/20 focus:border-purple-500 px-4 py-3 pr-16 text-white font-mono text-lg outline-none transition-colors"
+                        onChange={(e) => setInputValue(e.target.value)}
+                        placeholder={`Min: ${state.minAmount}`}
+                        type="number"
+                        value={inputValue}
                       />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-mono">
+                      <span className="absolute top-1/2 right-4 -translate-y-1/2 font-mono text-gray-500">
                         {currencySymbol}
                       </span>
                     </div>
@@ -463,30 +463,30 @@ const Modal: React.FC<{
                     withdrawPreview &&
                     !loadingPreview &&
                     Number.parseFloat(inputValue) > 0 && (
-                      <div className="bg-white/5 border border-white/10 p-4 rounded space-y-2">
-                        <div className="text-[10px] text-gray-500 font-mono uppercase mb-2">
+                      <div className="space-y-2 rounded border border-white/10 bg-white/5 p-4">
+                        <div className="mb-2 font-mono text-[10px] text-gray-500 uppercase">
                           {t("modal.withdraw.preview") || "РАСЧЁТ ВЫВОДА"}
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400 font-mono">Сумма (USDT):</span>
-                          <span className="text-white font-mono font-bold">
+                          <span className="font-mono text-gray-400">Сумма (USDT):</span>
+                          <span className="font-bold font-mono text-white">
                             {withdrawPreview.amount_usdt_gross.toFixed(2)} USDT
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400 font-mono">Комиссия сети:</span>
-                          <span className="text-orange-400 font-mono">
+                          <span className="font-mono text-gray-400">Комиссия сети:</span>
+                          <span className="font-mono text-orange-400">
                             -{withdrawPreview.network_fee.toFixed(2)} USDT
                           </span>
                         </div>
-                        <div className="border-t border-white/10 pt-2 mt-2 flex justify-between">
-                          <span className="text-gray-300 font-mono font-bold">К получению:</span>
-                          <span className="text-green-400 font-mono font-bold text-lg">
+                        <div className="mt-2 flex justify-between border-white/10 border-t pt-2">
+                          <span className="font-bold font-mono text-gray-300">К получению:</span>
+                          <span className="font-bold font-mono text-green-400 text-lg">
                             {withdrawPreview.amount_usdt_net.toFixed(2)} USDT
                           </span>
                         </div>
                         {!withdrawPreview.can_withdraw && (
-                          <div className="mt-2 px-2 py-1 bg-orange-500/10 border border-orange-500/30 text-orange-400 text-xs font-mono">
+                          <div className="mt-2 border border-orange-500/30 bg-orange-500/10 px-2 py-1 font-mono text-orange-400 text-xs">
                             ⚠ После комиссии сумма слишком мала. Минимум: 8.5 USDT (требование
                             биржи: 10 USD)
                           </div>
@@ -494,24 +494,24 @@ const Modal: React.FC<{
                       </div>
                     )}
                   {state.type === "withdraw" && loadingPreview && (
-                    <div className="bg-white/5 border border-white/10 p-4 rounded text-center">
-                      <Loader2 size={16} className="animate-spin mx-auto text-purple-400" />
+                    <div className="rounded border border-white/10 bg-white/5 p-4 text-center">
+                      <Loader2 className="mx-auto animate-spin text-purple-400" size={16} />
                     </div>
                   )}
 
                   {/* Method Selection - Only Crypto (TRC20 USDT) */}
                   <div>
-                    <div className="text-[10px] text-gray-500 font-mono uppercase mb-2 block">
+                    <div className="mb-2 block font-mono text-[10px] text-gray-500 uppercase">
                       {t("modal.withdraw.method")}
                     </div>
-                    <div className="bg-purple-500/20 border border-purple-500 p-4 rounded">
+                    <div className="rounded border border-purple-500 bg-purple-500/20 p-4">
                       <div className="flex items-center gap-3">
                         <span className="text-2xl">₿</span>
                         <div>
-                          <div className="text-sm font-mono font-bold text-purple-400">
+                          <div className="font-bold font-mono text-purple-400 text-sm">
                             TRC20 USDT
                           </div>
-                          <div className="text-[10px] text-gray-500 font-mono">
+                          <div className="font-mono text-[10px] text-gray-500">
                             {t("modal.withdraw.cryptoDescription")}
                           </div>
                         </div>
@@ -522,18 +522,18 @@ const Modal: React.FC<{
                   {/* Details Input */}
                   <div>
                     <label
+                      className="mb-2 block font-mono text-[10px] text-gray-500 uppercase"
                       htmlFor="withdraw-wallet"
-                      className="text-[10px] text-gray-500 font-mono uppercase mb-2 block"
                     >
                       {t("modal.withdraw.walletAddress")}
                     </label>
                     <input
+                      className="w-full border border-white/20 bg-black px-4 py-3 font-mono text-white outline-none transition-colors focus:border-purple-500"
                       id="withdraw-wallet"
-                      type="text"
-                      value={withdrawDetails}
                       onChange={(e) => setWithdrawDetails(e.target.value)}
                       placeholder={t("modal.withdraw.walletPlaceholder")}
-                      className="w-full bg-black border border-white/20 focus:border-purple-500 px-4 py-3 text-white font-mono outline-none transition-colors"
+                      type="text"
+                      value={withdrawDetails}
                     />
                   </div>
                 </div>
@@ -547,41 +547,41 @@ const Modal: React.FC<{
               {/* Prompt Content */}
               {state.type === "prompt" && (
                 <input
-                  type={state.inputType || "text"}
-                  value={inputValue}
+                  className="w-full border border-white/20 bg-black px-4 py-3 font-mono text-white outline-none transition-colors focus:border-pandora-cyan"
                   onChange={(e) => setInputValue(e.target.value)}
                   placeholder={state.placeholder}
-                  className="w-full bg-black border border-white/20 focus:border-pandora-cyan px-4 py-3 text-white font-mono outline-none transition-colors"
+                  type={state.inputType || "text"}
+                  value={inputValue}
                 />
               )}
 
               {/* Error */}
               {error && (
-                <div className="mt-3 px-3 py-2 bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono">
+                <div className="mt-3 border border-red-500/30 bg-red-500/10 px-3 py-2 font-mono text-red-400 text-xs">
                   ⚠ {error}
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="px-6 pb-6 pt-2 flex gap-3">
+            <div className="flex gap-3 px-6 pt-2 pb-6">
               {state.type !== "alert" && (
                 <button
-                  type="button"
+                  className="flex-1 border border-white/10 bg-white/5 py-3 font-bold text-gray-400 text-xs uppercase tracking-wider transition-colors hover:bg-white/10 hover:text-white"
                   onClick={onClose}
-                  className="flex-1 py-3 bg-white/5 border border-white/10 text-gray-400 text-xs font-bold uppercase tracking-wider hover:bg-white/10 hover:text-white transition-colors"
+                  type="button"
                 >
                   {t("modal.cancel")}
                 </button>
               )}
               <button
-                type="button"
-                onClick={handleSubmit}
+                className={`flex flex-1 items-center justify-center gap-2 py-3 font-bold text-xs uppercase tracking-wider transition-colors ${getButtonClassName(state.type, state.icon)}`}
                 disabled={state.isLoading}
-                className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${getButtonClassName(state.type, state.icon)}`}
+                onClick={handleSubmit}
+                type="button"
               >
                 {state.isLoading ? (
-                  <Loader2 size={16} className="animate-spin" />
+                  <Loader2 className="animate-spin" size={16} />
                 ) : (
                   <>
                     {state.type === "topup" && <Plus size={14} />}
@@ -593,7 +593,7 @@ const Modal: React.FC<{
             </div>
 
             {/* Scanline effect */}
-            <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.1)_50%)] bg-[length:100%_4px] opacity-20" />
+            <div className="pointer-events-none absolute inset-0 bg-[length:100%_4px] bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.1)_50%)] opacity-20" />
           </motion.div>
         </motion.div>
       )}
@@ -750,7 +750,7 @@ export const CyberModalProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   return (
     <CyberModalContext.Provider value={contextValue}>
       {children}
-      <Modal state={modalState} onClose={hideModal} onSubmit={handleSubmit} />
+      <Modal onClose={hideModal} onSubmit={handleSubmit} state={modalState} />
     </CyberModalContext.Provider>
   );
 };

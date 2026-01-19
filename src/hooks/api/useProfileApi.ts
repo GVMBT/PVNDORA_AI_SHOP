@@ -131,7 +131,7 @@ export function useProfileTyped() {
   const createTopUp = useCallback(
     async (
       amount: number,
-      currency: string = "RUB"
+      currency = "RUB"
     ): Promise<{ success: boolean; payment_url: string; topup_id: string; amount_rub: number }> => {
       try {
         return await post("/profile/topup", { amount, currency });
@@ -161,7 +161,7 @@ export function useProfileTyped() {
   const setPartnerMode = useCallback(
     async (
       mode: "commission" | "discount",
-      discountPercent: number = 15
+      discountPercent = 15
     ): Promise<{ success: boolean; mode: string; discount_percent: number; message: string }> => {
       try {
         return await post("/partner/mode", { mode, discount_percent: discountPercent });

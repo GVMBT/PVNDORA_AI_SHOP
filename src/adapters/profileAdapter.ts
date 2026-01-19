@@ -23,7 +23,7 @@ import type { BillingLog, CareerLevel, NetworkNode, ProfileData } from "../types
 function getCurrentLevel(
   _turnoverUsd: number,
   thresholds: { level2: number; level3: number },
-  isVip: boolean = false,
+  isVip = false,
   effectiveLevel?: number
 ): CareerLevel {
   // Create level structure with provided thresholds (for min/max display)
@@ -36,7 +36,13 @@ function getCurrentLevel(
       max: thresholds.level3,
       color: "text-purple-400",
     },
-    { id: 3, label: "ARCHITECT", min: thresholds.level3, max: Infinity, color: "text-yellow-400" },
+    {
+      id: 3,
+      label: "ARCHITECT",
+      min: thresholds.level3,
+      max: Number.POSITIVE_INFINITY,
+      color: "text-yellow-400",
+    },
   ];
 
   // VIP users always get ARCHITECT level (level 3)
@@ -71,7 +77,13 @@ function getNextLevel(
       max: thresholds.level3,
       color: "text-purple-400",
     },
-    { id: 3, label: "ARCHITECT", min: thresholds.level3, max: Infinity, color: "text-yellow-400" },
+    {
+      id: 3,
+      label: "ARCHITECT",
+      min: thresholds.level3,
+      max: Number.POSITIVE_INFINITY,
+      color: "text-yellow-400",
+    },
   ];
 
   return levels.find((l) => l.id === currentLevel.id + 1);
@@ -81,7 +93,7 @@ function getNextLevel(
  * Calculate progress percentage within current level
  */
 function _calculateProgressPercent(turnover: number, currentLevel: CareerLevel): number {
-  if (currentLevel.max === Infinity) return 100;
+  if (currentLevel.max === Number.POSITIVE_INFINITY) return 100;
   const range = currentLevel.max - currentLevel.min;
   const progress = turnover - currentLevel.min;
   return Math.min(100, Math.max(0, (progress / range) * 100));
@@ -212,7 +224,7 @@ export function adaptProfile(
   const currentLevel = getCurrentLevel(
     referral_program.turnover_usd, // Still in USD for comparison
     displayThresholds, // But use display thresholds for min/max
-    referral_program.is_partner || false,
+    referral_program.is_partner,
     referral_program.effective_level // Use backend-calculated level
   );
 
@@ -301,7 +313,7 @@ export function adaptProfile(
         }
 
         // If no next level (max level), show 100%
-        if (!nextLevel || currentLevel.max === Infinity) {
+        if (!nextLevel || currentLevel.max === Number.POSITIVE_INFINITY) {
           return 100;
         }
 
@@ -424,7 +436,7 @@ function formatTimeAgo(timestamp: string): string {
   const date = new Date(timestamp);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
+  const diffMins = Math.floor(diffMs / 60_000);
 
   if (diffMins < 60) return `${diffMins}m ago`;
   const diffHours = Math.floor(diffMins / 60);

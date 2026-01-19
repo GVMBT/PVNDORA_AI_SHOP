@@ -86,37 +86,37 @@ const renderApplicationsContent = (
 ): React.ReactNode => {
   if (loadingApplications) {
     return (
-      <div className="text-center py-8">
-        <RefreshCw size={24} className="animate-spin text-pandora-cyan mx-auto" />
+      <div className="py-8 text-center">
+        <RefreshCw className="mx-auto animate-spin text-pandora-cyan" size={24} />
       </div>
     );
   }
 
   if (applications.length === 0) {
     return (
-      <div className="text-center text-gray-600 text-xs py-8 bg-white/5 border border-white/10">
+      <div className="border border-white/10 bg-white/5 py-8 text-center text-gray-600 text-xs">
         {filter === "pending" ? "Нет ожидающих заявок" : "Заявки не найдены"}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       {applications.map((app) => (
         <motion.div
-          key={app.id}
-          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`bg-[#0e0e0e] border p-4 cursor-pointer transition-colors ${
+          className={`cursor-pointer border bg-[#0e0e0e] p-4 transition-colors ${
             app.status === "pending"
               ? "border-yellow-500/30 hover:border-yellow-500"
               : "border-white/10 hover:border-white/30"
           }`}
+          initial={{ opacity: 0, y: 10 }}
+          key={app.id}
           onClick={() => setSelectedApp(app)}
         >
-          <div className="flex justify-between items-start mb-3">
+          <div className="mb-3 flex items-start justify-between">
             <div className="flex items-center gap-2">
-              <User size={14} className="text-gray-500" />
+              <User className="text-gray-500" size={14} />
               <span className="font-bold text-white">
                 {app.first_name || app.username || "Пользователь"}
               </span>
@@ -124,13 +124,13 @@ const renderApplicationsContent = (
             {getStatusBadge(app.status)}
           </div>
 
-          <div className="text-xs text-gray-500 mb-2 flex items-center gap-2">
+          <div className="mb-2 flex items-center gap-2 text-gray-500 text-xs">
             <Calendar size={12} />
             {formatDateRu(app.created_at)}
           </div>
 
           {Boolean(app.motivation) && (
-            <p className="text-xs text-gray-400 line-clamp-2 mb-2">{app.motivation}</p>
+            <p className="mb-2 line-clamp-2 text-gray-400 text-xs">{app.motivation}</p>
           )}
 
           {app.expected_referrals != null && app.expected_referrals > 0 && (
@@ -213,32 +213,32 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
   return (
     <div className="space-y-6">
       {/* Tabs */}
-      <div className="flex gap-4 border-b border-white/10 pb-1 overflow-x-auto">
+      <div className="flex gap-4 overflow-x-auto border-white/10 border-b pb-1">
         <button
-          type="button"
-          onClick={() => setActiveTab("list")}
-          className={`text-xs font-bold uppercase pb-2 px-2 transition-colors flex items-center gap-2 ${
+          className={`flex items-center gap-2 px-2 pb-2 font-bold text-xs uppercase transition-colors ${
             activeTab === "list"
-              ? "text-pandora-cyan border-b-2 border-pandora-cyan"
+              ? "border-pandora-cyan border-b-2 text-pandora-cyan"
               : "text-gray-500 hover:text-white"
           }`}
+          onClick={() => setActiveTab("list")}
+          type="button"
         >
           <Crown size={14} />
           VIP Партнёры
         </button>
         <button
-          type="button"
-          onClick={() => setActiveTab("requests")}
-          className={`text-xs font-bold uppercase pb-2 px-2 transition-colors flex items-center gap-2 ${
+          className={`flex items-center gap-2 px-2 pb-2 font-bold text-xs uppercase transition-colors ${
             activeTab === "requests"
-              ? "text-pandora-cyan border-b-2 border-pandora-cyan"
+              ? "border-pandora-cyan border-b-2 text-pandora-cyan"
               : "text-gray-500 hover:text-white"
           }`}
+          onClick={() => setActiveTab("requests")}
+          type="button"
         >
           <Users size={14} />
           Заявки
           {pendingCount > 0 && (
-            <span className="bg-red-500 text-white px-1.5 rounded-sm text-[9px] font-bold">
+            <span className="rounded-sm bg-red-500 px-1.5 font-bold text-[9px] text-white">
               {pendingCount}
             </span>
           )}
@@ -248,8 +248,8 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
       {activeTab === "list" ? (
         <>
           {/* Partners List - Desktop */}
-          <div className="bg-[#0e0e0e] border border-white/10 rounded-sm overflow-hidden hidden md:block">
-            <table className="w-full text-left text-xs font-mono">
+          <div className="hidden overflow-hidden rounded-sm border border-white/10 bg-[#0e0e0e] md:block">
+            <table className="w-full text-left font-mono text-xs">
               <thead className="bg-white/5 text-gray-400 uppercase">
                 <tr>
                   <th className="p-4">Пользователь</th>
@@ -263,17 +263,17 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
               <tbody className="divide-y divide-white/5 text-gray-300">
                 {partners.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-gray-600">
+                    <td className="p-8 text-center text-gray-600" colSpan={6}>
                       Нет VIP партнёров
                     </td>
                   </tr>
                 ) : (
                   partners.map((p) => (
-                    <tr key={p.id} className="hover:bg-white/5 transition-colors">
+                    <tr className="transition-colors hover:bg-white/5" key={p.id}>
                       <td className="p-4 font-bold text-white">{p.handle || p.username}</td>
                       <td className="p-4">
                         <span
-                          className={`text-[10px] px-2 py-0.5 border ${
+                          className={`border px-2 py-0.5 text-[10px] ${
                             p.level === "ARCHITECT"
                               ? "border-yellow-500 text-yellow-500"
                               : "border-gray-500 text-gray-500"
@@ -283,31 +283,31 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
                         </span>
                       </td>
                       <td className="p-4 text-pandora-cyan">{p.earned || 0} ₽</td>
-                      <td className="p-4 text-[10px] uppercase text-gray-400">
+                      <td className="p-4 text-[10px] text-gray-400 uppercase">
                         {p.rewardType === "commission" ? "💰 Комиссия" : "🎁 Скидка рефералам"}
                       </td>
                       <td className="p-4">
                         <StatusBadge status={p.status || "ACTIVE"} />
                       </td>
-                      <td className="p-4 flex gap-2">
+                      <td className="flex gap-2 p-4">
                         <button
-                          type="button"
+                          className="transition-colors hover:text-pandora-cyan"
                           onClick={() => onEditPartner(p)}
-                          className="hover:text-pandora-cyan transition-colors"
                           title="Редактировать"
+                          type="button"
                         >
                           <Edit size={14} />
                         </button>
                         {onRevokeVIP && (
                           <button
-                            type="button"
+                            className="text-gray-500 transition-colors hover:text-red-500"
                             onClick={async () => {
                               if (confirm(`Отозвать VIP статус у ${p.username}?`)) {
                                 await onRevokeVIP(p);
                               }
                             }}
-                            className="hover:text-red-500 transition-colors text-gray-500"
                             title="Отозвать VIP"
+                            type="button"
                           >
                             <X size={14} />
                           </button>
@@ -321,23 +321,23 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
           </div>
 
           {/* Mobile Partners */}
-          <div className="md:hidden space-y-4">
+          <div className="space-y-4 md:hidden">
             {partners.length === 0 ? (
-              <div className="text-center text-gray-600 text-xs py-8">Нет VIP партнёров</div>
+              <div className="py-8 text-center text-gray-600 text-xs">Нет VIP партнёров</div>
             ) : (
               partners.map((p) => (
-                <div key={p.id} className="bg-[#0e0e0e] border border-white/10 p-4 relative">
-                  <div className="flex justify-between items-start mb-2">
+                <div className="relative border border-white/10 bg-[#0e0e0e] p-4" key={p.id}>
+                  <div className="mb-2 flex items-start justify-between">
                     <span className="font-bold text-white">{p.handle || p.username}</span>
                     <StatusBadge status={p.status || "ACTIVE"} />
                   </div>
-                  <div className="text-xs text-gray-500 mb-2">
+                  <div className="mb-2 text-gray-500 text-xs">
                     {p.level || "USER"} • Заработок: {p.earned || 0} ₽
                   </div>
                   <button
-                    type="button"
+                    className="w-full bg-white/5 py-2 font-bold text-[10px] uppercase transition-colors hover:bg-pandora-cyan hover:text-black"
                     onClick={() => onEditPartner(p)}
-                    className="w-full text-[10px] bg-white/5 py-2 hover:bg-pandora-cyan hover:text-black transition-colors uppercase font-bold"
+                    type="button"
                   >
                     Управление
                   </button>
@@ -349,38 +349,38 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
       ) : (
         <div className="space-y-4">
           {/* Filter & Refresh */}
-          <div className="flex justify-between items-center">
+          <div className="flex items-center justify-between">
             <div className="flex gap-2">
               <button
-                type="button"
-                onClick={() => setFilter("pending")}
-                className={`px-3 py-1.5 text-[10px] font-bold uppercase transition-colors ${
+                className={`px-3 py-1.5 font-bold text-[10px] uppercase transition-colors ${
                   filter === "pending"
                     ? "bg-pandora-cyan text-black"
                     : "bg-white/5 text-gray-400 hover:text-white"
                 }`}
+                onClick={() => setFilter("pending")}
+                type="button"
               >
                 Ожидающие
               </button>
               <button
-                type="button"
-                onClick={() => setFilter("all")}
-                className={`px-3 py-1.5 text-[10px] font-bold uppercase transition-colors ${
+                className={`px-3 py-1.5 font-bold text-[10px] uppercase transition-colors ${
                   filter === "all"
                     ? "bg-pandora-cyan text-black"
                     : "bg-white/5 text-gray-400 hover:text-white"
                 }`}
+                onClick={() => setFilter("all")}
+                type="button"
               >
                 Все
               </button>
             </div>
             <button
-              type="button"
-              onClick={fetchApplications}
+              className="p-2 text-gray-400 transition-colors hover:text-pandora-cyan disabled:opacity-50"
               disabled={loadingApplications}
-              className="p-2 text-gray-400 hover:text-pandora-cyan transition-colors disabled:opacity-50"
+              onClick={fetchApplications}
+              type="button"
             >
-              <RefreshCw size={16} className={loadingApplications ? "animate-spin" : ""} />
+              <RefreshCw className={loadingApplications ? "animate-spin" : ""} size={16} />
             </button>
           </div>
 
@@ -394,88 +394,88 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
         {selectedApp && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
             <button
-              type="button"
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-default"
+              aria-label="Close modal"
+              className="absolute inset-0 cursor-default bg-black/80 backdrop-blur-sm"
               onClick={() => !processing && setSelectedApp(null)}
               onKeyDown={(e) => {
                 if (e.key === "Escape" && !processing) setSelectedApp(null);
               }}
-              aria-label="Close modal"
+              type="button"
             />
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
+              className="relative w-full max-w-lg border border-white/20 bg-[#080808] p-6 shadow-2xl"
               exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-lg bg-[#080808] border border-white/20 p-6 shadow-2xl"
+              initial={{ scale: 0.9, opacity: 0 }}
             >
               {/* Header */}
-              <div className="flex justify-between items-start mb-6">
+              <div className="mb-6 flex items-start justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Crown size={18} className="text-yellow-500" />
+                  <h3 className="flex items-center gap-2 font-bold text-lg text-white">
+                    <Crown className="text-yellow-500" size={18} />
                     Заявка на VIP
                   </h3>
-                  <p className="text-xs text-gray-500 mt-1">ID: {selectedApp.id.slice(0, 8)}</p>
+                  <p className="mt-1 text-gray-500 text-xs">ID: {selectedApp.id.slice(0, 8)}</p>
                 </div>
                 <button
-                  type="button"
-                  onClick={() => !processing && setSelectedApp(null)}
                   className="text-gray-500 hover:text-white"
+                  onClick={() => !processing && setSelectedApp(null)}
+                  type="button"
                 >
                   <X size={20} />
                 </button>
               </div>
 
               {/* Applicant Info */}
-              <div className="space-y-4 mb-6">
+              <div className="mb-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-black/50 p-3 border border-white/10">
-                    <div className="text-[10px] text-gray-500 uppercase mb-1">Пользователь</div>
-                    <div className="text-white font-bold">
+                  <div className="border border-white/10 bg-black/50 p-3">
+                    <div className="mb-1 text-[10px] text-gray-500 uppercase">Пользователь</div>
+                    <div className="font-bold text-white">
                       {selectedApp.first_name || selectedApp.username || "Неизвестно"}
                     </div>
                   </div>
-                  <div className="bg-black/50 p-3 border border-white/10">
-                    <div className="text-[10px] text-gray-500 uppercase mb-1">Telegram ID</div>
-                    <div className="text-white font-mono">
+                  <div className="border border-white/10 bg-black/50 p-3">
+                    <div className="mb-1 text-[10px] text-gray-500 uppercase">Telegram ID</div>
+                    <div className="font-mono text-white">
                       {selectedApp.telegram_id || "N/A"}
                       {selectedApp.telegram_id && (
                         <a
-                          href={`tg://user?id=${selectedApp.telegram_id}`}
                           className="ml-2 text-pandora-cyan hover:underline"
+                          href={`tg://user?id=${selectedApp.telegram_id}`}
                         >
-                          <ExternalLink size={12} className="inline" />
+                          <ExternalLink className="inline" size={12} />
                         </a>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-black/50 p-3 border border-white/10">
-                  <div className="text-[10px] text-gray-500 uppercase mb-1">Дата подачи</div>
+                <div className="border border-white/10 bg-black/50 p-3">
+                  <div className="mb-1 text-[10px] text-gray-500 uppercase">Дата подачи</div>
                   <div className="text-white">{formatDateRu(selectedApp.created_at)}</div>
                 </div>
 
                 {selectedApp.motivation && (
-                  <div className="bg-black/50 p-3 border border-white/10">
-                    <div className="text-[10px] text-gray-500 uppercase mb-1">Мотивация</div>
+                  <div className="border border-white/10 bg-black/50 p-3">
+                    <div className="mb-1 text-[10px] text-gray-500 uppercase">Мотивация</div>
                     <p className="text-gray-300 text-sm">{selectedApp.motivation}</p>
                   </div>
                 )}
 
                 {selectedApp.channels_description && (
-                  <div className="bg-black/50 p-3 border border-white/10">
-                    <div className="text-[10px] text-gray-500 uppercase mb-1">Описание каналов</div>
+                  <div className="border border-white/10 bg-black/50 p-3">
+                    <div className="mb-1 text-[10px] text-gray-500 uppercase">Описание каналов</div>
                     <p className="text-gray-300 text-sm">{selectedApp.channels_description}</p>
                   </div>
                 )}
 
                 {selectedApp.expected_referrals && (
-                  <div className="bg-black/50 p-3 border border-white/10">
-                    <div className="text-[10px] text-gray-500 uppercase mb-1">
+                  <div className="border border-white/10 bg-black/50 p-3">
+                    <div className="mb-1 text-[10px] text-gray-500 uppercase">
                       Ожидаемые рефералы
                     </div>
-                    <div className="text-pandora-cyan font-bold">
+                    <div className="font-bold text-pandora-cyan">
                       {selectedApp.expected_referrals}
                     </div>
                   </div>
@@ -486,9 +486,9 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
               {selectedApp.status === "pending" ? (
                 <div className="space-y-4">
                   {/* VIP Info */}
-                  <div className="bg-yellow-500/10 border border-yellow-500/30 p-3 text-xs text-yellow-400">
-                    <p className="font-bold mb-1">При одобрении пользователь получит:</p>
-                    <ul className="list-disc list-inside text-yellow-400/80 space-y-1">
+                  <div className="border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-400">
+                    <p className="mb-1 font-bold">При одобрении пользователь получит:</p>
+                    <ul className="list-inside list-disc space-y-1 text-yellow-400/80">
                       <li>Статус VIP / ARCHITECT</li>
                       <li>Все реферальные уровни открыты</li>
                       <li>Максимальные комиссии</li>
@@ -498,36 +498,36 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
                   {/* Comment */}
                   <div>
                     <label
+                      className="mb-1 block text-[10px] text-gray-500 uppercase"
                       htmlFor="review-comment"
-                      className="text-[10px] text-gray-500 uppercase mb-1 block"
                     >
                       Комментарий (опционально)
                     </label>
                     <textarea
+                      className="h-20 w-full resize-none border border-white/20 bg-black p-2 text-sm text-white outline-none focus:border-pandora-cyan"
                       id="review-comment"
-                      value={reviewComment}
                       onChange={(e) => setReviewComment(e.target.value)}
                       placeholder="Комментарий для пользователя..."
-                      className="w-full h-20 bg-black border border-white/20 p-2 text-white text-sm focus:border-pandora-cyan outline-none resize-none"
+                      value={reviewComment}
                     />
                   </div>
 
                   {/* Actions */}
                   <div className="flex gap-3 pt-2">
                     <button
-                      type="button"
-                      onClick={() => handleReview(true)}
+                      className="flex flex-1 items-center justify-center gap-2 bg-green-500 py-2.5 font-bold text-black text-sm transition-colors hover:bg-green-400 disabled:opacity-50"
                       disabled={processing}
-                      className="flex-1 py-2.5 bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      onClick={() => handleReview(true)}
+                      type="button"
                     >
                       <Check size={16} />
                       Одобрить
                     </button>
                     <button
-                      type="button"
-                      onClick={() => handleReview(false)}
+                      className="flex flex-1 items-center justify-center gap-2 bg-red-500 py-2.5 font-bold text-sm text-white transition-colors hover:bg-red-400 disabled:opacity-50"
                       disabled={processing}
-                      className="flex-1 py-2.5 bg-red-500 text-white font-bold text-sm hover:bg-red-400 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                      onClick={() => handleReview(false)}
+                      type="button"
                     >
                       <X size={16} />
                       Отклонить
@@ -535,17 +535,17 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="bg-white/5 p-4 border border-white/10">
-                  <div className="flex items-center gap-2 mb-2">
+                <div className="border border-white/10 bg-white/5 p-4">
+                  <div className="mb-2 flex items-center gap-2">
                     {getStatusBadge(selectedApp.status)}
                     {selectedApp.reviewed_at && (
-                      <span className="text-xs text-gray-500">
+                      <span className="text-gray-500 text-xs">
                         {formatDateRu(selectedApp.reviewed_at)}
                       </span>
                     )}
                   </div>
                   {selectedApp.admin_comment && (
-                    <p className="text-sm text-gray-400">{selectedApp.admin_comment}</p>
+                    <p className="text-gray-400 text-sm">{selectedApp.admin_comment}</p>
                   )}
                 </div>
               )}

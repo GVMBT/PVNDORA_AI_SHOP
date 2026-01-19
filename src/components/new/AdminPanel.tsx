@@ -155,53 +155,53 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       case "catalog":
         return (
           <AdminCatalog
-            products={propsProducts}
+            onDeleteProduct={onDeleteProduct}
             onEditProduct={handleEditProduct}
             onNewProduct={handleNewProduct}
-            onDeleteProduct={onDeleteProduct}
+            products={propsProducts}
           />
         );
       case "sales":
-        return <AdminSales orders={propsOrders} onRefresh={onRefreshOrders} />;
+        return <AdminSales onRefresh={onRefreshOrders} orders={propsOrders} />;
       case "users":
         return (
           <AdminUsers
-            users={propsUsers}
             onBanUser={onBanUser}
-            onUpdateBalance={onUpdateBalance}
             onRefresh={onRefreshOrders}
+            onUpdateBalance={onUpdateBalance}
+            users={propsUsers}
           />
         );
       case "partners":
         return (
           <AdminPartners
-            partners={propsUsers.filter((u) => u.role === "VIP")}
             onEditPartner={(partner) => {
               // Open partner management modal
               setSelectedPartner(partner);
             }}
+            onRefresh={onRefreshOrders}
             onRevokeVIP={async (partner) => {
               if (onToggleVIP) {
                 await onToggleVIP(partner.dbId, false);
                 if (onRefreshOrders) onRefreshOrders();
               }
             }}
-            onRefresh={onRefreshOrders}
+            partners={propsUsers.filter((u) => u.role === "VIP")}
           />
         );
       case "support":
-        return <AdminSupport tickets={propsTickets} onRefresh={onRefreshTickets} />;
+        return <AdminSupport onRefresh={onRefreshTickets} tickets={propsTickets} />;
       case "withdrawals":
-        return <AdminWithdrawals withdrawals={propsWithdrawals} onRefresh={onRefreshWithdrawals} />;
+        return <AdminWithdrawals onRefresh={onRefreshWithdrawals} withdrawals={propsWithdrawals} />;
       case "promo":
         return (
           <AdminPromo
-            promoCodes={propsPromoCodes}
-            products={propsProducts.map((p) => ({ id: String(p.id), name: p.name }))} // Pass products for selection
             onCreatePromo={onCreatePromo}
-            onUpdatePromo={onUpdatePromo}
-            onDeletePromo={onDeletePromo}
+            onDeletePromo={onDeletePromo} // Pass products for selection
             onToggleActive={onTogglePromoActive}
+            onUpdatePromo={onUpdatePromo}
+            products={propsProducts.map((p) => ({ id: String(p.id), name: p.name }))}
+            promoCodes={propsPromoCodes}
           />
         );
       case "migration":
@@ -210,9 +210,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         return (
           <AdminAccounting
             data={accountingData}
-            onRefresh={onRefreshAccounting}
             isLoading={isAccountingLoading}
             onAddExpense={onAddExpense ? () => setIsExpenseModalOpen(true) : undefined}
+            onRefresh={onRefreshAccounting}
           />
         );
       default:
@@ -222,43 +222,43 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      className="flex min-h-screen flex-col overflow-hidden bg-black text-white md:flex-row"
       exit={{ opacity: 0 }}
-      className="min-h-screen bg-black text-white flex flex-col md:flex-row overflow-hidden"
+      initial={{ opacity: 0 }}
     >
       <AdminSidebar
         currentView={currentView}
-        isOpen={isSidebarOpen}
         isCollapsed={isSidebarCollapsed}
-        onViewChange={setCurrentView}
-        onToggleCollapse={() => setSidebarCollapsed(!isSidebarCollapsed)}
+        isOpen={isSidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onExit={onExit}
+        onToggleCollapse={() => setSidebarCollapsed(!isSidebarCollapsed)}
+        onViewChange={setCurrentView}
       />
 
       {/* Overlay for mobile sidebar */}
       {isSidebarOpen && (
         <button
-          type="button"
           aria-label="Close sidebar"
-          className="fixed inset-0 bg-black/80 z-30 md:hidden cursor-default"
+          className="fixed inset-0 z-30 cursor-default bg-black/80 md:hidden"
           onClick={() => setSidebarOpen(false)}
+          type="button"
         />
       )}
 
       {/* Main Content */}
-      <div className="flex-1 min-w-0 bg-[#080808] h-[calc(100vh-64px)] md:h-screen overflow-y-auto">
+      <div className="h-[calc(100vh-64px)] min-w-0 flex-1 overflow-y-auto bg-[#080808] md:h-screen">
         <AdminHeader currentView={currentView} />
 
         {/* View Content */}
-        <div className="p-4 md:p-8 pb-24 md:pb-8">
+        <div className="p-4 pb-24 md:p-8 md:pb-8">
           <AnimatePresence mode="wait">
             <motion.div
-              key={currentView}
-              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: 10 }}
+              key={currentView}
               transition={{ duration: 0.2 }}
             >
               {renderCurrentView()}
@@ -270,24 +270,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* Modals */}
       <ProductModal
         isOpen={isProductModalOpen}
-        product={editingProduct}
         onClose={() => {
           setIsProductModalOpen(false);
           setEditingProduct(null);
         }}
         onSave={handleSaveProduct}
+        product={editingProduct}
       />
 
       <PartnerModal
-        partner={selectedPartner}
         onClose={() => setSelectedPartner(null)}
         onSave={handleSavePartner}
+        partner={selectedPartner}
       />
 
       {onAddExpense && (
         <ExpenseModal
-          isOpen={isExpenseModalOpen}
           expense={null}
+          isOpen={isExpenseModalOpen}
           onClose={() => setIsExpenseModalOpen(false)}
           onSave={handleSaveExpense}
         />

@@ -189,8 +189,8 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({ onClose
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
         <div className="text-center">
-          <div className="w-12 h-12 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-2 border-pandora-cyan border-t-transparent" />
+          <div className="font-mono text-gray-500 text-xs uppercase tracking-widest">
             {t("common.loadingCart")}
           </div>
         </div>

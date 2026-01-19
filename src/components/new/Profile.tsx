@@ -119,21 +119,21 @@ const Profile: React.FC<ProfileProps> = ({
   if (!propProfile) {
     // Return empty state if no profile data provided
     return (
-      <div className="min-h-screen text-white pt-20 md:pt-24 pb-32 px-4 md:px-8 md:pl-28 relative">
-        <div className="max-w-7xl mx-auto">
+      <div className="relative min-h-screen px-4 pt-20 pb-32 text-white md:px-8 md:pt-24 md:pl-28">
+        <div className="mx-auto max-w-7xl">
           <button
-            type="button"
+            className="mb-4 flex items-center gap-2 font-mono text-[10px] text-gray-500 transition-colors hover:text-pandora-cyan"
             onClick={onBack}
-            className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
+            type="button"
           >
             <ArrowLeft size={12} /> {t("empty.returnToBase").toUpperCase()}
           </button>
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <User size={64} className="text-gray-700 mb-6" />
-            <h2 className="text-2xl font-bold text-white mb-2">
+            <User className="mb-6 text-gray-700" size={64} />
+            <h2 className="mb-2 font-bold text-2xl text-white">
               {t("empty.profile").toUpperCase()}
             </h2>
-            <p className="text-gray-500 font-mono text-sm max-w-md">{t("empty.profileHint")}</p>
+            <p className="max-w-md font-mono text-gray-500 text-sm">{t("empty.profileHint")}</p>
           </div>
         </div>
       </div>
@@ -194,73 +194,73 @@ const Profile: React.FC<ProfileProps> = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      className="relative min-h-screen px-4 pt-20 pb-32 text-white md:px-8 md:pt-24 md:pl-28"
       exit={{ opacity: 0 }}
-      className="min-h-screen text-white pt-20 md:pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
+      initial={{ opacity: 0 }}
     >
-      <div className="max-w-7xl mx-auto relative z-10">
+      <div className="relative z-10 mx-auto max-w-7xl">
         <ProfileHeader
-          user={user}
-          onBack={onBack}
           onAdminEnter={onAdminEnter}
+          onBack={onBack}
           onStudioEnter={onStudioEnter}
+          user={user}
         />
 
         <ProfileStats
-          user={user}
           copied={copied}
-          rewardMode={rewardMode}
-          onHaptic={onHaptic}
-          onTopUp={onTopUp}
-          onWithdraw={onWithdraw}
+          onCancelWithdrawal={onCancelWithdrawal}
           onCopy={handleCopy}
+          onHaptic={onHaptic}
           onShare={handleShare}
           onToggleRewardMode={toggleRewardMode}
+          onTopUp={onTopUp}
           onUpdatePreferences={onUpdatePreferences}
-          onCancelWithdrawal={onCancelWithdrawal}
+          onWithdraw={onWithdraw}
+          rewardMode={rewardMode}
+          user={user}
         />
 
         <ProfileCareer
-          currentLevel={currentLevel}
-          nextLevel={nextLevel}
-          currentTurnover={currentTurnover}
-          maxTurnover={maxTurnover}
-          progressPercent={progressPercent}
-          thresholds={propProfile.career.thresholds}
           commissions={propProfile.career.commissions}
           currency={user.currency}
+          currentLevel={currentLevel}
+          currentTurnover={currentTurnover}
           exchangeRate={user.exchangeRate}
           isVip={user.isVip}
+          maxTurnover={maxTurnover}
+          nextLevel={nextLevel}
           onApplyPartner={onApplyPartner}
+          progressPercent={progressPercent}
+          thresholds={propProfile.career.thresholds}
         />
 
         {/* System Logs & Scanner */}
         <div className="mb-12">
-          <div className="bg-[#0a0a0a] border-b border-white/10 p-2 px-4 flex flex-col sm:flex-row items-center gap-6 mb-0">
+          <div className="mb-0 flex flex-col items-center gap-6 border-white/10 border-b bg-[#0a0a0a] p-2 px-4 sm:flex-row">
             {/* Main Tabs */}
-            <div className="flex items-center gap-6 overflow-x-auto w-full sm:w-auto">
+            <div className="flex w-full items-center gap-6 overflow-x-auto sm:w-auto">
               <button
-                type="button"
+                className={`flex items-center gap-2 whitespace-nowrap font-bold font-mono text-[10px] uppercase ${
+                  activeTab === "network" ? "text-pandora-cyan" : "text-gray-600"
+                }`}
                 onClick={() => {
                   if (onHaptic) onHaptic("light");
                   setActiveTab("network");
                 }}
-                className={`text-[10px] font-mono font-bold uppercase flex items-center gap-2 whitespace-nowrap ${
-                  activeTab === "network" ? "text-pandora-cyan" : "text-gray-600"
-                }`}
+                type="button"
               >
                 {t("profile.tabs.network")}
               </button>
               <button
-                type="button"
+                className={`whitespace-nowrap font-bold font-mono text-[10px] uppercase ${
+                  activeTab === "logs" ? "text-pandora-cyan" : "text-gray-600"
+                }`}
                 onClick={() => {
                   if (onHaptic) onHaptic("light");
                   setActiveTab("logs");
                 }}
-                className={`text-[10px] font-mono font-bold uppercase whitespace-nowrap ${
-                  activeTab === "logs" ? "text-pandora-cyan" : "text-gray-600"
-                }`}
+                type="button"
               >
                 {t("profile.tabs.history")}
               </button>
@@ -269,25 +269,25 @@ const Profile: React.FC<ProfileProps> = ({
 
           {activeTab === "network" ? (
             <ProfileNetwork
-              nodes={networkTree}
-              networkLine={networkLine}
               currency={user.currency || "USD"}
               exchangeRate={user.exchangeRate || 1}
+              networkLine={networkLine}
+              nodes={networkTree}
               onLineChange={changeLine}
               onNodeClick={handleOpenDossier}
             />
           ) : (
             <ProfileBilling
-              logs={billingLogs}
               currency={user.currency || "USD"}
               exchangeRate={user.exchangeRate || 1}
+              logs={billingLogs}
             />
           )}
         </div>
       </div>
 
       {/* Referral Dossier */}
-      <ReferralDossier referral={selectedReferral || null} onClose={handleCloseDossier} />
+      <ReferralDossier onClose={handleCloseDossier} referral={selectedReferral || null} />
     </motion.div>
   );
 };

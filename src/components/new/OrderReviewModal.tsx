@@ -36,32 +36,32 @@ const OrderReviewModal: React.FC<ReviewModalProps> = ({
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <motion.div
-            initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            onClick={onClose}
           />
           <motion.div
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="relative w-full max-w-md border border-white/20 bg-[#0a0a0a] p-6 shadow-[0_0_50px_rgba(0,0,0,0.8)]"
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="relative w-full max-w-md bg-[#0a0a0a] border border-white/20 p-6 shadow-[0_0_50px_rgba(0,0,0,0.8)]"
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
           >
-            <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
+            <div className="mb-6 flex items-start justify-between border-white/10 border-b pb-4">
               <div className="flex-1 pr-4">
-                <h3 className="text-lg font-display font-bold text-white uppercase mb-1">
+                <h3 className="mb-1 font-bold font-display text-lg text-white uppercase">
                   {t("modal.review.title")}
                 </h3>
-                <p className="text-[10px] font-mono text-pandora-cyan uppercase tracking-wider">
+                <p className="font-mono text-[10px] text-pandora-cyan uppercase tracking-wider">
                   {t("modal.review.target")}: {itemName}
                 </p>
               </div>
               <button
-                type="button"
-                onClick={onClose}
-                className="text-gray-500 hover:text-white transition-colors p-1 -mt-1 -mr-1"
                 aria-label="Close"
+                className="-mt-1 -mr-1 p-1 text-gray-500 transition-colors hover:text-white"
+                onClick={onClose}
+                type="button"
               >
                 <X size={20} />
               </button>
@@ -69,26 +69,26 @@ const OrderReviewModal: React.FC<ReviewModalProps> = ({
 
             {/* Rating */}
             <div className="mb-6 flex flex-col items-center">
-              <span className="text-xs font-mono text-gray-500 mb-3 uppercase tracking-widest">
+              <span className="mb-3 font-mono text-gray-500 text-xs uppercase tracking-widest">
                 {t("modal.review.qualityAssessment")}
               </span>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
-                    type="button"
+                    aria-label={`Rate ${star} stars`}
+                    className="rounded transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-pandora-cyan/50"
                     key={star}
                     onClick={() => onRatingChange(star)}
-                    className="hover:scale-110 transition-transform focus:outline-none focus:ring-2 focus:ring-pandora-cyan/50 rounded"
-                    aria-label={`Rate ${star} stars`}
+                    type="button"
                   >
                     <Star
-                      size={24}
-                      fill={star <= rating ? "#00FFFF" : "none"}
                       className={
                         star <= rating
                           ? "text-pandora-cyan drop-shadow-[0_0_5px_#00FFFF]"
                           : "text-gray-700"
                       }
+                      fill={star <= rating ? "#00FFFF" : "none"}
+                      size={24}
                     />
                   </button>
                 ))}
@@ -96,28 +96,28 @@ const OrderReviewModal: React.FC<ReviewModalProps> = ({
             </div>
 
             {/* Text Area */}
-            <div className="mb-6 relative">
+            <div className="relative mb-6">
               <textarea
-                value={reviewText}
+                className="h-32 w-full resize-none border border-white/20 bg-black p-3 font-mono text-sm text-white outline-none transition-colors placeholder:text-gray-700 focus:border-pandora-cyan focus:ring-1 focus:ring-pandora-cyan/50"
+                maxLength={1000}
                 onChange={(e) => onTextChange(e.target.value)}
                 placeholder={t("modal.review.placeholder")}
-                className="w-full h-32 bg-black border border-white/20 p-3 text-sm text-white font-mono focus:border-pandora-cyan focus:ring-1 focus:ring-pandora-cyan/50 outline-none resize-none placeholder:text-gray-700 transition-colors"
-                maxLength={1000}
+                value={reviewText}
               />
-              <div className="absolute bottom-2 right-2 text-[10px] text-gray-600 font-mono">
+              <div className="absolute right-2 bottom-2 font-mono text-[10px] text-gray-600">
                 {reviewText.length} {t("modal.review.chars")}
               </div>
             </div>
 
             <button
-              type="button"
-              onClick={onSubmit}
+              className="flex w-full items-center justify-center gap-2 border border-white/20 bg-white/5 py-3 font-bold text-white uppercase tracking-widest transition-all hover:border-pandora-cyan hover:bg-pandora-cyan hover:text-black disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-white/20 disabled:hover:bg-white/5 disabled:hover:text-white"
               disabled={isSubmitting || rating === 0}
-              className="w-full bg-white/5 hover:bg-pandora-cyan border border-white/20 hover:border-pandora-cyan text-white hover:text-black font-bold py-3 uppercase tracking-widest transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white/5 disabled:hover:text-white disabled:hover:border-white/20"
+              onClick={onSubmit}
+              type="button"
             >
               {isSubmitting ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                   {t("modal.review.uploading")}
                 </>
               ) : (
@@ -129,8 +129,8 @@ const OrderReviewModal: React.FC<ReviewModalProps> = ({
             </button>
 
             {/* Decorative Corners */}
-            <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-pandora-cyan" />
-            <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-pandora-cyan" />
+            <div className="absolute top-0 left-0 h-2 w-2 border-pandora-cyan border-t border-l" />
+            <div className="absolute right-0 bottom-0 h-2 w-2 border-pandora-cyan border-r border-b" />
           </motion.div>
         </div>
       )}

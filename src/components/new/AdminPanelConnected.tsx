@@ -165,7 +165,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
         profitUsdParam: Record<string, unknown> | null,
         key: string
       ): number | undefined => {
-        if (!profitUsdParam || !(key in profitUsdParam)) return undefined;
+        if (!(profitUsdParam && key in profitUsdParam)) return undefined;
         const value = profitUsdParam[key];
         if (typeof value === "number") return value;
         const parsed = Number.parseFloat(String(value));
@@ -412,7 +412,7 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
         spent: u.total_spent || 0,
         balance: u.balance || 0,
         balanceCurrency: u.balance_currency || "USD",
-        isBanned: u.is_banned || false,
+        isBanned: u.is_banned,
         invites: 0,
         earned: u.total_referral_earnings || 0, // Referral earnings
         savings: 0,
@@ -670,10 +670,10 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
   // Loading state - AFTER all hooks
   if (!isInitialized) {
     return (
-      <div className="fixed inset-0 z-[100] bg-[#050505] flex items-center justify-center">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#050505]">
         <div className="text-center">
-          <div className="w-12 h-12 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-2 border-pandora-cyan border-t-transparent" />
+          <div className="font-mono text-gray-500 text-xs uppercase tracking-widest">
             Загрузка админ-панели...
           </div>
         </div>
@@ -683,30 +683,30 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
 
   return (
     <AdminPanel
-      onExit={onExit}
-      products={transformedProducts}
-      orders={transformedOrders}
-      users={transformedUsers}
-      tickets={transformedTickets}
-      withdrawals={transformedWithdrawals}
-      stats={transformedStats}
-      promoCodes={promoCodes}
       accountingData={accountingData}
+      isAccountingLoading={isAccountingLoading}
+      onAddExpense={handleAddExpense}
+      onBanUser={handleBanUser}
       onCreatePromo={handleCreatePromo}
-      onUpdatePromo={handleUpdatePromo}
+      onDeleteProduct={handleDeleteProduct}
       onDeletePromo={handleDeletePromo}
-      onTogglePromoActive={handleTogglePromoActive}
-      onRefreshTickets={fetchTickets}
-      onRefreshWithdrawals={fetchWithdrawals}
+      onExit={onExit}
       onRefreshAccounting={fetchAccounting}
       onRefreshOrders={getOrders}
-      isAccountingLoading={isAccountingLoading}
-      onBanUser={handleBanUser}
-      onUpdateBalance={handleUpdateBalance}
-      onToggleVIP={handleToggleVIP}
+      onRefreshTickets={fetchTickets}
+      onRefreshWithdrawals={fetchWithdrawals}
       onSaveProduct={handleSaveProduct}
-      onDeleteProduct={handleDeleteProduct}
-      onAddExpense={handleAddExpense}
+      onTogglePromoActive={handleTogglePromoActive}
+      onToggleVIP={handleToggleVIP}
+      onUpdateBalance={handleUpdateBalance}
+      onUpdatePromo={handleUpdatePromo}
+      orders={transformedOrders}
+      products={transformedProducts}
+      promoCodes={promoCodes}
+      stats={transformedStats}
+      tickets={transformedTickets}
+      users={transformedUsers}
+      withdrawals={transformedWithdrawals}
     />
   );
 };

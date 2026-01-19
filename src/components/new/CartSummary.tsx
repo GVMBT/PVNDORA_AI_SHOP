@@ -45,7 +45,7 @@ const CartSummary: React.FC<CartSummaryProps> = ({
   const [promoError, setPromoError] = useState<string | null>(null);
 
   const handleApplyPromo = async () => {
-    if (!promoInput.trim() || !onApplyPromo) return;
+    if (!(promoInput.trim() && onApplyPromo)) return;
 
     setPromoLoading(true);
     setPromoError(null);
@@ -68,12 +68,12 @@ const CartSummary: React.FC<CartSummaryProps> = ({
 
   if (cart.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="text-gray-600 font-mono mb-4">{t("checkout.cartEmpty").toUpperCase()}</div>
+      <div className="py-12 text-center">
+        <div className="mb-4 font-mono text-gray-600">{t("checkout.cartEmpty").toUpperCase()}</div>
         <button
-          type="button"
+          className="font-bold text-pandora-cyan hover:underline"
           onClick={onProceed}
-          className="text-pandora-cyan font-bold hover:underline"
+          type="button"
         >
           {t("checkout.returnToCatalog").toUpperCase()}
         </button>
@@ -83,81 +83,81 @@ const CartSummary: React.FC<CartSummaryProps> = ({
 
   return (
     <motion.div
-      key="cart"
-      initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
+      initial={{ opacity: 0, x: -20 }}
+      key="cart"
     >
       <div className="space-y-3">
         {cart.map((item) => {
           const quantity = item.quantity || 1;
           return (
             <div
+              className="group rounded-sm border border-white/10 bg-white/[0.03] p-3 transition-all duration-300 hover:border-pandora-cyan/30"
               key={item.id}
-              className="group bg-white/[0.03] border border-white/10 p-3 rounded-sm hover:border-pandora-cyan/30 transition-all duration-300"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                 {/* Product Info: Image, Name, Category */}
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-black border border-white/10 rounded-sm overflow-hidden flex-shrink-0">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-sm border border-white/10 bg-black sm:h-12 sm:w-12">
                     <img
-                      src={item.image}
-                      className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
                       alt={item.name}
+                      className="h-full w-full object-cover grayscale transition-all duration-500 group-hover:grayscale-0"
+                      src={item.image}
                     />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-white text-sm sm:text-base truncate group-hover:text-pandora-cyan transition-colors">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-bold text-sm text-white transition-colors group-hover:text-pandora-cyan sm:text-base">
                       {item.name}
                     </div>
-                    <div className="text-[10px] text-gray-500 font-mono uppercase tracking-wider">
+                    <div className="font-mono text-[10px] text-gray-500 uppercase tracking-wider">
                       {item.category}
                     </div>
                   </div>
 
                   {/* Trash for Mobile Only */}
                   <button
-                    type="button"
-                    onClick={() => onRemoveItem(item.id)}
-                    className="sm:hidden text-gray-600 hover:text-red-500 transition-colors p-1 flex-shrink-0"
                     aria-label="Remove item"
+                    className="flex-shrink-0 p-1 text-gray-600 transition-colors hover:text-red-500 sm:hidden"
+                    onClick={() => onRemoveItem(item.id)}
+                    type="button"
                   >
                     <Trash2 size={14} />
                   </button>
                 </div>
 
                 {/* Controls & Price Section */}
-                <div className="flex items-center justify-between sm:items-center sm:justify-end gap-4 sm:gap-8 pt-3 sm:pt-0 border-t border-white/5 sm:border-0">
+                <div className="flex items-center justify-between gap-4 border-white/5 border-t pt-3 sm:items-center sm:justify-end sm:gap-8 sm:border-0 sm:pt-0">
                   {/* Quantity Controls */}
                   {onUpdateQuantity ? (
-                    <div className="flex items-center bg-black/50 border border-white/10 rounded-sm overflow-hidden h-9 flex-shrink-0">
+                    <div className="flex h-9 flex-shrink-0 items-center overflow-hidden rounded-sm border border-white/10 bg-black/50">
                       <button
-                        type="button"
+                        aria-label="Decrease quantity"
+                        className="flex h-full w-8 items-center justify-center text-gray-400 transition-colors hover:bg-white/5 hover:text-pandora-cyan disabled:cursor-not-allowed disabled:opacity-20"
+                        disabled={quantity <= 1}
                         onClick={() => {
                           if (quantity > 1) {
                             onUpdateQuantity(item.id, quantity - 1);
                           }
                         }}
-                        disabled={quantity <= 1}
-                        className="w-8 h-full flex items-center justify-center text-gray-400 hover:text-pandora-cyan hover:bg-white/5 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                        aria-label="Decrease quantity"
+                        type="button"
                       >
                         <Minus size={12} />
                       </button>
-                      <span className="w-8 h-full flex items-center justify-center text-xs font-mono text-white border-x border-white/10">
+                      <span className="flex h-full w-8 items-center justify-center border-white/10 border-x font-mono text-white text-xs">
                         {quantity}
                       </span>
                       <button
-                        type="button"
-                        onClick={() => onUpdateQuantity(item.id, quantity + 1)}
-                        className="w-8 h-full flex items-center justify-center text-gray-400 hover:text-pandora-cyan hover:bg-white/5 transition-colors"
                         aria-label="Increase quantity"
+                        className="flex h-full w-8 items-center justify-center text-gray-400 transition-colors hover:bg-white/5 hover:text-pandora-cyan"
+                        onClick={() => onUpdateQuantity(item.id, quantity + 1)}
+                        type="button"
                       >
                         <Plus size={12} />
                       </button>
                     </div>
                   ) : (
-                    <div className="text-[10px] text-gray-500 font-mono bg-white/5 px-2 py-1 rounded-sm">
+                    <div className="rounded-sm bg-white/5 px-2 py-1 font-mono text-[10px] text-gray-500">
                       QTY: {quantity}
                     </div>
                   )}
@@ -165,11 +165,11 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                   {/* Price & Delete (Desktop) */}
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <div className="font-mono text-pandora-cyan font-bold text-sm sm:text-base whitespace-nowrap">
+                      <div className="whitespace-nowrap font-bold font-mono text-pandora-cyan text-sm sm:text-base">
                         {formatPrice(item.price * quantity, item.currency || currency)}
                       </div>
                       {quantity > 1 && (
-                        <div className="text-[9px] text-gray-500 font-mono tracking-tighter">
+                        <div className="font-mono text-[9px] text-gray-500 tracking-tighter">
                           {formatPrice(item.price, item.currency || currency)} /{" "}
                           {t("checkout.each")}
                         </div>
@@ -178,10 +178,10 @@ const CartSummary: React.FC<CartSummaryProps> = ({
 
                     {/* Trash for Desktop Only */}
                     <button
-                      type="button"
-                      onClick={() => onRemoveItem(item.id)}
-                      className="hidden sm:flex text-gray-600 hover:text-red-500 transition-colors p-2 flex-shrink-0 items-center justify-center hover:bg-red-500/10 rounded-sm"
                       aria-label="Remove item"
+                      className="hidden flex-shrink-0 items-center justify-center rounded-sm p-2 text-gray-600 transition-colors hover:bg-red-500/10 hover:text-red-500 sm:flex"
+                      onClick={() => onRemoveItem(item.id)}
+                      type="button"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -193,24 +193,24 @@ const CartSummary: React.FC<CartSummaryProps> = ({
         })}
       </div>
 
-      <div className="mt-8 border-t border-white/10 pt-6">
+      <div className="mt-8 border-white/10 border-t pt-6">
         {/* Promo Code Section */}
         {onApplyPromo && (
           <div className="mb-6">
             {promoCode ? (
-              <div className="flex items-center justify-between bg-pandora-cyan/10 border border-pandora-cyan/30 p-3 rounded-sm">
+              <div className="flex items-center justify-between rounded-sm border border-pandora-cyan/30 bg-pandora-cyan/10 p-3">
                 <div className="flex items-center gap-2">
-                  <Tag size={14} className="text-pandora-cyan" />
-                  <span className="font-mono text-sm text-pandora-cyan">{promoCode}</span>
+                  <Tag className="text-pandora-cyan" size={14} />
+                  <span className="font-mono text-pandora-cyan text-sm">{promoCode}</span>
                   {promoDiscountPercent && promoDiscountPercent > 0 && (
-                    <span className="text-xs text-green-400">-{promoDiscountPercent}%</span>
+                    <span className="text-green-400 text-xs">-{promoDiscountPercent}%</span>
                   )}
                 </div>
                 {onRemovePromo && (
                   <button
-                    type="button"
+                    className="text-gray-400 transition-colors hover:text-red-500"
                     onClick={onRemovePromo}
-                    className="text-gray-400 hover:text-red-500 transition-colors"
+                    type="button"
                   >
                     <X size={14} />
                   </button>
@@ -219,20 +219,20 @@ const CartSummary: React.FC<CartSummaryProps> = ({
             ) : (
               <div className="flex gap-2">
                 <input
-                  type="text"
-                  value={promoInput}
+                  className="flex-1 border border-white/20 bg-black px-4 py-2 font-mono text-sm text-white placeholder-gray-600 focus:border-pandora-cyan focus:outline-none"
                   onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
                   placeholder="PROMO_CODE"
-                  className="flex-1 bg-black border border-white/20 px-4 py-2 text-white font-mono text-sm placeholder-gray-600 focus:border-pandora-cyan focus:outline-none"
+                  type="text"
+                  value={promoInput}
                 />
                 <button
-                  type="button"
-                  onClick={handleApplyPromo}
+                  className="flex items-center gap-2 border border-white/20 bg-white/10 px-4 py-2 font-mono text-sm text-white transition-colors hover:border-pandora-cyan/50 hover:bg-pandora-cyan/20 disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={promoLoading || !promoInput.trim()}
-                  className="px-4 py-2 bg-white/10 border border-white/20 text-white font-mono text-sm hover:bg-pandora-cyan/20 hover:border-pandora-cyan/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  onClick={handleApplyPromo}
+                  type="button"
                 >
                   {promoLoading ? (
-                    <Loader2 size={14} className="animate-spin" />
+                    <Loader2 className="animate-spin" size={14} />
                   ) : (
                     <Check size={14} />
                   )}
@@ -240,16 +240,16 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                 </button>
               </div>
             )}
-            {promoError && <div className="mt-2 text-xs text-red-400 font-mono">{promoError}</div>}
+            {promoError && <div className="mt-2 font-mono text-red-400 text-xs">{promoError}</div>}
           </div>
         )}
 
         {/* Totals */}
-        <div className="space-y-2 mb-6">
+        <div className="mb-6 space-y-2">
           {discount > 0 && originalTotal && (
             <>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500 font-mono">
+                <span className="font-mono text-gray-500">
                   {t("checkout.subtotal").toUpperCase()}
                 </span>
                 <span className="text-gray-400 line-through">
@@ -257,30 +257,30 @@ const CartSummary: React.FC<CartSummaryProps> = ({
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-green-400 font-mono">
+                <span className="font-mono text-green-400">
                   {t("checkout.discount").toUpperCase()}
                 </span>
                 <span className="text-green-400">-{formatPrice(discount, currency)}</span>
               </div>
             </>
           )}
-          <div className="flex justify-between items-end">
-            <span className="text-gray-500 font-mono text-xs">
+          <div className="flex items-end justify-between">
+            <span className="font-mono text-gray-500 text-xs">
               {t("checkout.total").toUpperCase()}
             </span>
-            <span className="text-3xl font-display font-bold text-white">
+            <span className="font-bold font-display text-3xl text-white">
               {formatPrice(total, currency)}
             </span>
           </div>
         </div>
 
         <button
-          type="button"
+          className="group flex w-full items-center justify-center gap-2 bg-white py-4 font-bold text-black uppercase tracking-widest transition-colors hover:bg-pandora-cyan"
           onClick={onProceed}
-          className="w-full bg-white text-black font-bold py-4 hover:bg-pandora-cyan transition-colors uppercase tracking-widest flex items-center justify-center gap-2 group"
+          type="button"
         >
           {t("checkout.proceedToPayment").toUpperCase()}
-          <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+          <ChevronRight className="transition-transform group-hover:translate-x-1" size={18} />
         </button>
       </div>
     </motion.div>

@@ -48,7 +48,7 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
   };
 
   return (
-    <span className={`text-[9px] font-bold px-2 py-0.5 rounded border ${getColor(status)}`}>
+    <span className={`rounded border px-2 py-0.5 font-bold text-[9px] ${getColor(status)}`}>
       {status.toUpperCase()}
     </span>
   );

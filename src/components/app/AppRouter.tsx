@@ -58,10 +58,10 @@ interface AppRouterProps {
  */
 function ViewLoader() {
   return (
-    <div className="min-h-[60vh] flex items-center justify-center">
+    <div className="flex min-h-[60vh] items-center justify-center">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-8 h-8 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin" />
-        <span className="text-xs font-mono text-gray-500 tracking-wider">LOADING_MODULE...</span>
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-pandora-cyan border-t-transparent" />
+        <span className="font-mono text-gray-500 text-xs tracking-wider">LOADING_MODULE...</span>
       </div>
     </div>
   );
@@ -72,9 +72,9 @@ function renderPaymentResultView(orderId: string, onNavigate: (view: ViewType) =
   return (
     <PaymentResult
       key="payment-result"
-      orderId={orderId}
       onComplete={() => onNavigate("home")}
       onViewOrders={() => onNavigate("orders")}
+      orderId={orderId}
     />
   );
 }
@@ -94,9 +94,9 @@ function renderStudioView(onNavigate: (view: ViewType) => void) {
     <Suspense fallback={<ViewLoader />}>
       <StudioContainer
         key="studio"
-        userBalance={1000}
         onNavigateHome={() => onNavigate("home")}
         onTopUp={() => onNavigate("profile")}
+        userBalance={1000}
       />
     </Suspense>
   );
@@ -111,9 +111,9 @@ function renderProfileView(
     <Suspense fallback={<ViewLoader />}>
       <ProfileConnected
         key="profile"
+        onAdminEnter={() => onNavigate("admin")}
         onBack={() => onNavigate("home")}
         onHaptic={onHaptic}
-        onAdminEnter={() => onNavigate("admin")}
         onStudioEnter={() => onNavigate("studio")}
       />
     </Suspense>
@@ -149,7 +149,7 @@ function renderLeaderboardView(onNavigate: (view: ViewType) => void) {
 function renderLegalView(legalDoc: string, onNavigate: (view: ViewType) => void) {
   return (
     <Suspense fallback={<ViewLoader />}>
-      <Legal key="legal" doc={legalDoc} onBack={() => onNavigate("home")} />
+      <Legal doc={legalDoc} key="legal" onBack={() => onNavigate("home")} />
     </Suspense>
   );
 }
@@ -165,11 +165,11 @@ function renderProductDetailView(
   return (
     <ProductDetailConnected
       key="detail"
-      productId={String(selectedProduct.id)}
-      onBack={onBackToCatalog}
       onAddToCart={onAddToCart}
-      onProductSelect={onProductSelect}
+      onBack={onBackToCatalog}
       onHaptic={onHaptic}
+      onProductSelect={onProductSelect}
+      productId={String(selectedProduct.id)}
     />
   );
 }
@@ -183,12 +183,12 @@ function renderHomeView(
   onOpenSupport: (context?: RefundContext | null) => void
 ) {
   return (
-    <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+    <motion.div animate={{ opacity: 1 }} exit={{ opacity: 0 }} initial={{ opacity: 0 }} key="home">
       <Hero />
       <CatalogConnected
-        onSelectProduct={onProductSelect}
         onAddToCart={onAddToCart}
         onHaptic={onHaptic}
+        onSelectProduct={onProductSelect}
       />
       <Guarantees />
       <Footer onNavigate={onNavigateLegal} onOpenSupport={() => onOpenSupport()} />
@@ -245,7 +245,7 @@ function AppRouterComponent({
   };
 
   return (
-    <main className="w-full relative z-10">
+    <main className="relative z-10 w-full">
       <AnimatePresence mode="wait">{renderCurrentView()}</AnimatePresence>
     </main>
   );

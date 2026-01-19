@@ -474,10 +474,10 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   // Loading state
   if (!isInitialized || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-2 border-pandora-cyan border-t-transparent" />
+          <div className="font-mono text-gray-500 text-xs uppercase tracking-widest">
             {t("profile.loading")}
           </div>
         </div>
@@ -488,15 +488,15 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   // Error state
   if (error || !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="text-red-500 text-6xl mb-4">⚠</div>
-          <div className="font-mono text-sm text-red-400 mb-2">{t("profile.error")}</div>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="max-w-md text-center">
+          <div className="mb-4 text-6xl text-red-500">⚠</div>
+          <div className="mb-2 font-mono text-red-400 text-sm">{t("profile.error")}</div>
           <p className="text-gray-500 text-sm">{error || t("profile.loadFailed")}</p>
           <button
-            type="button"
+            className="mt-6 border border-white/20 bg-white/10 px-6 py-2 font-mono text-white text-xs uppercase transition-colors hover:bg-white/20"
             onClick={() => getProfile()}
-            className="mt-6 px-6 py-2 bg-white/10 border border-white/20 text-white text-xs font-mono uppercase hover:bg-white/20 transition-colors"
+            type="button"
           >
             {t("profile.retry")}
           </button>
@@ -508,19 +508,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   return (
     <>
       <Profile
-        profile={convertedProfile || profile}
-        onBack={onBack}
-        onHaptic={onHaptic}
         onAdminEnter={onAdminEnter}
-        onStudioEnter={onStudioEnter}
-        onCopyLink={handleCopyLink}
-        onShare={handleShare}
-        shareLoading={shareLoading}
-        onWithdraw={handleWithdraw}
-        onTopUp={handleTopUp}
-        onUpdatePreferences={handleUpdatePreferences}
-        onSetPartnerMode={handleSetPartnerMode}
         onApplyPartner={handleOpenPartnerApplication}
+        onBack={onBack}
         onCancelWithdrawal={async (withdrawalId: string) => {
           try {
             await cancelWithdrawal(withdrawalId);
@@ -541,14 +531,24 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
             );
           }
         }}
+        onCopyLink={handleCopyLink}
+        onHaptic={onHaptic}
+        onSetPartnerMode={handleSetPartnerMode}
+        onShare={handleShare}
+        onStudioEnter={onStudioEnter}
+        onTopUp={handleTopUp}
+        onUpdatePreferences={handleUpdatePreferences}
+        onWithdraw={handleWithdraw}
+        profile={convertedProfile || profile}
+        shareLoading={shareLoading}
       />
 
       {/* Partner Application Modal */}
       <PartnerApplicationModal
+        existingApplication={partnerApplication}
         isOpen={showPartnerModal}
         onClose={() => setShowPartnerModal(false)}
         onSubmit={handleSubmitPartnerApplication}
-        existingApplication={partnerApplication}
       />
     </>
   );

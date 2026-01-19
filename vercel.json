@@ -36,10 +36,16 @@
     { "source": "/webhook/telegram", "destination": "/api/index.py" },
     { "source": "/webhook/discount", "destination": "/api/index.py" },
     { "source": "/webhook/(.*)", "destination": "/api/index.py" },
-    { "source": "/f7f45338-a334-44be-84d7-d15c3770bc97.txt", "destination": "/f7f45338-a334-44be-84d7-d15c3770bc97.txt" },
+    {
+      "source": "/f7f45338-a334-44be-84d7-d15c3770bc97.txt",
+      "destination": "/f7f45338-a334-44be-84d7-d15c3770bc97.txt"
+    },
     { "source": "/site.webmanifest", "destination": "/site.webmanifest" },
     { "source": "/favicon.svg", "destination": "/favicon.svg" },
-    { "source": "/((?!api|webhook|og|site\\.webmanifest|favicon\\.svg).*)", "destination": "/index.html" }
+    {
+      "source": "/((?!api|webhook|og|site\\.webmanifest|favicon\\.svg).*)",
+      "destination": "/index.html"
+    }
   ],
   "functions": {
     "api/index.py": {

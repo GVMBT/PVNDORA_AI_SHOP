@@ -76,47 +76,47 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
+    <div className="grid h-[calc(100vh-200px)] grid-cols-1 gap-6 lg:grid-cols-3">
       {/* Ticket List */}
       <div
         className={`${
           selectedTicketId ? "hidden lg:block" : "block"
-        } lg:col-span-1 space-y-4 overflow-y-auto pr-2`}
+        } space-y-4 overflow-y-auto pr-2 lg:col-span-1`}
       >
-        <div className="flex justify-between items-center mb-2">
-          <h3 className="font-display font-bold text-white">INBOX</h3>
-          <div className="text-xs font-mono text-gray-500">
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="font-bold font-display text-white">INBOX</h3>
+          <div className="font-mono text-gray-500 text-xs">
             {tickets.filter((t) => t.status?.toUpperCase() === "OPEN").length} OPEN
           </div>
         </div>
         {tickets.map((t) => (
           <button
-            key={t.id}
-            type="button"
-            onClick={() => setSelectedTicketId(t.id)}
-            className={`bg-[#0e0e0e] border p-4 transition-colors cursor-pointer group relative text-left w-full ${
+            className={`group relative w-full cursor-pointer border bg-[#0e0e0e] p-4 text-left transition-colors ${
               selectedTicketId === t.id
                 ? "border-pandora-cyan bg-pandora-cyan/5"
                 : "border-white/10 hover:border-white/30"
             }`}
+            key={t.id}
+            onClick={() => setSelectedTicketId(t.id)}
+            type="button"
           >
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-[10px] font-mono text-gray-500">{t.id.slice(0, 8)}</span>
-              <span className={`text-[10px] font-mono ${getStatusColor(t.status)}`}>
+            <div className="mb-2 flex items-start justify-between">
+              <span className="font-mono text-[10px] text-gray-500">{t.id.slice(0, 8)}</span>
+              <span className={`font-mono text-[10px] ${getStatusColor(t.status)}`}>
                 {t.status?.toUpperCase() || "OPEN"}
               </span>
             </div>
-            <div className="font-bold text-white text-sm mb-1">
+            <div className="mb-1 font-bold text-sm text-white">
               {t.issue_type ? `[${getIssueTypeLabel(t.issue_type)}] ` : ""}
               {t.subject || t.description?.slice(0, 50) || "No subject"}
             </div>
-            <div className="text-xs text-gray-400 mb-1">{t.user || "Unknown"}</div>
+            <div className="mb-1 text-gray-400 text-xs">{t.user || "Unknown"}</div>
             {t.item_id && (
-              <div className="text-[10px] font-mono text-gray-500 mt-1">
+              <div className="mt-1 font-mono text-[10px] text-gray-500">
                 Item: {t.item_id.slice(0, 8)}...
               </div>
             )}
-            <div className="text-[10px] font-mono text-gray-600 mt-1">{t.date || t.createdAt}</div>
+            <div className="mt-1 font-mono text-[10px] text-gray-600">{t.date || t.createdAt}</div>
           </button>
         ))}
       </div>
@@ -125,29 +125,29 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
       <div
         className={`${
           selectedTicketId ? "flex" : "hidden lg:flex"
-        } lg:col-span-2 bg-[#0e0e0e] border border-white/10 flex-col h-full relative`}
+        } relative h-full flex-col border border-white/10 bg-[#0e0e0e] lg:col-span-2`}
       >
         {selectedTicket ? (
           <>
-            <div className="p-4 border-b border-white/10 bg-black/50">
-              <div className="flex items-center justify-between mb-3">
+            <div className="border-white/10 border-b bg-black/50 p-4">
+              <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <button
-                    type="button"
+                    className="text-gray-500 hover:text-white lg:hidden"
                     onClick={() => setSelectedTicketId(null)}
-                    className="lg:hidden text-gray-500 hover:text-white"
+                    type="button"
                   >
                     <ArrowUpRight className="rotate-[-135deg]" size={20} />
                   </button>
                   <div>
                     <h3 className="font-bold text-white">TCK-{selectedTicket.id.slice(0, 8)}</h3>
-                    <div className="text-[10px] font-mono text-gray-500 mt-1">
+                    <div className="mt-1 font-mono text-[10px] text-gray-500">
                       {selectedTicket.createdAt || selectedTicket.date}
                     </div>
                   </div>
                 </div>
                 <div
-                  className={`text-[10px] font-mono px-2 py-1 border ${getStatusColor(selectedTicket.status)} border-current/30`}
+                  className={`border px-2 py-1 font-mono text-[10px] ${getStatusColor(selectedTicket.status)} border-current/30`}
                 >
                   {selectedTicket.status?.toUpperCase() || "OPEN"}
                 </div>
@@ -156,14 +156,14 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
               {/* Ticket Info */}
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div>
-                  <div className="text-gray-500 mb-1">User</div>
-                  <div className="text-white font-mono">{selectedTicket.user || "Unknown"}</div>
+                  <div className="mb-1 text-gray-500">User</div>
+                  <div className="font-mono text-white">{selectedTicket.user || "Unknown"}</div>
                   {selectedTicket.telegram_id && (
                     <a
+                      className="mt-1 flex items-center gap-1 text-pandora-cyan hover:text-pandora-cyan/80"
                       href={`tg://user?id=${selectedTicket.telegram_id}`}
-                      target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-pandora-cyan hover:text-pandora-cyan/80 mt-1"
+                      target="_blank"
                     >
                       <ExternalLink size={12} />
                       <span>Contact in Telegram</span>
@@ -171,21 +171,21 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
                   )}
                 </div>
                 <div>
-                  <div className="text-gray-500 mb-1">Issue Type</div>
-                  <div className="text-white font-mono">
+                  <div className="mb-1 text-gray-500">Issue Type</div>
+                  <div className="font-mono text-white">
                     {getIssueTypeLabel(selectedTicket.issue_type)}
                   </div>
                 </div>
                 {selectedTicket.item_id && (
                   <div>
-                    <div className="text-gray-500 mb-1">Item ID</div>
-                    <div className="text-white font-mono text-[10px]">{selectedTicket.item_id}</div>
+                    <div className="mb-1 text-gray-500">Item ID</div>
+                    <div className="font-mono text-[10px] text-white">{selectedTicket.item_id}</div>
                   </div>
                 )}
                 {selectedTicket.order_id && (
                   <div>
-                    <div className="text-gray-500 mb-1">Order ID</div>
-                    <div className="text-white font-mono text-[10px]">
+                    <div className="mb-1 text-gray-500">Order ID</div>
+                    <div className="font-mono text-[10px] text-white">
                       {selectedTicket.order_id}
                     </div>
                   </div>
@@ -194,27 +194,27 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
 
               {/* Credentials for Admin Verification */}
               {selectedTicket.credentials && (
-                <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded">
-                  <div className="text-[10px] font-mono text-yellow-400 mb-2">
+                <div className="mt-4 rounded border border-yellow-500/30 bg-yellow-500/10 p-3">
+                  <div className="mb-2 font-mono text-[10px] text-yellow-400">
                     ⚠️ CREDENTIALS FOR VERIFICATION
                   </div>
                   {selectedTicket.product_name && (
-                    <div className="text-xs text-gray-400 mb-1">
+                    <div className="mb-1 text-gray-400 text-xs">
                       Product: {selectedTicket.product_name}
                     </div>
                   )}
-                  <div className="font-mono text-sm text-white bg-black/50 p-2 break-all select-all">
+                  <div className="select-all break-all bg-black/50 p-2 font-mono text-sm text-white">
                     {selectedTicket.credentials}
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="flex-1 p-4 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto p-4">
               {/* Issue Description */}
               <div className="mb-6">
-                <div className="text-[10px] font-mono text-gray-500 mb-2">ISSUE DESCRIPTION</div>
-                <div className="bg-black/50 border border-white/10 p-4 text-xs text-gray-300 whitespace-pre-wrap">
+                <div className="mb-2 font-mono text-[10px] text-gray-500">ISSUE DESCRIPTION</div>
+                <div className="whitespace-pre-wrap border border-white/10 bg-black/50 p-4 text-gray-300 text-xs">
                   {selectedTicket.description ||
                     selectedTicket.lastMessage ||
                     "No description provided"}
@@ -224,8 +224,8 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
               {/* Admin Comment (if exists) */}
               {selectedTicket.admin_comment && (
                 <div className="mb-6">
-                  <div className="text-[10px] font-mono text-gray-500 mb-2">ADMIN COMMENT</div>
-                  <div className="bg-pandora-cyan/10 border border-pandora-cyan/30 p-4 text-xs text-gray-300 whitespace-pre-wrap">
+                  <div className="mb-2 font-mono text-[10px] text-gray-500">ADMIN COMMENT</div>
+                  <div className="whitespace-pre-wrap border border-pandora-cyan/30 bg-pandora-cyan/10 p-4 text-gray-300 text-xs">
                     {selectedTicket.admin_comment}
                   </div>
                 </div>
@@ -234,29 +234,29 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
 
             {/* Action Buttons */}
             {selectedTicket.status?.toUpperCase() === "OPEN" ? (
-              <div className="p-4 border-t border-white/10 space-y-3">
+              <div className="space-y-3 border-white/10 border-t p-4">
                 <textarea
-                  value={comment}
+                  className="w-full resize-none border border-white/20 bg-black p-3 text-white text-xs outline-none"
                   onChange={(e) => setComment(e.target.value)}
                   placeholder="Add comment (optional)..."
-                  className="w-full bg-black border border-white/20 p-3 text-xs text-white outline-none resize-none"
                   rows={3}
+                  value={comment}
                 />
                 <div className="flex gap-2">
                   <button
-                    type="button"
-                    onClick={() => handleResolve(true)}
+                    className="flex flex-1 items-center justify-center gap-2 border border-green-500/50 bg-green-500/20 px-4 py-2 font-bold font-mono text-[10px] text-green-400 hover:bg-green-500/30 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={processing}
-                    className="flex-1 flex items-center justify-center gap-2 bg-green-500/20 border border-green-500/50 text-green-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => handleResolve(true)}
+                    type="button"
                   >
                     <Check size={14} />
                     APPROVE
                   </button>
                   <button
-                    type="button"
-                    onClick={() => handleResolve(false)}
+                    className="flex flex-1 items-center justify-center gap-2 border border-red-500/50 bg-red-500/20 px-4 py-2 font-bold font-mono text-[10px] text-red-400 hover:bg-red-500/30 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={processing}
-                    className="flex-1 flex items-center justify-center gap-2 bg-red-500/20 border border-red-500/50 text-red-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => handleResolve(false)}
+                    type="button"
                   >
                     <X size={14} />
                     REJECT
@@ -264,7 +264,7 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
                 </div>
               </div>
             ) : (
-              <div className="p-4 border-t border-white/10">
+              <div className="border-white/10 border-t p-4">
                 <div className="text-center text-gray-600 text-xs">
                   Ticket is {selectedTicket.status?.toUpperCase()}
                 </div>
@@ -272,8 +272,8 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
             )}
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-600 opacity-50">
-            <MessageSquare size={48} className="mb-4" />
+          <div className="flex flex-1 flex-col items-center justify-center text-gray-600 opacity-50">
+            <MessageSquare className="mb-4" size={48} />
             <span className="font-mono text-xs uppercase tracking-widest">Select Ticket</span>
           </div>
         )}

@@ -29,60 +29,60 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       {/* Unified Header */}
       <div className="mb-8 md:mb-16">
         <button
-          type="button"
+          className="mb-4 flex items-center gap-2 font-mono text-[10px] text-gray-500 transition-colors hover:text-pandora-cyan"
           onClick={onBack}
-          className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
+          type="button"
         >
           <ArrowLeft size={12} /> {t("empty.returnToBase")}
         </button>
-        <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4">
+        <h1 className="mb-4 font-black font-display text-3xl text-white uppercase leading-[0.9] tracking-tighter sm:text-4xl md:text-6xl">
           {tEn("profile.header.pageTitlePrefix")} <br />{" "}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">
+          <span className="bg-gradient-to-r from-pandora-cyan to-white/50 bg-clip-text text-transparent">
             {tEn("profile.header.pageTitle")}
           </span>
         </h1>
-        <div className="flex items-center gap-2 text-[10px] font-mono text-pandora-cyan tracking-widest uppercase">
+        <div className="flex items-center gap-2 font-mono text-[10px] text-pandora-cyan uppercase tracking-widest">
           <User size={12} />
           <span>User_Identity | Stats</span>
         </div>
       </div>
 
       {/* User Card / Identity */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12 border-b border-white/10 pb-6">
+      <div className="mb-12 flex flex-col items-start justify-between gap-6 border-white/10 border-b pb-6 md:flex-row md:items-end">
         <div className="flex items-center gap-6">
-          <div className="relative group">
-            <div className="w-20 h-20 bg-black border border-white/20 flex items-center justify-center relative overflow-hidden rounded-sm">
+          <div className="group relative">
+            <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-sm border border-white/20 bg-black">
               {user.photoUrl ? (
                 <img
-                  src={user.photoUrl}
                   alt={user.name}
-                  className="w-full h-full object-cover relative z-10"
+                  className="relative z-10 h-full w-full object-cover"
+                  src={user.photoUrl}
                 />
               ) : (
-                <User size={40} className="text-gray-400 relative z-10" />
+                <User className="relative z-10 text-gray-400" size={40} />
               )}
-              <div className="absolute inset-0 bg-gradient-to-tr from-pandora-cyan/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-pandora-cyan/20 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
               <div
-                className="absolute top-0 w-full h-full opacity-20 mix-blend-overlay"
+                className="absolute top-0 h-full w-full opacity-20 mix-blend-overlay"
                 style={{
                   backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
                 }}
               />
             </div>
             {/* Online Status Dot */}
-            <div className="absolute bottom-1 right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-black animate-pulse" />
+            <div className="absolute right-1 bottom-1 h-3 w-3 animate-pulse rounded-full border-2 border-black bg-green-500" />
           </div>
           <div>
-            <h2 className="text-2xl font-display font-bold text-white tracking-tight mb-1 flex items-center gap-2">
+            <h2 className="mb-1 flex items-center gap-2 font-bold font-display text-2xl text-white tracking-tight">
               {user.name}
-              {user.isVip && <Crown size={18} className="text-yellow-500 fill-yellow-500/20" />}
+              {user.isVip && <Crown className="fill-yellow-500/20 text-yellow-500" size={18} />}
             </h2>
-            <div className="flex items-center gap-3 text-xs font-mono text-gray-500">
+            <div className="flex items-center gap-3 font-mono text-gray-500 text-xs">
               <span>{user.handle}</span>
               <span className="text-pandora-cyan">{"// "}</span>
               <span>{user.id}</span>
               {user.role === "ADMIN" && (
-                <span className="text-red-500 font-bold bg-red-900/10 px-1 border border-red-500/30">
+                <span className="border border-red-500/30 bg-red-900/10 px-1 font-bold text-red-500">
                   ROOT_ADMIN
                 </span>
               )}
@@ -90,13 +90,13 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           </div>
         </div>
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           {/* Studio Entry - visible for admins */}
           {user.role === "ADMIN" && onStudioEnter && (
             <button
-              type="button"
+              className="flex items-center gap-2 border border-yellow-500/30 bg-yellow-900/10 px-4 py-2 font-bold font-mono text-xs text-yellow-500 uppercase tracking-widest transition-all hover:bg-yellow-500 hover:text-black"
               onClick={onStudioEnter}
-              className="flex items-center gap-2 bg-yellow-900/10 border border-yellow-500/30 text-yellow-500 px-4 py-2 hover:bg-yellow-500 hover:text-black transition-all text-xs font-mono font-bold uppercase tracking-widest"
+              type="button"
             >
               <Sparkles size={14} />
               STUDIO_BETA
@@ -105,9 +105,9 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           {/* Admin Entry */}
           {user.role === "ADMIN" && onAdminEnter && (
             <button
-              type="button"
+              className="flex items-center gap-2 border border-red-500/30 bg-red-900/10 px-4 py-2 font-bold font-mono text-red-500 text-xs uppercase tracking-widest transition-all hover:bg-red-500 hover:text-white"
               onClick={onAdminEnter}
-              className="flex items-center gap-2 bg-red-900/10 border border-red-500/30 text-red-500 px-4 py-2 hover:bg-red-500 hover:text-white transition-all text-xs font-mono font-bold uppercase tracking-widest"
+              type="button"
             >
               <LayoutDashboard size={14} />
               ACCESS_ADMIN_PANEL

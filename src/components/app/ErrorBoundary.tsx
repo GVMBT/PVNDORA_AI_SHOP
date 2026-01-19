@@ -74,42 +74,42 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
-          <div className="max-w-md w-full text-center space-y-6">
+        <div className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
+          <div className="w-full max-w-md space-y-6 text-center">
             {/* Error Icon */}
             <div className="flex justify-center">
-              <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
-                <AlertTriangle size={40} className="text-red-500" />
+              <div className="flex h-20 w-20 items-center justify-center rounded-full border border-red-500/30 bg-red-500/10">
+                <AlertTriangle className="text-red-500" size={40} />
               </div>
             </div>
 
             {/* Error Title */}
             <div className="space-y-2">
-              <h1 className="text-2xl font-display font-bold text-white">SYSTEM_ERROR</h1>
-              <p className="text-sm font-mono text-red-400">CRITICAL_FAULT_DETECTED</p>
+              <h1 className="font-bold font-display text-2xl text-white">SYSTEM_ERROR</h1>
+              <p className="font-mono text-red-400 text-sm">CRITICAL_FAULT_DETECTED</p>
             </div>
 
             {/* Error Message */}
-            <div className="bg-white/5 border border-white/10 rounded-lg p-4">
-              <p className="text-sm text-gray-400 font-mono">
+            <div className="rounded-lg border border-white/10 bg-white/5 p-4">
+              <p className="font-mono text-gray-400 text-sm">
                 {this.state.error?.message || "An unexpected error occurred"}
               </p>
             </div>
 
             {/* Actions */}
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <div className="flex flex-col justify-center gap-3 sm:flex-row">
               <button
-                type="button"
+                className="flex items-center justify-center gap-2 bg-pandora-cyan px-6 py-3 font-bold text-black text-sm uppercase tracking-wider transition-colors hover:bg-white"
                 onClick={this.handleReload}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-pandora-cyan text-black font-bold text-sm uppercase tracking-wider hover:bg-white transition-colors"
+                type="button"
               >
                 <RefreshCw size={16} />
                 Reload System
               </button>
               <button
-                type="button"
+                className="flex items-center justify-center gap-2 border border-white/10 bg-white/5 px-6 py-3 font-bold text-gray-400 text-sm uppercase tracking-wider transition-colors hover:bg-white/10"
                 onClick={this.handleReset}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-white/5 border border-white/10 text-gray-400 font-bold text-sm uppercase tracking-wider hover:bg-white/10 transition-colors"
+                type="button"
               >
                 Try Again
               </button>
@@ -117,19 +117,19 @@ export class ErrorBoundary extends Component<Props, State> {
 
             {/* Debug Info (Development Only) */}
             {process.env.NODE_ENV === "development" && this.state.errorInfo && (
-              <details className="text-left bg-black/50 border border-white/10 rounded-lg p-4 mt-6">
-                <summary className="text-xs font-mono text-gray-500 cursor-pointer">
+              <details className="mt-6 rounded-lg border border-white/10 bg-black/50 p-4 text-left">
+                <summary className="cursor-pointer font-mono text-gray-500 text-xs">
                   Stack Trace
                 </summary>
-                <pre className="mt-2 text-[10px] font-mono text-gray-600 overflow-auto max-h-40">
+                <pre className="mt-2 max-h-40 overflow-auto font-mono text-[10px] text-gray-600">
                   {this.state.errorInfo.componentStack}
                 </pre>
               </details>
             )}
 
             {/* Footer */}
-            <div className="pt-6 border-t border-white/5">
-              <p className="text-[10px] font-mono text-gray-600">
+            <div className="border-white/5 border-t pt-6">
+              <p className="font-mono text-[10px] text-gray-600">
                 ERROR_CODE: {this.state.error?.name || "UNKNOWN"} | PVNDORA_V2.0
               </p>
             </div>

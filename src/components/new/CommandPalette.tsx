@@ -134,67 +134,67 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[200] flex items-start justify-center pt-[15vh] px-4">
+        <div className="fixed inset-0 z-[200] flex items-start justify-center px-4 pt-[15vh]">
           {/* Backdrop */}
           <motion.div
-            initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            onClick={onClose}
           />
 
           {/* Modal */}
           <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: -20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="relative flex max-h-[60vh] w-full max-w-2xl flex-col overflow-hidden rounded-sm border border-white/20 bg-[#0a0a0a] shadow-[0_0_50px_rgba(0,0,0,0.8)]"
             exit={{ scale: 0.95, opacity: 0, y: -20 }}
+            initial={{ scale: 0.95, opacity: 0, y: -20 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="relative w-full max-w-2xl bg-[#0a0a0a] border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.8)] rounded-sm overflow-hidden flex flex-col max-h-[60vh]"
           >
             {/* Header / Input */}
-            <div className="flex items-center gap-4 p-4 border-b border-white/10 bg-white/5 relative z-10">
+            <div className="relative z-10 flex items-center gap-4 border-white/10 border-b bg-white/5 p-4">
               <Search className="text-gray-500" size={20} />
               <input
-                ref={inputRef}
-                type="text"
-                value={query}
+                className="flex-1 border-none bg-transparent font-mono text-lg text-white outline-none placeholder:text-gray-600"
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setSelectedIndex(0);
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder="Type a command or search assets..."
-                className="flex-1 bg-transparent border-none outline-none text-lg text-white font-mono placeholder:text-gray-600"
+                ref={inputRef}
+                type="text"
+                value={query}
               />
-              <div className="hidden md:flex items-center gap-1 text-[10px] font-mono text-gray-500 border border-white/10 px-2 py-1 rounded-sm">
+              <div className="hidden items-center gap-1 rounded-sm border border-white/10 px-2 py-1 font-mono text-[10px] text-gray-500 md:flex">
                 <span className="text-xs">ESC</span> TO CLOSE
               </div>
             </div>
 
             {/* Results */}
-            <div className="overflow-y-auto p-2 scrollbar-hide">
+            <div className="scrollbar-hide overflow-y-auto p-2">
               {filteredItems.length === 0 ? (
-                <div className="py-12 text-center text-gray-600 font-mono text-xs">
+                <div className="py-12 text-center font-mono text-gray-600 text-xs">
                   NO_RESULTS_FOUND_IN_DATABASE
                 </div>
               ) : (
                 <div className="space-y-1">
                   {filteredItems.map((item, index) => (
                     <button
-                      type="button"
-                      key={item.id}
-                      onClick={() => executeCommand(item)}
-                      onMouseEnter={() => setSelectedIndex(index)}
-                      className={`w-full flex items-center justify-between p-3 rounded-sm transition-all group ${
+                      className={`group flex w-full items-center justify-between rounded-sm p-3 transition-all ${
                         index === selectedIndex
                           ? "bg-pandora-cyan text-black shadow-[0_0_15px_rgba(0,255,255,0.4)]"
                           : "text-gray-400 hover:bg-white/5"
                       }`}
+                      key={item.id}
+                      onClick={() => executeCommand(item)}
+                      onMouseEnter={() => setSelectedIndex(index)}
+                      type="button"
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`p-1.5 rounded-sm ${index === selectedIndex ? "bg-black/20 text-black" : "bg-white/5 text-gray-500"}`}
+                          className={`rounded-sm p-1.5 ${index === selectedIndex ? "bg-black/20 text-black" : "bg-white/5 text-gray-500"}`}
                         >
                           {item.icon}
                         </div>
@@ -205,7 +205,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                         </span>
                       </div>
                       {index === selectedIndex && (
-                        <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider animate-pulse">
+                        <div className="flex animate-pulse items-center gap-2 font-bold text-[10px] uppercase tracking-wider">
                           <ChevronRight size={12} />
                           Execute
                         </div>
@@ -217,7 +217,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="p-2 border-t border-white/10 bg-[#050505] text-[9px] font-mono text-gray-600 flex justify-between px-4">
+            <div className="flex justify-between border-white/10 border-t bg-[#050505] p-2 px-4 font-mono text-[9px] text-gray-600">
               <span>PANDORA_OS {/* V.2.4.0 */}</span>
               <div className="flex gap-4">
                 <span>
@@ -231,7 +231,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
 
             {/* Scanline */}
             <div
-              className="absolute inset-0 pointer-events-none opacity-[0.03]"
+              className="pointer-events-none absolute inset-0 opacity-[0.03]"
               style={{
                 backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
               }}

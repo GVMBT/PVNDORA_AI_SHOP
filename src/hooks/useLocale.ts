@@ -151,9 +151,8 @@ export function useLocale(): UseLocaleReturn {
       // Place symbol based on currency
       if (["USD", "EUR", "GBP"].includes(targetCurrency)) {
         return `${symbol}${formatted}`;
-      } else {
-        return `${formatted} ${symbol}`;
       }
+      return `${formatted} ${symbol}`;
     },
     [locale, currency]
   );

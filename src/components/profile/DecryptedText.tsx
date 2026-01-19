@@ -91,7 +91,7 @@ const DecryptedText: React.FC<DecryptedTextProps> = ({
   }, [textStr, speed, reveal, isFinished]);
 
   return (
-    <span ref={elementRef} className={className}>
+    <span className={className} ref={elementRef}>
       {displayText || (reveal ? "" : textStr)}
     </span>
   );

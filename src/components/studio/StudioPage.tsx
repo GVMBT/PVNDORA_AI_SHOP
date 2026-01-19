@@ -50,10 +50,10 @@ const StudioPage: React.FC<StudioPageProps> = ({ onNavigateHome, onTopUp }) => {
   // Loading state
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-black text-white flex items-center justify-center font-mono z-50">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black font-mono text-white">
         <div className="text-center">
-          <div className="w-12 h-12 border-2 border-pandora-cyan/30 border-t-pandora-cyan rounded-full animate-spin mx-auto mb-4" />
-          <div className="text-xs text-gray-500 tracking-wider">LOADING_STUDIO...</div>
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-2 border-pandora-cyan/30 border-t-pandora-cyan" />
+          <div className="text-gray-500 text-xs tracking-wider">LOADING_STUDIO...</div>
         </div>
       </div>
     );
@@ -62,50 +62,50 @@ const StudioPage: React.FC<StudioPageProps> = ({ onNavigateHome, onTopUp }) => {
   // Access denied - not admin
   if (!isAdmin) {
     return (
-      <div className="fixed inset-0 bg-black text-white flex items-center justify-center font-mono z-50">
-        <div className="text-center max-w-md mx-auto p-8">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black font-mono text-white">
+        <div className="mx-auto max-w-md p-8 text-center">
           <div className="mb-8">
-            <div className="w-20 h-20 mx-auto mb-4 border-2 border-yellow-500/30 rounded-full flex items-center justify-center">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full border-2 border-yellow-500/30">
               <svg
-                className="w-12 h-12 text-yellow-500"
+                aria-label="Warning"
+                className="h-12 w-12 text-yellow-500"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
-                aria-label="Warning"
               >
                 <title>Warning</title>
                 <path
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                 />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-white mb-4">STUDIO IS IN BETA</h1>
+            <h1 className="mb-4 font-bold text-3xl text-white">STUDIO IS IN BETA</h1>
           </div>
 
-          <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded-lg p-6 mb-6">
-            <h2 className="text-xl text-yellow-400 font-bold mb-4">🔒 Access Restricted</h2>
-            <p className="text-gray-300 mb-6 leading-relaxed">
+          <div className="mb-6 rounded-lg border border-white/10 bg-black/60 p-6 backdrop-blur-md">
+            <h2 className="mb-4 font-bold text-xl text-yellow-400">🔒 Access Restricted</h2>
+            <p className="mb-6 text-gray-300 leading-relaxed">
               Studio находится в закрытой бете. Доступ ограничен администраторами.
             </p>
             <div className="space-y-3 text-sm">
-              <div className="flex items-center gap-3 p-3 bg-white/5 rounded border border-white/10">
-                <div className="w-8 h-8 bg-yellow-500/20 rounded-full flex items-center justify-center">
+              <div className="flex items-center gap-3 rounded border border-white/10 bg-white/5 p-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-500/20">
                   <svg
-                    className="w-5 h-5 text-yellow-400"
+                    aria-label="Check"
+                    className="h-5 w-5 text-yellow-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
-                    aria-label="Check"
                   >
                     <title>Check</title>
                     <path
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0"
                     />
                   </svg>
                 </div>
@@ -118,18 +118,18 @@ const StudioPage: React.FC<StudioPageProps> = ({ onNavigateHome, onTopUp }) => {
           </div>
 
           <button
-            type="button"
+            className="rounded-lg border border-white/20 bg-white/10 px-6 py-3 font-mono text-sm text-white transition-all duration-200 hover:border-white/40 hover:bg-white/20"
             onClick={onNavigateHome}
-            className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 rounded-lg transition-all duration-200 font-mono text-sm"
+            type="button"
           >
             ← Вернуться назад
           </button>
         </div>
 
         {/* Background effect */}
-        <div className="fixed inset-0 pointer-events-none -z-10">
+        <div className="pointer-events-none fixed inset-0 -z-10">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,_rgba(255,255,0,0.1)_0%,_rgba(0,0,0,0)_60%)]" />
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] opacity-20" />
+          <div className="absolute inset-0 bg-[length:100%_4px,3px_100%] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] opacity-20" />
         </div>
       </div>
     );
@@ -138,9 +138,9 @@ const StudioPage: React.FC<StudioPageProps> = ({ onNavigateHome, onTopUp }) => {
   // Admin access granted - show Studio
   return (
     <StudioContainer
-      userBalance={profile?.balance || 0}
       onNavigateHome={onNavigateHome}
       onTopUp={onTopUp}
+      userBalance={profile?.balance || 0}
     />
   );
 };

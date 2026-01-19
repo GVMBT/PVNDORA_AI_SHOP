@@ -9,7 +9,7 @@ export type CurrencyCode = "RUB";
 /**
  * Get currency symbol (always RUB)
  */
-export function getCurrencySymbol(_currency: string = "RUB"): string {
+export function getCurrencySymbol(_currency = "RUB"): string {
   return "₽";
 }
 
@@ -24,7 +24,7 @@ export function getCurrencySymbol(_currency: string = "RUB"): string {
  * - formatPrice(1234) => '1,234 ₽'
  * - formatPrice(5000) => '5,000 ₽'
  */
-export function formatPrice(price: number, _currency: string = "RUB"): string {
+export function formatPrice(price: number, _currency = "RUB"): string {
   // RUB is always integer, no decimals
   const formatted = Math.round(price).toLocaleString("ru-RU", { maximumFractionDigits: 0 });
   return `${formatted} ₽`;

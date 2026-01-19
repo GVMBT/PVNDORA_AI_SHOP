@@ -136,30 +136,30 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
     <AnimatePresence>
       <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
         <motion.div
-          initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
           className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+          exit={{ opacity: 0 }}
+          initial={{ opacity: 0 }}
           onClick={onClose}
         />
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
+          className="relative z-10 w-full max-w-lg border border-white/20 bg-[#080808] p-6 shadow-2xl"
           exit={{ scale: 0.9, opacity: 0 }}
-          className="relative w-full max-w-lg bg-[#080808] border border-white/20 p-6 shadow-2xl z-10"
+          initial={{ scale: 0.9, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-display font-bold text-white flex items-center gap-2">
-              <DollarSign size={20} className="text-green-400" />
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 font-bold font-display text-white text-xl">
+              <DollarSign className="text-green-400" size={20} />
               ДОБАВИТЬ РАСХОД
             </h3>
             <button
-              type="button"
-              onClick={onClose}
-              className="text-gray-500 hover:text-white transition-colors"
+              className="text-gray-500 transition-colors hover:text-white"
               disabled={isSaving}
+              onClick={onClose}
+              type="button"
             >
               <X size={20} />
             </button>
@@ -170,26 +170,26 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
             {/* Description */}
             <div>
               <label
+                className="mb-1.5 flex items-center gap-1 text-[10px] text-gray-500 uppercase"
                 htmlFor="expense-description"
-                className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1"
               >
                 <FileText size={12} />
                 Описание
               </label>
               <textarea
+                className={`h-20 w-full border bg-black ${
+                  errors.description ? "border-red-500" : "border-white/20"
+                } resize-none p-3 text-sm text-white outline-none focus:border-pandora-cyan`}
+                disabled={isSaving}
                 id="expense-description"
-                value={editingExpense.description}
                 onChange={(e) =>
                   setEditingExpense({ ...editingExpense, description: e.target.value })
                 }
                 placeholder="Описание расхода..."
-                className={`w-full h-20 bg-black border ${
-                  errors.description ? "border-red-500" : "border-white/20"
-                } p-3 text-white text-sm focus:border-pandora-cyan outline-none resize-none`}
-                disabled={isSaving}
+                value={editingExpense.description}
               />
               {errors.description && (
-                <p className="text-xs text-red-500 mt-1">{errors.description}</p>
+                <p className="mt-1 text-red-500 text-xs">{errors.description}</p>
               )}
             </div>
 
@@ -197,18 +197,19 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
                 <label
+                  className="mb-1.5 flex items-center gap-1 text-[10px] text-gray-500 uppercase"
                   htmlFor="expense-amount"
-                  className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1"
                 >
                   <DollarSign size={12} />
                   Сумма
                 </label>
                 <input
+                  className={`w-full border bg-black ${
+                    errors.amount ? "border-red-500" : "border-white/20"
+                  } p-3 text-sm text-white outline-none focus:border-pandora-cyan`}
+                  disabled={isSaving}
                   id="expense-amount"
-                  type="number"
-                  step="0.01"
                   min="0"
-                  value={editingExpense.amount || ""}
                   onChange={(e) =>
                     setEditingExpense({
                       ...editingExpense,
@@ -216,31 +217,30 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
                     })
                   }
                   placeholder="0.00"
-                  className={`w-full bg-black border ${
-                    errors.amount ? "border-red-500" : "border-white/20"
-                  } p-3 text-white text-sm focus:border-pandora-cyan outline-none`}
-                  disabled={isSaving}
+                  step="0.01"
+                  type="number"
+                  value={editingExpense.amount || ""}
                 />
-                {errors.amount && <p className="text-xs text-red-500 mt-1">{errors.amount}</p>}
+                {errors.amount && <p className="mt-1 text-red-500 text-xs">{errors.amount}</p>}
               </div>
               <div>
                 <label
+                  className="mb-1.5 block text-[10px] text-gray-500 uppercase"
                   htmlFor="currency-select"
-                  className="text-[10px] text-gray-500 uppercase mb-1.5 block"
                 >
                   Валюта
                 </label>
                 <select
+                  className="w-full border border-white/20 bg-black p-3 text-sm text-white outline-none focus:border-pandora-cyan"
+                  disabled={isSaving}
                   id="currency-select"
-                  value={editingExpense.currency}
                   onChange={(e) =>
                     setEditingExpense({
                       ...editingExpense,
                       currency: e.target.value as "USD" | "RUB",
                     })
                   }
-                  className="w-full bg-black border border-white/20 p-3 text-white text-sm focus:border-pandora-cyan outline-none"
-                  disabled={isSaving}
+                  value={editingExpense.currency}
                 >
                   <option value="USD">USD</option>
                   <option value="RUB">RUB</option>
@@ -249,30 +249,30 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
             </div>
 
             {/* Category */}
-            <fieldset className="border-0 p-0 m-0">
-              <legend className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1">
+            <fieldset className="m-0 border-0 p-0">
+              <legend className="mb-1.5 flex items-center gap-1 text-[10px] text-gray-500 uppercase">
                 <Tag size={12} />
                 Категория
               </legend>
               <div className="grid grid-cols-2 gap-2">
                 {EXPENSE_CATEGORIES.map((cat) => (
                   <button
-                    type="button"
-                    key={cat.value}
-                    onClick={() => handleCategoryChange(cat.value)}
-                    className={`p-3 border text-left transition-colors ${
+                    className={`border p-3 text-left transition-colors ${
                       editingExpense.category === cat.value
                         ? "border-pandora-cyan bg-pandora-cyan/10 text-pandora-cyan"
-                        : "border-white/20 bg-black hover:border-white/40 text-gray-300"
+                        : "border-white/20 bg-black text-gray-300 hover:border-white/40"
                     }`}
                     disabled={isSaving}
+                    key={cat.value}
+                    onClick={() => handleCategoryChange(cat.value)}
+                    type="button"
                   >
-                    <div className="text-xs font-bold flex items-center gap-2">
+                    <div className="flex items-center gap-2 font-bold text-xs">
                       <span>{cat.icon}</span>
                       {cat.label}
                     </div>
                     {cat.value === "marketing" && (
-                      <div className="text-[9px] text-yellow-400 mt-1">Списывается из резервов</div>
+                      <div className="mt-1 text-[9px] text-yellow-400">Списывается из резервов</div>
                     )}
                   </button>
                 ))}
@@ -282,34 +282,34 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
             {/* Date */}
             <div>
               <label
+                className="mb-1.5 flex items-center gap-1 text-[10px] text-gray-500 uppercase"
                 htmlFor="expense-date"
-                className="text-[10px] text-gray-500 uppercase mb-1.5 flex items-center gap-1"
               >
                 <Calendar size={12} />
                 Дата
               </label>
               <input
+                className={`w-full border bg-black ${
+                  errors.date ? "border-red-500" : "border-white/20"
+                } p-3 text-sm text-white outline-none focus:border-pandora-cyan`}
+                disabled={isSaving}
                 id="expense-date"
+                onChange={(e) => setEditingExpense({ ...editingExpense, date: e.target.value })}
                 type="date"
                 value={editingExpense.date || ""}
-                onChange={(e) => setEditingExpense({ ...editingExpense, date: e.target.value })}
-                className={`w-full bg-black border ${
-                  errors.date ? "border-red-500" : "border-white/20"
-                } p-3 text-white text-sm focus:border-pandora-cyan outline-none`}
-                disabled={isSaving}
               />
-              {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
+              {errors.date && <p className="mt-1 text-red-500 text-xs">{errors.date}</p>}
             </div>
 
             {/* Preview */}
             {editingExpense.amount > 0 && (
-              <div className="bg-white/5 border border-white/10 p-3">
-                <div className="text-[10px] text-gray-500 uppercase mb-1">Предпросмотр</div>
-                <div className="text-sm text-white font-mono">
+              <div className="border border-white/10 bg-white/5 p-3">
+                <div className="mb-1 text-[10px] text-gray-500 uppercase">Предпросмотр</div>
+                <div className="font-mono text-sm text-white">
                   {formatMoney(editingExpense.amount, editingExpense.currency)}
                 </div>
                 {selectedCategoryInfo && (
-                  <div className="text-xs text-gray-400 mt-1">
+                  <div className="mt-1 text-gray-400 text-xs">
                     {selectedCategoryInfo.icon} {selectedCategoryInfo.label}
                   </div>
                 )}
@@ -319,18 +319,18 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
             {/* Actions */}
             <div className="flex gap-3 pt-2">
               <button
-                type="button"
-                onClick={onClose}
+                className="flex-1 border border-white/20 bg-white/5 py-3 font-bold text-sm text-white transition-colors hover:bg-white/10 disabled:opacity-50"
                 disabled={isSaving}
-                className="flex-1 py-3 bg-white/5 border border-white/20 text-white font-bold text-sm hover:bg-white/10 transition-colors disabled:opacity-50"
+                onClick={onClose}
+                type="button"
               >
                 Отмена
               </button>
               <button
-                type="button"
-                onClick={handleSave}
+                className="flex flex-1 items-center justify-center gap-2 bg-pandora-cyan py-3 font-bold text-black text-sm transition-colors hover:bg-pandora-cyan/80 disabled:opacity-50"
                 disabled={isSaving}
-                className="flex-1 py-3 bg-pandora-cyan text-black font-bold text-sm hover:bg-pandora-cyan/80 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                onClick={handleSave}
+                type="button"
               >
                 <Save size={16} />
                 {isSaving ? "Сохранение..." : "Сохранить"}

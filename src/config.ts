@@ -35,7 +35,7 @@ export const API = {
   /** Base URL for Admin API endpoints */
   ADMIN_URL: "/api/admin",
   /** Request timeout in milliseconds */
-  TIMEOUT: 30000,
+  TIMEOUT: 30_000,
   /** Retry attempts for failed requests */
   RETRY_ATTEMPTS: 3,
   /** Delay between retries in milliseconds */

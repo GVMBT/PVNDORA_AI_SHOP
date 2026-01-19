@@ -181,7 +181,7 @@ const BootSequenceBackground: React.FC<{ glitchActive: boolean }> = ({ glitchAct
   <>
     {/* Scanlines overlay */}
     <div
-      className="absolute inset-0 pointer-events-none opacity-[0.03]"
+      className="pointer-events-none absolute inset-0 opacity-[0.03]"
       style={{
         backgroundImage:
           "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 255, 255, 0.03) 2px, rgba(0, 255, 255, 0.03) 4px)",
@@ -190,7 +190,7 @@ const BootSequenceBackground: React.FC<{ glitchActive: boolean }> = ({ glitchAct
 
     {/* Grid background */}
     <div
-      className="absolute inset-0 pointer-events-none opacity-[0.02]"
+      className="pointer-events-none absolute inset-0 opacity-[0.02]"
       style={{
         backgroundImage:
           "linear-gradient(#00FFFF 1px, transparent 1px), linear-gradient(90deg, #00FFFF 1px, transparent 1px)",
@@ -201,12 +201,12 @@ const BootSequenceBackground: React.FC<{ glitchActive: boolean }> = ({ glitchAct
     {/* Glitch overlay */}
     {glitchActive && (
       <motion.div
-        initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
+        className="pointer-events-none absolute inset-0"
         exit={{ opacity: 0 }}
-        className="absolute inset-0 pointer-events-none"
+        initial={{ opacity: 0 }}
         style={{
-          background: `linear-gradient(transparent 50%, rgba(0, 255, 255, 0.05) 50%)`,
+          background: "linear-gradient(transparent 50%, rgba(0, 255, 255, 0.05) 50%)",
           backgroundSize: "100% 4px",
           transform: `translateX(${randomFloat(-5, 5)}px)`,
         }}
@@ -217,13 +217,13 @@ const BootSequenceBackground: React.FC<{ glitchActive: boolean }> = ({ glitchAct
 
 // Helper: Terminal header component (reduces cognitive complexity)
 const TerminalHeader: React.FC<{ phase: BootPhase }> = ({ phase }) => (
-  <div className="flex items-center gap-2 px-3 py-2 bg-gray-900/50 border-b border-gray-800">
-    <div className={`w-3 h-3 rounded-full ${phase === "error" ? "bg-red-500" : "bg-red-500/50"}`} />
+  <div className="flex items-center gap-2 border-gray-800 border-b bg-gray-900/50 px-3 py-2">
+    <div className={`h-3 w-3 rounded-full ${phase === "error" ? "bg-red-500" : "bg-red-500/50"}`} />
     <div
-      className={`w-3 h-3 rounded-full ${phase === "boot" ? "bg-yellow-500 animate-pulse" : "bg-yellow-500/50"}`}
+      className={`h-3 w-3 rounded-full ${phase === "boot" ? "animate-pulse bg-yellow-500" : "bg-yellow-500/50"}`}
     />
     <div
-      className={`w-3 h-3 rounded-full ${phase === "ready" ? "bg-green-500" : "bg-green-500/50"}`}
+      className={`h-3 w-3 rounded-full ${phase === "ready" ? "bg-green-500" : "bg-green-500/50"}`}
     />
     <span className="ml-2 font-mono text-[10px] text-gray-500">
       SECURE_TERMINAL — node://pvndora.mesh
@@ -239,12 +239,12 @@ const TerminalStatusMessages: React.FC<{
   if (phase === "ready") {
     return (
       <motion.div
-        initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="mt-4 pt-4 border-t border-gray-800"
+        className="mt-4 border-gray-800 border-t pt-4"
+        initial={{ opacity: 0 }}
       >
-        <div className="text-pandora-cyan font-mono text-sm font-bold flex items-center gap-2">
-          <span className="w-2 h-2 bg-pandora-cyan rounded-full animate-pulse" />
+        <div className="flex items-center gap-2 font-bold font-mono text-pandora-cyan text-sm">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-pandora-cyan" />
           <span>UPLINK ESTABLISHED — WELCOME, OPERATOR</span>
         </div>
       </motion.div>
@@ -254,18 +254,18 @@ const TerminalStatusMessages: React.FC<{
   if (phase === "error" && errorMessage) {
     return (
       <motion.div
-        initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="mt-4 pt-4 border-t border-red-800"
+        className="mt-4 border-red-800 border-t pt-4"
+        initial={{ opacity: 0 }}
       >
-        <div className="text-red-500 font-mono text-sm font-bold flex items-center gap-2">
-          <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+        <div className="flex items-center gap-2 font-bold font-mono text-red-500 text-sm">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
           BOOT FAILURE: {errorMessage}
         </div>
         <button
-          type="button"
+          className="mt-4 border border-red-500 bg-red-500/20 px-4 py-2 font-mono text-red-500 text-xs transition-colors hover:bg-red-500/30"
           onClick={() => globalThis.location.reload()}
-          className="mt-4 px-4 py-2 bg-red-500/20 border border-red-500 text-red-500 font-mono text-xs hover:bg-red-500/30 transition-colors"
+          type="button"
         >
           RETRY CONNECTION
         </button>
@@ -293,43 +293,43 @@ const BootSequenceContent: React.FC<{
     {/* Header */}
     <div className="mb-8 text-center">
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         className="inline-block"
+        initial={{ opacity: 0, scale: 0.9 }}
       >
-        <h1 className="font-['Orbitron'] text-3xl sm:text-5xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white mb-2">
+        <h1 className="mb-2 bg-gradient-to-r from-pandora-cyan to-white bg-clip-text font-['Orbitron'] font-black text-3xl text-transparent tracking-wider sm:text-5xl">
           PVNDORA
         </h1>
         <div className="h-[2px] bg-gradient-to-r from-transparent via-pandora-cyan to-transparent" />
       </motion.div>
-      <p className="font-mono text-xs text-gray-500 mt-3 tracking-widest">BLACK MARKET PROTOCOL</p>
+      <p className="mt-3 font-mono text-gray-500 text-xs tracking-widest">BLACK MARKET PROTOCOL</p>
     </div>
 
     {/* Terminal window */}
-    <div className="bg-black/50 border border-gray-800 rounded-sm overflow-hidden backdrop-blur-sm">
+    <div className="overflow-hidden rounded-sm border border-gray-800 bg-black/50 backdrop-blur-sm">
       <TerminalHeader phase={phase} />
 
       {/* Terminal content */}
-      <div ref={logsContainerRef} className="p-4 h-64 overflow-y-auto scrollbar-hide space-y-1">
+      <div className="scrollbar-hide h-64 space-y-1 overflow-y-auto p-4" ref={logsContainerRef}>
         {logs.map((log) => (
-          <LogLine key={log.id} entry={log} />
+          <LogLine entry={log} key={log.id} />
         ))}
 
-        <TerminalStatusMessages phase={phase} errorMessage={errorMessage} />
+        <TerminalStatusMessages errorMessage={errorMessage} phase={phase} />
       </div>
     </div>
 
     {/* Progress bar */}
     <div className="mt-6">
-      <div className="flex justify-between font-mono text-[10px] text-gray-500 mb-2">
+      <div className="mb-2 flex justify-between font-mono text-[10px] text-gray-500">
         <span>{phase === "error" ? "BOOT FAILED" : "LOADING PROTOCOL"}</span>
         <span>{Math.round(progress)}%</span>
       </div>
-      <div className="h-1 bg-gray-900 rounded-full overflow-hidden">
+      <div className="h-1 overflow-hidden rounded-full bg-gray-900">
         <motion.div
+          animate={{ width: `${progress}%` }}
           className={`h-full ${phase === "error" ? "bg-red-500" : "bg-gradient-to-r from-pandora-cyan/50 to-pandora-cyan"}`}
           initial={{ width: 0 }}
-          animate={{ width: `${progress}%` }}
           transition={{ duration: 0.3, ease: "easeOut" }}
         />
       </div>
@@ -338,28 +338,28 @@ const BootSequenceContent: React.FC<{
     {/* Status hint */}
     {phase === "ready" ? (
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex justify-center mt-6"
+        className="mt-6 flex justify-center"
+        initial={{ opacity: 0, y: 10 }}
       >
         <button
-          type="button"
+          className="bg-pandora-cyan px-8 py-3 font-bold font-display text-black text-sm tracking-wider shadow-[0_0_20px_rgba(0,255,255,0.3)] transition-colors hover:bg-white"
           onClick={onEnterSystem}
-          className="px-8 py-3 bg-pandora-cyan text-black font-display font-bold text-sm tracking-wider hover:bg-white transition-colors shadow-[0_0_20px_rgba(0,255,255,0.3)]"
           style={{
             clipPath:
               "polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)",
           }}
+          type="button"
         >
           АКТИВИРОВАТЬ ПРОТОКОЛ
         </button>
       </motion.div>
     ) : (
       <motion.p
-        initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
+        className="mt-6 text-center font-mono text-[10px] text-gray-600"
+        initial={{ opacity: 0 }}
         transition={{ delay: 0.5 }}
-        className="text-center font-mono text-[10px] text-gray-600 mt-6"
       >
         {phase === "boot" && "ESTABLISHING SECURE CONNECTION..."}
         {phase === "error" && "CONNECTION TERMINATED"}
@@ -371,10 +371,10 @@ const BootSequenceContent: React.FC<{
 // Helper: Corner decorations component (reduces cognitive complexity)
 const BootSequenceDecorations: React.FC = () => (
   <>
-    <div className="absolute top-4 left-4 w-8 h-8 border-l-2 border-t-2 border-pandora-cyan/30" />
-    <div className="absolute top-4 right-4 w-8 h-8 border-r-2 border-t-2 border-pandora-cyan/30" />
-    <div className="absolute bottom-4 left-4 w-8 h-8 border-l-2 border-b-2 border-pandora-cyan/30" />
-    <div className="absolute bottom-4 right-4 w-8 h-8 border-r-2 border-b-2 border-pandora-cyan/30" />
+    <div className="absolute top-4 left-4 h-8 w-8 border-pandora-cyan/30 border-t-2 border-l-2" />
+    <div className="absolute top-4 right-4 h-8 w-8 border-pandora-cyan/30 border-t-2 border-r-2" />
+    <div className="absolute bottom-4 left-4 h-8 w-8 border-pandora-cyan/30 border-b-2 border-l-2" />
+    <div className="absolute right-4 bottom-4 h-8 w-8 border-pandora-cyan/30 border-r-2 border-b-2" />
   </>
 );
 
@@ -397,11 +397,11 @@ const LogLine: React.FC<{ entry: LogEntry }> = ({ entry }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       className={`font-mono text-xs sm:text-sm ${colorMap[entry.type]}`}
+      initial={{ opacity: 0, x: -20 }}
     >
-      <span className="text-gray-600 mr-2">{prefixMap[entry.type]}</span>
+      <span className="mr-2 text-gray-600">{prefixMap[entry.type]}</span>
       {entry.text}
     </motion.div>
   );
@@ -484,20 +484,20 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 1 }}
+        className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden bg-[#050505]"
         exit={{ opacity: 0 }}
+        initial={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
-        className="fixed inset-0 z-[9999] bg-[#050505] flex flex-col items-center justify-center overflow-hidden"
       >
         <BootSequenceBackground glitchActive={glitchActive} />
         <BootSequenceContent
-          glitchActive={glitchActive}
-          phase={phase}
-          logs={logs}
-          progress={progress}
           errorMessage={errorMessage}
+          glitchActive={glitchActive}
+          logs={logs}
           logsContainerRef={logsContainerRef}
           onEnterSystem={handleEnterSystem}
+          phase={phase}
+          progress={progress}
         />
         <BootSequenceDecorations />
       </motion.div>

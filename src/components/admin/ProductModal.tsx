@@ -196,49 +196,49 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
         bg: "bg-green-500/10 border-green-500/30",
         desc: `${stock} ед. на складе → мгновенная выдача`,
       };
-    } else if (fulfillment > 0) {
+    }
+    if (fulfillment > 0) {
       return {
         label: "ON_DEMAND",
         color: "text-yellow-500",
         bg: "bg-yellow-500/10 border-yellow-500/30",
         desc: `Нет на складе → предзаказ (~${fulfillment}ч)`,
       };
-    } else {
-      return {
-        label: "NO_STOCK",
-        color: "text-red-500",
-        bg: "bg-red-500/10 border-red-500/30",
-        desc: "Сток не настроен",
-      };
     }
+    return {
+      label: "NO_STOCK",
+      color: "text-red-500",
+      bg: "bg-red-500/10 border-red-500/30",
+      desc: "Сток не настроен",
+    };
   };
 
   const deliveryType = getDeliveryType();
 
   // Helper to render stock content (avoid nested ternary)
   const renderStockContent = () => {
-    if (loadingStock) return <p className="text-xs text-gray-500">Загрузка...</p>;
-    if (stockItems.length === 0) return <p className="text-xs text-gray-500">Сток пуст</p>;
+    if (loadingStock) return <p className="text-gray-500 text-xs">Загрузка...</p>;
+    if (stockItems.length === 0) return <p className="text-gray-500 text-xs">Сток пуст</p>;
     return (
-      <div className="max-h-48 overflow-y-auto space-y-2">
+      <div className="max-h-48 space-y-2 overflow-y-auto">
         {stockItems.map((item) => (
           <div
+            className="flex items-start justify-between gap-2 rounded-sm border border-white/5 bg-black/50 p-2"
             key={item.id}
-            className="flex items-start justify-between gap-2 p-2 bg-black/50 border border-white/5 rounded-sm"
           >
-            <code className="text-[10px] text-green-400 flex-1 break-all font-mono">
+            <code className="flex-1 break-all font-mono text-[10px] text-green-400">
               {item.content}
             </code>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-[9px] text-gray-500 font-mono px-1.5 py-0.5 bg-gray-900 rounded">
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <span className="rounded bg-gray-900 px-1.5 py-0.5 font-mono text-[9px] text-gray-500">
                 {item.status}
               </span>
               {item.status === "available" && (
                 <button
-                  type="button"
+                  className="p-1 text-red-400 hover:text-red-300"
                   onClick={() => handleDeleteStock(item.id)}
-                  className="text-red-400 hover:text-red-300 p-1"
                   title="Удалить"
+                  type="button"
                 >
                   <Trash2 size={12} />
                 </button>
@@ -256,47 +256,47 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
     <AnimatePresence>
       <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
         <button
-          type="button"
-          className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-default"
-          onClick={onClose}
           aria-label="Close modal"
+          className="absolute inset-0 cursor-default bg-black/80 backdrop-blur-sm"
+          onClick={onClose}
+          type="button"
         />
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
+          className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto border border-white/20 bg-[#080808] p-6 shadow-2xl"
           exit={{ scale: 0.9, opacity: 0 }}
-          className="relative w-full max-w-3xl bg-[#080808] border border-white/20 p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+          initial={{ scale: 0.9, opacity: 0 }}
         >
           {/* Заголовок */}
-          <div className="flex justify-between items-center mb-6">
+          <div className="mb-6 flex items-center justify-between">
             <div>
-              <h3 className="text-xl font-display font-bold text-white">
+              <h3 className="font-bold font-display text-white text-xl">
                 {editingProduct?.id ? `РЕДАКТИРОВАНИЕ: ${editingProduct.name}` : "НОВЫЙ ТОВАР"}
               </h3>
               {editingProduct?.id && (
-                <p className="text-[10px] text-gray-500 font-mono mt-1">ID: {editingProduct.id}</p>
+                <p className="mt-1 font-mono text-[10px] text-gray-500">ID: {editingProduct.id}</p>
               )}
             </div>
             <button
-              type="button"
+              className="rounded p-2 transition-colors hover:bg-white/10"
               onClick={onClose}
-              className="p-2 hover:bg-white/10 rounded transition-colors"
+              type="button"
             >
-              <X size={20} className="text-gray-500" />
+              <X className="text-gray-500" size={20} />
             </button>
           </div>
 
           {/* Индикатор типа доставки (автоматический) */}
           <div
-            className={`mb-6 p-3 border ${deliveryType.bg} rounded-sm flex items-center justify-between`}
+            className={`mb-6 border p-3 ${deliveryType.bg} flex items-center justify-between rounded-sm`}
           >
             <div className="flex items-center gap-3">
-              <Zap size={16} className={deliveryType.color} />
+              <Zap className={deliveryType.color} size={16} />
               <div>
-                <span className={`text-xs font-mono font-bold ${deliveryType.color}`}>
+                <span className={`font-bold font-mono text-xs ${deliveryType.color}`}>
                   РЕЖИМ_ДОСТАВКИ: {deliveryType.label}
                 </span>
-                <p className="text-[10px] text-gray-500 mt-0.5">{deliveryType.desc}</p>
+                <p className="mt-0.5 text-[10px] text-gray-500">{deliveryType.desc}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-[10px] text-gray-500">
@@ -306,21 +306,21 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
           </div>
 
           {/* Вкладки */}
-          <div className="flex gap-1 border-b border-white/10 mb-6">
+          <div className="mb-6 flex gap-1 border-white/10 border-b">
             {[
               { id: "general" as const, label: "Основное", icon: Package },
               { id: "pricing" as const, label: "Цены", icon: DollarSign },
               { id: "inventory" as const, label: "Склад", icon: Terminal },
             ].map((tab) => (
               <button
-                type="button"
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2 text-xs font-bold uppercase flex items-center gap-2 transition-colors ${
+                className={`flex items-center gap-2 px-4 py-2 font-bold text-xs uppercase transition-colors ${
                   activeTab === tab.id
-                    ? "text-pandora-cyan border-b-2 border-pandora-cyan bg-pandora-cyan/5"
+                    ? "border-pandora-cyan border-b-2 bg-pandora-cyan/5 text-pandora-cyan"
                     : "text-gray-500 hover:text-white"
                 }`}
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                type="button"
               >
                 <tab.icon size={14} />
                 {tab.label}
@@ -330,76 +330,76 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
           {/* Содержимое вкладок */}
           {activeTab === "general" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {/* Медиа */}
-              <div className="col-span-1 md:col-span-2 bg-[#050505] p-4 border border-white/10 rounded-sm">
-                <h4 className="text-xs font-mono text-gray-500 uppercase mb-3 flex items-center gap-2">
+              <div className="col-span-1 rounded-sm border border-white/10 bg-[#050505] p-4 md:col-span-2">
+                <h4 className="mb-3 flex items-center gap-2 font-mono text-gray-500 text-xs uppercase">
                   <ImageIcon size={14} /> Медиа
                 </h4>
-                <div className="flex gap-4 items-start">
+                <div className="flex items-start gap-4">
                   {/* Загрузка изображения */}
                   <button
-                    type="button"
-                    className="relative group w-32 h-32 bg-black border border-white/20 flex items-center justify-center cursor-pointer hover:border-pandora-cyan transition-colors rounded-sm"
+                    className="group relative flex h-32 w-32 cursor-pointer items-center justify-center rounded-sm border border-white/20 bg-black transition-colors hover:border-pandora-cyan"
                     onClick={triggerFileInput}
+                    type="button"
                   >
                     {editingProduct?.image ? (
                       <img
-                        src={editingProduct.image}
-                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity rounded-sm"
                         alt="Товар"
+                        className="h-full w-full rounded-sm object-cover opacity-80 transition-opacity group-hover:opacity-100"
+                        src={editingProduct.image}
                       />
                     ) : (
                       <div className="text-center text-gray-500 group-hover:text-pandora-cyan">
-                        <Upload size={24} className="mx-auto mb-1" />
+                        <Upload className="mx-auto mb-1" size={24} />
                         <span className="text-[9px] uppercase">Загрузить</span>
                       </div>
                     )}
                   </button>
                   <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
                     accept="image/*"
+                    className="hidden"
                     onChange={handleImageUpload}
+                    ref={fileInputRef}
+                    type="file"
                   />
 
                   {/* URL */}
                   <div className="flex-1 space-y-3">
                     <div>
                       <label
+                        className="mb-1 block text-[10px] text-gray-500 uppercase"
                         htmlFor="product-image-url"
-                        className="text-[10px] text-gray-500 block mb-1 uppercase"
                       >
                         URL изображения
                       </label>
                       <input
+                        className="w-full rounded-sm border border-white/20 bg-black p-2 text-white text-xs outline-none focus:border-pandora-cyan"
                         id="product-image-url"
-                        type="text"
-                        value={editingProduct?.image || ""}
                         onChange={(e) =>
                           setEditingProduct({ ...editingProduct, image: e.target.value })
                         }
-                        className="w-full bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
                         placeholder="https://..."
+                        type="text"
+                        value={editingProduct?.image || ""}
                       />
                     </div>
                     <div>
                       <label
+                        className="mb-1 flex items-center gap-1 text-[10px] text-gray-500 uppercase"
                         htmlFor="product-video-url"
-                        className="text-[10px] text-gray-500 mb-1 uppercase flex items-center gap-1"
                       >
                         <Video size={10} /> URL видео (опционально)
                       </label>
                       <input
+                        className="w-full rounded-sm border border-white/20 bg-black p-2 text-white text-xs outline-none focus:border-pandora-cyan"
                         id="product-video-url"
-                        type="text"
-                        value={editingProduct?.video || ""}
                         onChange={(e) =>
                           setEditingProduct({ ...editingProduct, video: e.target.value })
                         }
-                        className="w-full bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
                         placeholder="https://youtube.com/... или .webm/.mp4"
+                        type="text"
+                        value={editingProduct?.video || ""}
                       />
                     </div>
                   </div>
@@ -409,55 +409,55 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
               {/* Название */}
               <div className="col-span-1 md:col-span-2">
                 <label
+                  className="mb-1 block text-[10px] text-gray-500 uppercase"
                   htmlFor="product-name"
-                  className="text-[10px] text-gray-500 block mb-1 uppercase"
                 >
                   Название товара *
                 </label>
                 <input
+                  className="w-full rounded-sm border border-white/20 bg-black p-2.5 text-sm text-white outline-none focus:border-pandora-cyan"
                   id="product-name"
+                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                  placeholder="например: Cursor IDE (7 дней)"
                   type="text"
                   value={editingProduct?.name || ""}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                  className="w-full bg-black border border-white/20 p-2.5 text-sm text-white focus:border-pandora-cyan outline-none rounded-sm"
-                  placeholder="например: Cursor IDE (7 дней)"
                 />
               </div>
 
               {/* Описание */}
               <div className="col-span-1 md:col-span-2">
                 <label
+                  className="mb-1 block text-[10px] text-gray-500 uppercase"
                   htmlFor="product-description"
-                  className="text-[10px] text-gray-500 block mb-1 uppercase"
                 >
                   Описание
                 </label>
                 <textarea
+                  className="h-20 w-full resize-none rounded-sm border border-white/20 bg-black p-2 text-white text-xs outline-none focus:border-pandora-cyan"
                   id="product-description"
-                  value={editingProduct?.description || ""}
                   onChange={(e) =>
                     setEditingProduct({ ...editingProduct, description: e.target.value })
                   }
-                  className="w-full h-20 bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none resize-none rounded-sm"
                   placeholder="Описание товара..."
+                  value={editingProduct?.description || ""}
                 />
               </div>
 
               {/* Категория */}
               <div>
                 <label
+                  className="mb-1 block text-[10px] text-gray-500 uppercase"
                   htmlFor="product-category"
-                  className="text-[10px] text-gray-500 block mb-1 uppercase"
                 >
                   Категория *
                 </label>
                 <select
+                  className="w-full rounded-sm border border-white/20 bg-black p-2.5 text-white text-xs outline-none focus:border-pandora-cyan"
                   id="product-category"
-                  value={editingProduct?.category || "ai"}
                   onChange={(e) =>
                     setEditingProduct({ ...editingProduct, category: e.target.value })
                   }
-                  className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
+                  value={editingProduct?.category || "ai"}
                 >
                   <option value="ai">AI & Текст</option>
                   <option value="dev">Разработка</option>
@@ -469,16 +469,16 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
               {/* Статус */}
               <div>
                 <label
+                  className="mb-1 block text-[10px] text-gray-500 uppercase"
                   htmlFor="product-status"
-                  className="text-[10px] text-gray-500 block mb-1 uppercase"
                 >
                   Статус
                 </label>
                 <select
+                  className="w-full rounded-sm border border-white/20 bg-black p-2.5 text-white text-xs outline-none focus:border-pandora-cyan"
                   id="product-status"
-                  value={editingProduct?.status || "active"}
                   onChange={(e) => setEditingProduct({ ...editingProduct, status: e.target.value })}
-                  className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
+                  value={editingProduct?.status || "active"}
                 >
                   <option value="active">Активен (виден)</option>
                   <option value="inactive">Неактивен (скрыт)</option>
@@ -489,23 +489,23 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
               {/* Тип выдачи */}
               <div>
                 <label
+                  className="mb-1 block text-[10px] text-gray-500 uppercase"
                   htmlFor="product-fulfillment-type"
-                  className="text-[10px] text-gray-500 block mb-1 uppercase"
                 >
                   Тип выдачи
                 </label>
                 <select
+                  className="w-full rounded-sm border border-white/20 bg-black p-2.5 text-white text-xs outline-none focus:border-pandora-cyan"
                   id="product-fulfillment-type"
-                  value={editingProduct?.fulfillmentType || "auto"}
                   onChange={(e) =>
                     setEditingProduct({ ...editingProduct, fulfillmentType: e.target.value })
                   }
-                  className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
+                  value={editingProduct?.fulfillmentType || "auto"}
                 >
                   <option value="auto">Автоматически (из склада)</option>
                   <option value="manual">Вручную (админ отправляет)</option>
                 </select>
-                <p className="text-[9px] text-gray-600 mt-1">
+                <p className="mt-1 text-[9px] text-gray-600">
                   Авто: данные из stock_items • Вручную: админ отправляет сам
                 </p>
               </div>
@@ -513,22 +513,22 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
               {/* Время выполнения (для предзаказов) */}
               <div>
                 <label
+                  className="mb-1 block flex items-center gap-1 text-[10px] text-gray-500 uppercase"
                   htmlFor="product-fulfillment-hours"
-                  className="text-[10px] text-gray-500 block mb-1 uppercase flex items-center gap-1"
                 >
                   <Clock size={10} /> Время выполнения (часов)
                 </label>
                 <input
+                  className="w-full rounded-sm border border-white/20 bg-black p-2.5 text-white text-xs outline-none focus:border-pandora-cyan"
                   id="product-fulfillment-hours"
-                  type="number"
-                  value={editingProduct?.fulfillment || 0}
+                  min={0}
                   onChange={(e) =>
                     setEditingProduct({ ...editingProduct, fulfillment: Number(e.target.value) })
                   }
-                  className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
-                  min={0}
+                  type="number"
+                  value={editingProduct?.fulfillment || 0}
                 />
-                <p className="text-[9px] text-gray-600 mt-1">
+                <p className="mt-1 text-[9px] text-gray-600">
                   Для предзаказов (0 = только при наличии стока)
                 </p>
               </div>
@@ -536,59 +536,59 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
               {/* Срок действия */}
               <div>
                 <label
+                  className="mb-1 block text-[10px] text-gray-500 uppercase"
                   htmlFor="product-duration"
-                  className="text-[10px] text-gray-500 block mb-1 uppercase"
                 >
                   Срок действия (дней)
                 </label>
                 <input
+                  className="w-full rounded-sm border border-white/20 bg-black p-2.5 text-white text-xs outline-none focus:border-pandora-cyan"
                   id="product-duration"
-                  type="number"
-                  value={editingProduct?.duration || 30}
+                  min={1}
                   onChange={(e) =>
                     setEditingProduct({ ...editingProduct, duration: Number(e.target.value) })
                   }
-                  className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
-                  min={1}
+                  type="number"
+                  value={editingProduct?.duration || 30}
                 />
-                <p className="text-[9px] text-gray-600 mt-1">Длительность подписки/лицензии</p>
+                <p className="mt-1 text-[9px] text-gray-600">Длительность подписки/лицензии</p>
               </div>
 
               {/* Гарантия */}
               <div>
                 <label
+                  className="mb-1 block text-[10px] text-gray-500 uppercase"
                   htmlFor="product-warranty"
-                  className="text-[10px] text-gray-500 block mb-1 uppercase"
                 >
                   Гарантия (дней)
                 </label>
                 <input
+                  className="w-full rounded-sm border border-white/20 bg-black p-2.5 text-white text-xs outline-none focus:border-pandora-cyan"
                   id="product-warranty"
+                  min={0}
+                  onChange={(e) => setWarrantyDays(Number(e.target.value))}
                   type="number"
                   value={warrantyDays}
-                  onChange={(e) => setWarrantyDays(Number(e.target.value))}
-                  className="w-full bg-black border border-white/20 p-2.5 text-xs text-white focus:border-pandora-cyan outline-none rounded-sm"
-                  min={0}
                 />
-                <p className="text-[9px] text-gray-600 mt-1">Период гарантийной замены</p>
+                <p className="mt-1 text-[9px] text-gray-600">Период гарантийной замены</p>
               </div>
 
               {/* Инструкции */}
               <div className="col-span-1 md:col-span-2">
                 <label
+                  className="mb-1 block text-[10px] text-gray-500 uppercase"
                   htmlFor="product-instructions"
-                  className="text-[10px] text-gray-500 block mb-1 uppercase"
                 >
                   Инструкция по активации
                 </label>
                 <textarea
+                  className="h-24 w-full resize-none rounded-sm border border-white/20 bg-black p-2 font-mono text-white text-xs outline-none focus:border-pandora-cyan"
                   id="product-instructions"
-                  value={editingProduct?.instructions || ""}
                   onChange={(e) =>
                     setEditingProduct({ ...editingProduct, instructions: e.target.value })
                   }
-                  className="w-full h-24 bg-black border border-white/20 p-2 text-xs text-white focus:border-pandora-cyan outline-none resize-none rounded-sm font-mono"
                   placeholder="1. Перейдите на https://...&#10;2. Введите данные&#10;3. ..."
+                  value={editingProduct?.instructions || ""}
                 />
               </div>
             </div>
@@ -597,140 +597,140 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
           {activeTab === "pricing" && (
             <div className="space-y-6">
               {/* Основные цены (RUB) */}
-              <div className="bg-[#050505] p-4 border border-white/10 rounded-sm">
-                <h4 className="text-xs font-mono text-gray-500 uppercase mb-4 flex items-center gap-2">
+              <div className="rounded-sm border border-white/10 bg-[#050505] p-4">
+                <h4 className="mb-4 flex items-center gap-2 font-mono text-gray-500 text-xs uppercase">
                   <Coins size={14} /> Цены (₽)
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <div>
                     <label
+                      className="mb-1 block text-[10px] text-gray-500 uppercase"
                       htmlFor="product-price"
-                      className="text-[10px] text-gray-500 block mb-1 uppercase"
                     >
                       Цена (₽) *
                     </label>
                     <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                      <span className="absolute top-1/2 left-2 -translate-y-1/2 text-gray-500 text-xs">
                         ₽
                       </span>
                       <input
+                        className="w-full rounded-sm border border-white/20 bg-black p-2.5 pl-6 font-mono text-pandora-cyan text-sm outline-none focus:border-pandora-cyan"
                         id="product-price"
-                        type="number"
-                        value={editingProduct?.price || 0}
+                        min={0}
                         onChange={(e) =>
                           setEditingProduct({ ...editingProduct, price: Number(e.target.value) })
                         }
-                        className="w-full bg-black border border-white/20 p-2.5 pl-6 text-sm text-pandora-cyan font-mono focus:border-pandora-cyan outline-none rounded-sm"
                         step="1"
-                        min={0}
+                        type="number"
+                        value={editingProduct?.price || 0}
                       />
                     </div>
-                    <p className="text-[9px] text-gray-600 mt-1">Основная цена в рублях</p>
+                    <p className="mt-1 text-[9px] text-gray-600">Основная цена в рублях</p>
                   </div>
 
                   <div>
                     <label
+                      className="mb-1 block text-[10px] text-gray-500 uppercase"
                       htmlFor="product-msrp"
-                      className="text-[10px] text-gray-500 block mb-1 uppercase"
                     >
                       MSRP (зачёркнутая)
                     </label>
                     <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                      <span className="absolute top-1/2 left-2 -translate-y-1/2 text-gray-500 text-xs">
                         ₽
                       </span>
                       <input
+                        className="w-full rounded-sm border border-white/20 bg-black p-2.5 pl-6 font-mono text-gray-400 text-sm line-through outline-none focus:border-pandora-cyan"
                         id="product-msrp"
-                        type="number"
-                        value={editingProduct?.msrp || 0}
+                        min={0}
                         onChange={(e) =>
                           setEditingProduct({ ...editingProduct, msrp: Number(e.target.value) })
                         }
-                        className="w-full bg-black border border-white/20 p-2.5 pl-6 text-sm text-gray-400 line-through font-mono focus:border-pandora-cyan outline-none rounded-sm"
                         step="1"
-                        min={0}
+                        type="number"
+                        value={editingProduct?.msrp || 0}
                       />
                     </div>
-                    <p className="text-[9px] text-gray-600 mt-1">
+                    <p className="mt-1 text-[9px] text-gray-600">
                       Показывается зачёркнутой если &gt; цены
                     </p>
                   </div>
 
                   <div>
                     <label
+                      className="mb-1 block text-[10px] text-yellow-500 uppercase"
                       htmlFor="product-discount-price"
-                      className="text-[10px] text-yellow-500 block mb-1 uppercase"
                     >
                       Цена скидочного канала
                     </label>
                     <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                      <span className="absolute top-1/2 left-2 -translate-y-1/2 text-gray-500 text-xs">
                         ₽
                       </span>
                       <input
+                        className="w-full rounded-sm border border-yellow-500/30 bg-black p-2.5 pl-6 font-mono text-sm text-yellow-500 outline-none focus:border-yellow-500"
                         id="product-discount-price"
-                        type="number"
-                        value={editingProduct?.discountPrice || 0}
+                        min={0}
                         onChange={(e) =>
                           setEditingProduct({
                             ...editingProduct,
                             discountPrice: Number(e.target.value),
                           })
                         }
-                        className="w-full bg-black border border-yellow-500/30 p-2.5 pl-6 text-sm text-yellow-500 font-mono focus:border-yellow-500 outline-none rounded-sm"
                         step="1"
-                        min={0}
+                        type="number"
+                        value={editingProduct?.discountPrice || 0}
                       />
                     </div>
-                    <p className="text-[9px] text-gray-600 mt-1">Цена для скидочного бота</p>
+                    <p className="mt-1 text-[9px] text-gray-600">Цена для скидочного бота</p>
                   </div>
                 </div>
               </div>
 
               {/* Себестоимость и маржа */}
-              <div className="bg-[#050505] p-4 border border-white/10 rounded-sm">
-                <h4 className="text-xs font-mono text-gray-500 uppercase mb-4 flex items-center gap-2">
+              <div className="rounded-sm border border-white/10 bg-[#050505] p-4">
+                <h4 className="mb-4 flex items-center gap-2 font-mono text-gray-500 text-xs uppercase">
                   <Terminal size={14} /> Себестоимость и маржа (внутреннее)
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
                     <label
+                      className="mb-1 block text-[10px] text-gray-500 uppercase"
                       htmlFor="product-cost-price"
-                      className="text-[10px] text-gray-500 block mb-1 uppercase"
                     >
                       Себестоимость (₽)
                     </label>
                     <div className="relative">
-                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500 text-xs">
+                      <span className="absolute top-1/2 left-2 -translate-y-1/2 text-gray-500 text-xs">
                         ₽
                       </span>
                       <input
+                        className="w-full rounded-sm border border-white/20 bg-black p-2.5 pl-6 font-mono text-red-400 text-sm outline-none focus:border-pandora-cyan"
                         id="product-cost-price"
-                        type="number"
-                        value={editingProduct?.costPrice || 0}
+                        min={0}
                         onChange={(e) =>
                           setEditingProduct({
                             ...editingProduct,
                             costPrice: Number(e.target.value),
                           })
                         }
-                        className="w-full bg-black border border-white/20 p-2.5 pl-6 text-sm text-red-400 font-mono focus:border-pandora-cyan outline-none rounded-sm"
                         step="1"
-                        min={0}
+                        type="number"
+                        value={editingProduct?.costPrice || 0}
                       />
                     </div>
-                    <p className="text-[9px] text-gray-600 mt-1">Ваши затраты на единицу</p>
+                    <p className="mt-1 text-[9px] text-gray-600">Ваши затраты на единицу</p>
                   </div>
 
                   <div>
-                    <span className="text-[10px] text-gray-500 block mb-1 uppercase">Маржа</span>
-                    <div className="p-2.5 bg-black/50 border border-white/10 rounded-sm">
+                    <span className="mb-1 block text-[10px] text-gray-500 uppercase">Маржа</span>
+                    <div className="rounded-sm border border-white/10 bg-black/50 p-2.5">
                       {editingProduct?.price && editingProduct?.costPrice ? (
                         <>
-                          <span className="text-sm font-mono text-green-500">
+                          <span className="font-mono text-green-500 text-sm">
                             {Math.round(editingProduct.price - editingProduct.costPrice)} ₽
                           </span>
-                          <span className="text-xs text-gray-500 ml-2">
+                          <span className="ml-2 text-gray-500 text-xs">
                             (
                             {(
                               ((editingProduct.price - editingProduct.costPrice) /
@@ -741,10 +741,10 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
                           </span>
                         </>
                       ) : (
-                        <span className="text-sm font-mono text-gray-600">—</span>
+                        <span className="font-mono text-gray-600 text-sm">—</span>
                       )}
                     </div>
-                    <p className="text-[9px] text-gray-600 mt-1">
+                    <p className="mt-1 text-[9px] text-gray-600">
                       Рассчитывается: цена - себестоимость
                     </p>
                   </div>
@@ -756,47 +756,47 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
           {activeTab === "inventory" && (
             <div className="space-y-4">
               {/* Текущий сток */}
-              <div className="bg-[#050505] p-4 border border-white/10 rounded-sm">
-                <div className="flex justify-between items-center">
+              <div className="rounded-sm border border-white/10 bg-[#050505] p-4">
+                <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-xs font-mono text-gray-500 uppercase mb-1">Текущий сток</h4>
+                    <h4 className="mb-1 font-mono text-gray-500 text-xs uppercase">Текущий сток</h4>
                     <span
-                      className={`text-2xl font-mono font-bold ${
+                      className={`font-bold font-mono text-2xl ${
                         (editingProduct?.stock || 0) > 0 ? "text-green-500" : "text-red-500"
                       }`}
                     >
                       {editingProduct?.stock || 0}
                     </span>
-                    <span className="text-xs text-gray-500 ml-2">единиц доступно</span>
+                    <span className="ml-2 text-gray-500 text-xs">единиц доступно</span>
                   </div>
                   {editingProduct?.sold && editingProduct.sold > 0 && (
                     <div className="text-right">
-                      <h4 className="text-xs font-mono text-gray-500 uppercase mb-1">Продано</h4>
-                      <span className="text-2xl font-mono font-bold text-pandora-cyan">
+                      <h4 className="mb-1 font-mono text-gray-500 text-xs uppercase">Продано</h4>
+                      <span className="font-bold font-mono text-2xl text-pandora-cyan">
                         {editingProduct.sold}
                       </span>
                     </div>
                   )}
                 </div>
-                <p className="text-[9px] text-gray-600 mt-3 border-t border-white/10 pt-3">
+                <p className="mt-3 border-white/10 border-t pt-3 text-[9px] text-gray-600">
                   Сток считается из таблицы stock_items. Добавьте данные ниже для пополнения.
                 </p>
               </div>
 
               {/* Текущий сток */}
               {editingProduct.id && (
-                <div className="bg-[#050505] p-4 border border-blue-500/20 rounded-sm mb-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-xs font-mono text-blue-500 flex items-center gap-2">
+                <div className="mb-4 rounded-sm border border-blue-500/20 bg-[#050505] p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="flex items-center gap-2 font-mono text-blue-500 text-xs">
                       <Package size={12} /> ТЕКУЩИЙ СТОК
                     </span>
                     <button
-                      type="button"
-                      onClick={loadStock}
+                      className="flex items-center gap-1 font-mono text-[10px] text-gray-400 hover:text-blue-400 disabled:opacity-50"
                       disabled={loadingStock}
-                      className="text-[10px] text-gray-400 hover:text-blue-400 font-mono flex items-center gap-1 disabled:opacity-50"
+                      onClick={loadStock}
+                      type="button"
                     >
-                      <RefreshCw size={10} className={loadingStock ? "animate-spin" : ""} />{" "}
+                      <RefreshCw className={loadingStock ? "animate-spin" : ""} size={10} />{" "}
                       Обновить
                     </button>
                   </div>
@@ -805,39 +805,39 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
               )}
 
               {/* Массовая загрузка */}
-              <div className="bg-[#050505] p-4 border border-green-500/20 rounded-sm">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-xs font-mono text-green-500 flex items-center gap-2">
+              <div className="rounded-sm border border-green-500/20 bg-[#050505] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="flex items-center gap-2 font-mono text-green-500 text-xs">
                     <Terminal size={12} /> МАССОВАЯ ЗАГРУЗКА ДАННЫХ
                   </span>
-                  <span className="text-[10px] text-gray-500 font-mono">
+                  <span className="font-mono text-[10px] text-gray-500">
                     {inventoryText.split("\n").filter((l) => l.trim()).length} ЗАПИСЕЙ
                   </span>
                 </div>
                 <textarea
-                  value={inventoryText}
+                  className="h-48 w-full resize-none rounded-sm border border-white/10 bg-black p-3 font-mono text-green-400 text-xs outline-none focus:border-green-500/50"
                   onChange={(e) => setInventoryText(e.target.value)}
                   placeholder={`Вставьте данные, по одному на строку:
 user@email.com:password123
 api_key_abc123
 license_key_xyz789`}
-                  className="w-full h-48 bg-black border border-white/10 p-3 text-xs font-mono text-green-400 focus:border-green-500/50 outline-none resize-none rounded-sm"
+                  value={inventoryText}
                 />
-                <p className="text-[9px] text-gray-600 mt-2">
+                <p className="mt-2 text-[9px] text-gray-600">
                   Каждая строка = 1 единица стока. Добавляется через API /api/admin/stock/bulk
                 </p>
               </div>
 
-              <div className="flex justify-end mt-4">
+              <div className="mt-4 flex justify-end">
                 <button
-                  type="button"
+                  className="flex items-center gap-2 rounded-sm bg-green-600 px-6 py-2 font-bold text-black text-xs uppercase transition-colors hover:bg-green-500 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-500"
+                  disabled={!(inventoryText.trim() && editingProduct.id) || addingStock}
                   onClick={handleAddStock}
-                  disabled={!inventoryText.trim() || !editingProduct.id || addingStock}
-                  className="bg-green-600 hover:bg-green-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-black disabled:text-gray-500 font-bold py-2 px-6 text-xs uppercase flex items-center gap-2 rounded-sm transition-colors"
+                  type="button"
                 >
                   {addingStock ? (
                     <>
-                      <RefreshCw size={14} className="animate-spin" /> Добавление...
+                      <RefreshCw className="animate-spin" size={14} /> Добавление...
                     </>
                   ) : (
                     <>
@@ -850,20 +850,20 @@ license_key_xyz789`}
           )}
 
           {/* Подвал */}
-          <div className="mt-8 pt-4 border-t border-white/10 flex justify-between items-center">
+          <div className="mt-8 flex items-center justify-between border-white/10 border-t pt-4">
             <p className="text-[10px] text-gray-600">* Обязательные поля</p>
             <div className="flex gap-3">
               <button
-                type="button"
+                className="rounded-sm border border-white/10 px-4 py-2 font-bold text-gray-400 text-xs transition-colors hover:border-white/30 hover:text-white"
                 onClick={onClose}
-                className="px-4 py-2 border border-white/10 text-xs font-bold text-gray-400 hover:text-white hover:border-white/30 rounded-sm transition-colors"
+                type="button"
               >
                 ОТМЕНА
               </button>
               <button
-                type="button"
+                className="flex items-center gap-2 rounded-sm bg-pandora-cyan px-6 py-2 font-bold text-black text-xs transition-colors hover:bg-white"
                 onClick={() => onSave(editingProduct)}
-                className="px-6 py-2 bg-pandora-cyan text-black text-xs font-bold hover:bg-white flex items-center gap-2 rounded-sm transition-colors"
+                type="button"
               >
                 <Save size={14} /> СОХРАНИТЬ
               </button>

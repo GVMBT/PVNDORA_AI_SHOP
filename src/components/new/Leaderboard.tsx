@@ -85,13 +85,13 @@ const VacantPodiumSlot: React.FC<{ rank: 1 | 2 | 3; t: (key: string) => string }
   t,
 }) => (
   <div className={ORDER_CLASSES[rank]}>
-    <div className="bg-[#0e0e0e] border border-white/5 p-6 opacity-30">
-      <div className="absolute top-0 left-0 bg-white/5 px-2 py-1 text-[10px] font-bold font-mono text-gray-600">
+    <div className="border border-white/5 bg-[#0e0e0e] p-6 opacity-30">
+      <div className="absolute top-0 left-0 bg-white/5 px-2 py-1 font-bold font-mono text-[10px] text-gray-600">
         {RANK_LABELS[rank]}
       </div>
-      <div className="flex flex-col items-center text-center mt-4">
-        <div className="w-16 h-16 rounded-full border border-white/10 mb-3 flex items-center justify-center">
-          <span className="text-gray-600 text-2xl">?</span>
+      <div className="mt-4 flex flex-col items-center text-center">
+        <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full border border-white/10">
+          <span className="text-2xl text-gray-600">?</span>
         </div>
         <h3 className="font-bold text-gray-600 text-lg">{t("leaderboard.vacant").toUpperCase()}</h3>
       </div>
@@ -130,48 +130,48 @@ const PodiumRank: React.FC<PodiumRankProps> = ({ user, rank, displayCurrency, t,
   const content = (
     <>
       {isFirst && (
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-pandora-cyan text-black p-2 rounded-full shadow-[0_0_20px_#00FFFF] z-20">
-          <Crown size={20} fill="currentColor" />
+        <div className="absolute top-0 left-1/2 z-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-pandora-cyan p-2 text-black shadow-[0_0_20px_#00FFFF]">
+          <Crown fill="currentColor" size={20} />
         </div>
       )}
       <div
-        className={`absolute top-0 left-0 bg-white/10 px-2 py-1 text-[10px] font-bold font-mono ${isFirst ? "hidden" : "text-gray-300"}`}
+        className={`absolute top-0 left-0 bg-white/10 px-2 py-1 font-bold font-mono text-[10px] ${isFirst ? "hidden" : "text-gray-300"}`}
       >
         {RANK_LABELS[rank]}
       </div>
-      <div className="flex flex-col items-center text-center mt-4">
+      <div className="mt-4 flex flex-col items-center text-center">
         <div
-          className={`${avatarSize} rounded-full ${borderClasses} p-1 ${isFirst ? "mb-4" : "mb-3"} overflow-hidden bg-gray-900 flex items-center justify-center ${isFirst ? "relative" : ""}`}
+          className={`${avatarSize} rounded-full ${borderClasses} p-1 ${isFirst ? "mb-4" : "mb-3"} flex items-center justify-center overflow-hidden bg-gray-900 ${isFirst ? "relative" : ""}`}
         >
           {isFirst && (
-            <div className="absolute inset-0 rounded-full border border-pandora-cyan animate-ping opacity-20" />
+            <div className="absolute inset-0 animate-ping rounded-full border border-pandora-cyan opacity-20" />
           )}
           {isFirst && (
             <div className="absolute inset-0 bg-gradient-to-tr from-pandora-cyan/20 to-transparent" />
           )}
           {user.avatarUrl ? (
             <img
-              src={user.avatarUrl}
               alt={user.name}
-              className={`w-full h-full object-cover rounded-full ${isFirst ? "relative z-10" : ""}`}
+              className={`h-full w-full rounded-full object-cover ${isFirst ? "relative z-10" : ""}`}
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = "none";
               }}
+              src={user.avatarUrl}
             />
           ) : null}
           {isFirst ? (
             <Crown
+              className={`relative z-10 text-pandora-cyan/50 ${user.avatarUrl ? "hidden" : ""}`}
               size={32}
-              className={`text-pandora-cyan/50 relative z-10 ${user.avatarUrl ? "hidden" : ""}`}
             />
           ) : (
             <User
+              className={`absolute text-gray-500 ${user.avatarUrl ? "hidden" : ""}`}
               size={24}
-              className={`text-gray-500 absolute ${user.avatarUrl ? "hidden" : ""}`}
             />
           )}
           {isFirst && (
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-pandora-cyan rounded-full flex items-center justify-center text-black font-bold text-xs shadow-[0_0_10px_#00FFFF] z-20">
+            <div className="absolute -right-1 -bottom-1 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-pandora-cyan font-bold text-black text-xs shadow-[0_0_10px_#00FFFF]">
               1
             </div>
           )}
@@ -191,9 +191,9 @@ const PodiumRank: React.FC<PodiumRankProps> = ({ user, rank, displayCurrency, t,
   return (
     <div className={ORDER_CLASSES[rank]}>
       {!isFirst && (
-        <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
       )}
-      {isFirst && <div className="absolute inset-0 bg-pandora-cyan/20 blur-3xl -z-10" />}
+      {isFirst && <div className="absolute inset-0 -z-10 bg-pandora-cyan/20 blur-3xl" />}
       <div className={containerClasses}>
         {isFirst ? <div className={innerClasses}>{content}</div> : content}
       </div>
@@ -210,51 +210,51 @@ interface LeaderboardListItemProps {
 
 const LeaderboardListItem: React.FC<LeaderboardListItemProps> = ({ user, displayCurrency, t }) => {
   return (
-    <div className="group relative bg-[#0a0a0a] border border-white/5 hover:border-pandora-cyan/50 transition-all duration-300">
-      <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-pandora-cyan opacity-0 group-hover:opacity-100 transition-opacity" />
-      <div className="grid grid-cols-12 gap-4 items-center p-4">
-        <div className="col-span-2 md:col-span-1 text-center font-display font-bold text-gray-600 group-hover:text-white transition-colors">
+    <div className="group relative border border-white/5 bg-[#0a0a0a] transition-all duration-300 hover:border-pandora-cyan/50">
+      <div className="absolute top-0 bottom-0 left-0 w-0.5 bg-pandora-cyan opacity-0 transition-opacity group-hover:opacity-100" />
+      <div className="grid grid-cols-12 items-center gap-4 p-4">
+        <div className="col-span-2 text-center font-bold font-display text-gray-600 transition-colors group-hover:text-white md:col-span-1">
           {user.rank.toString().padStart(2, "0")}
         </div>
-        <div className="col-span-10 md:col-span-5 flex items-center gap-4">
-          <div className="w-8 h-8 bg-white/5 rounded-sm flex items-center justify-center border border-white/10 shrink-0 overflow-hidden">
+        <div className="col-span-10 flex items-center gap-4 md:col-span-5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-white/10 bg-white/5">
             {user.avatarUrl ? (
               <img
-                src={user.avatarUrl}
                 alt={user.name}
-                className="w-full h-full object-cover"
+                className="h-full w-full object-cover"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = "none";
                   (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
                 }}
+                src={user.avatarUrl}
               />
             ) : null}
             <User
-              size={14}
               className={`text-gray-500 group-hover:text-pandora-cyan ${user.avatarUrl ? "hidden" : ""}`}
+              size={14}
             />
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-bold text-white group-hover:text-pandora-cyan transition-colors flex items-center gap-2 truncate">
+            <div className="flex items-center gap-2 truncate font-bold text-sm text-white transition-colors group-hover:text-pandora-cyan">
               {user.name}
               {user.status === "ONLINE" && (
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shrink-0" />
+                <div className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-green-500" />
               )}
             </div>
-            <div className="text-[10px] font-mono text-gray-600 truncate">{user.handle}</div>
+            <div className="truncate font-mono text-[10px] text-gray-600">{user.handle}</div>
           </div>
         </div>
-        <div className="col-span-6 md:col-span-3 text-center mt-2 md:mt-0">
-          <span className="md:hidden text-[10px] text-gray-500 font-mono uppercase mr-2">
+        <div className="col-span-6 mt-2 text-center md:col-span-3 md:mt-0">
+          <span className="mr-2 font-mono text-[10px] text-gray-500 uppercase md:hidden">
             {t("leaderboard.purchases")}:
           </span>
           <span className="font-mono text-gray-400">{user.modules}</span>
         </div>
-        <div className="col-span-6 md:col-span-3 text-right mt-2 md:mt-0 flex justify-end md:block items-center">
-          <span className="md:hidden text-[10px] text-gray-500 font-mono uppercase mr-2">
+        <div className="col-span-6 mt-2 flex items-center justify-end text-right md:col-span-3 md:mt-0 md:block">
+          <span className="mr-2 font-mono text-[10px] text-gray-500 uppercase md:hidden">
             {t("leaderboard.totalSaved")}:
           </span>
-          <div className="font-display font-bold text-white text-lg group-hover:text-pandora-cyan transition-colors">
+          <div className="font-bold font-display text-lg text-white transition-colors group-hover:text-pandora-cyan">
             {formatPrice(user.saved, user.currency || displayCurrency)}
           </div>
         </div>
@@ -316,7 +316,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
 
   // Setup infinite scroll observer - watch for sentinel at end of list
   React.useEffect(() => {
-    if (!onLoadMore || !loadMoreTriggerRef.current) return;
+    if (!(onLoadMore && loadMoreTriggerRef.current)) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -350,25 +350,25 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
   if (data.length === 0 && !isLoadingMore) {
     return (
       <motion.div
-        initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
+        className="relative min-h-screen px-4 pt-20 pb-32 text-white md:px-8 md:pt-24 md:pl-28"
         exit={{ opacity: 0 }}
-        className="min-h-screen text-white pt-20 md:pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
+        initial={{ opacity: 0 }}
       >
-        <div className="max-w-7xl mx-auto">
+        <div className="mx-auto max-w-7xl">
           <button
-            type="button"
+            className="mb-4 flex items-center gap-2 font-mono text-[10px] text-gray-500 transition-colors hover:text-pandora-cyan"
             onClick={onBack}
-            className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
+            type="button"
           >
             <ArrowLeft size={12} /> {t("empty.returnToBase").toUpperCase()}
           </button>
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <Trophy size={64} className="text-gray-700 mb-6" />
-            <h2 className="text-2xl font-bold text-white mb-2">
+            <Trophy className="mb-6 text-gray-700" size={64} />
+            <h2 className="mb-2 font-bold text-2xl text-white">
               {t("leaderboard.empty").toUpperCase()}
             </h2>
-            <p className="text-gray-500 font-mono text-sm max-w-md">{t("leaderboard.emptyHint")}</p>
+            <p className="max-w-md font-mono text-gray-500 text-sm">{t("leaderboard.emptyHint")}</p>
           </div>
         </div>
       </motion.div>
@@ -377,37 +377,37 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      className="relative min-h-screen overflow-hidden px-4 pt-20 pb-48 text-white md:px-8 md:pt-24 md:pb-32 md:pl-28"
       exit={{ opacity: 0 }}
-      className="min-h-screen text-white pt-20 md:pt-24 pb-48 md:pb-32 px-4 md:px-8 md:pl-28 relative overflow-hidden"
+      initial={{ opacity: 0 }}
     >
       {/* Ambient Glows */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-pandora-cyan/10 blur-[120px] pointer-events-none z-0" />
+      <div className="pointer-events-none fixed top-0 left-1/2 z-0 h-[300px] w-[500px] -translate-x-1/2 bg-pandora-cyan/10 blur-[120px]" />
 
       {/* EXPANDED CONTAINER: max-w-7xl to match Catalog/Footer */}
-      <div className="max-w-7xl mx-auto relative z-10">
+      <div className="relative z-10 mx-auto max-w-7xl">
         {/* === HEADER SECTION === */}
-        <div className="flex flex-col md:flex-row justify-between items-end gap-8 mb-8 md:mb-16">
+        <div className="mb-8 flex flex-col items-end justify-between gap-8 md:mb-16 md:flex-row">
           <div className="w-full md:w-auto">
             <button
-              type="button"
+              className="mb-4 flex items-center gap-2 font-mono text-[10px] text-gray-500 transition-colors hover:text-pandora-cyan"
               onClick={onBack}
-              className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
+              type="button"
             >
               <ArrowLeft size={12} /> {t("empty.returnToBase").toUpperCase()}
             </button>
-            <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4">
+            <h1 className="mb-4 font-black font-display text-3xl text-white uppercase leading-[0.9] tracking-tighter sm:text-4xl md:text-6xl">
               {tEn("leaderboard.pageTitlePrefix")} <br />{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-pandora-cyan to-white/50">
+              <span className="bg-gradient-to-r from-pandora-cyan to-white/50 bg-clip-text text-transparent">
                 {tEn("leaderboard.pageTitle")}
               </span>
             </h1>
-            <div className="text-sm font-mono text-gray-500 uppercase tracking-widest mb-4">
+            <div className="mb-4 font-mono text-gray-500 text-sm uppercase tracking-widest">
               {t("leaderboard.subtitle")}
             </div>
-            <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-pandora-cyan/70">
-              <span className="flex items-center gap-1 bg-pandora-cyan/10 px-2 py-1 rounded-sm">
+            <div className="flex flex-wrap items-center gap-4 font-mono text-pandora-cyan/70 text-xs">
+              <span className="flex items-center gap-1 rounded-sm bg-pandora-cyan/10 px-2 py-1">
                 <Activity size={12} /> {t("leaderboard.networkActivity").toUpperCase()}: HIGH
               </span>
               <span className="hidden sm:inline">|</span>
@@ -416,66 +416,66 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
           </div>
 
           {/* Global Stats Card */}
-          <div className="w-full md:w-auto bg-[#0a0a0a] border border-white/10 p-4 rounded-sm relative overflow-hidden group">
-            <div className="absolute inset-0 bg-pandora-cyan/5 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+          <div className="group relative w-full overflow-hidden rounded-sm border border-white/10 bg-[#0a0a0a] p-4 md:w-auto">
+            <div className="absolute inset-0 translate-y-full bg-pandora-cyan/5 transition-transform duration-500 group-hover:translate-y-0" />
             <div className="relative z-10">
-              <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest mb-1 flex items-center gap-2">
-                <ShieldCheck size={10} className="text-pandora-cyan" />{" "}
+              <div className="mb-1 flex items-center gap-2 font-mono text-[9px] text-gray-500 uppercase tracking-widest">
+                <ShieldCheck className="text-pandora-cyan" size={10} />{" "}
                 {t("leaderboard.corporateLoss")}
               </div>
-              <div className="text-xl sm:text-2xl md:text-3xl font-mono font-bold text-white tracking-tight tabular-nums break-all sm:break-normal">
+              <div className="break-all font-bold font-mono text-white text-xl tabular-nums tracking-tight sm:break-normal sm:text-2xl md:text-3xl">
                 {formatPrice(totalSavedAggregate, displayCurrency)}
               </div>
             </div>
             {/* Decorative Corner */}
-            <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-pandora-cyan opacity-50" />
+            <div className="absolute top-0 right-0 h-3 w-3 border-pandora-cyan border-t border-r opacity-50" />
           </div>
         </div>
 
         {/* === TOP 3 OPERATIVES (PODIUM) === */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-end mb-12 md:mb-20 relative">
+        <div className="relative mb-12 grid grid-cols-1 items-end gap-4 md:mb-20 md:grid-cols-3 md:gap-6">
           <PodiumRank
-            user={hasRank2 ? topThree[1] : null}
-            rank={2}
             displayCurrency={displayCurrency}
-            t={t}
             isVacant={!hasRank2}
+            rank={2}
+            t={t}
+            user={hasRank2 ? topThree[1] : null}
           />
           <PodiumRank
-            user={hasRank1 ? topThree[0] : null}
-            rank={1}
             displayCurrency={displayCurrency}
-            t={t}
             isVacant={!hasRank1}
+            rank={1}
+            t={t}
+            user={hasRank1 ? topThree[0] : null}
           />
           <PodiumRank
-            user={hasRank3 ? topThree[2] : null}
-            rank={3}
             displayCurrency={displayCurrency}
-            t={t}
             isVacant={!hasRank3}
+            rank={3}
+            t={t}
+            user={hasRank3 ? topThree[2] : null}
           />
         </div>
 
         {/* === MAIN LIST === */}
-        <div className="space-y-4 mb-32 md:mb-24">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm md:text-lg font-bold text-white flex items-center gap-2">
-              <Terminal size={16} className="text-pandora-cyan" />
+        <div className="mb-32 space-y-4 md:mb-24">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="flex items-center gap-2 font-bold text-sm text-white md:text-lg">
+              <Terminal className="text-pandora-cyan" size={16} />
               ACTIVE_AGENTS_LIST
             </h3>
-            <div className="flex bg-[#0a0a0a] border border-white/10 p-0.5 rounded-sm">
+            <div className="flex rounded-sm border border-white/10 bg-[#0a0a0a] p-0.5">
               <button
-                type="button"
+                className={`px-3 py-1.5 font-bold font-mono text-[9px] uppercase transition-colors ${filter === "weekly" ? "bg-white/10 text-white" : "text-gray-600 hover:text-gray-400"}`}
                 onClick={() => handleFilterChange("weekly")}
-                className={`px-3 py-1.5 text-[9px] font-mono font-bold uppercase transition-colors ${filter === "weekly" ? "bg-white/10 text-white" : "text-gray-600 hover:text-gray-400"}`}
+                type="button"
               >
                 {t("leaderboard.weekly")}
               </button>
               <button
-                type="button"
+                className={`px-3 py-1.5 font-bold font-mono text-[9px] uppercase transition-colors ${filter === "all_time" ? "bg-white/10 text-white" : "text-gray-600 hover:text-gray-400"}`}
                 onClick={() => handleFilterChange("all_time")}
-                className={`px-3 py-1.5 text-[9px] font-mono font-bold uppercase transition-colors ${filter === "all_time" ? "bg-white/10 text-white" : "text-gray-600 hover:text-gray-400"}`}
+                type="button"
               >
                 {t("leaderboard.allTime")}
               </button>
@@ -483,7 +483,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
           </div>
 
           {/* List Header */}
-          <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-2 text-[10px] font-mono text-gray-500 uppercase tracking-wider">
+          <div className="hidden grid-cols-12 gap-4 px-6 py-2 font-mono text-[10px] text-gray-500 uppercase tracking-wider md:grid">
             <div className="col-span-1 text-center">#</div>
             <div className="col-span-5">{t("leaderboard.participant")}</div>
             <div className="col-span-3 text-center">{t("leaderboard.purchases")}</div>
@@ -494,23 +494,23 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
           <div className="space-y-2">
             {restList.map((user) => (
               <LeaderboardListItem
-                key={user.rank}
-                user={user}
                 displayCurrency={displayCurrency}
+                key={user.rank}
                 t={t}
+                user={user}
               />
             ))}
 
             {/* Infinite scroll trigger - placed at end of list */}
             {onLoadMore && hasMore && (
-              <div ref={loadMoreTriggerRef} className="py-8 flex justify-center">
+              <div className="flex justify-center py-8" ref={loadMoreTriggerRef}>
                 {isLoadingMore ? (
                   <div className="flex items-center gap-3 text-pandora-cyan">
-                    <div className="w-5 h-5 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin" />
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-pandora-cyan border-t-transparent" />
                     <span className="font-mono text-xs uppercase">{t("common.loadingMore")}</span>
                   </div>
                 ) : (
-                  <span className="text-[10px] font-mono text-gray-600">Scroll for more...</span>
+                  <span className="font-mono text-[10px] text-gray-600">Scroll for more...</span>
                 )}
               </div>
             )}
@@ -520,38 +520,38 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
         {/* === USER HUD (STICKY DOCK) === */}
         {/* Docked perfectly above the 64px (h-16) mobile navbar */}
         {currentUser && (
-          <div className="fixed bottom-16 md:bottom-0 left-0 md:left-20 right-0 z-40">
-            <div className="max-w-7xl mx-auto">
-              <div className="bg-[#050505]/95 backdrop-blur-xl border-t border-pandora-cyan/30 md:border-t-0 md:border-x shadow-[0_-10px_30px_rgba(0,0,0,0.5)] md:rounded-t-sm p-4 relative overflow-hidden flex items-center justify-between group">
+          <div className="fixed right-0 bottom-16 left-0 z-40 md:bottom-0 md:left-20">
+            <div className="mx-auto max-w-7xl">
+              <div className="group relative flex items-center justify-between overflow-hidden border-pandora-cyan/30 border-t bg-[#050505]/95 p-4 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] backdrop-blur-xl md:rounded-t-sm md:border-x md:border-t-0">
                 {/* Animated Scanline (Subtle) */}
-                <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-pandora-cyan/50 to-transparent" />
-                <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(90deg,transparent_0%,rgba(0,255,255,0.05)_50%,transparent_100%)] -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
+                <div className="absolute top-0 left-0 h-px w-full bg-gradient-to-r from-transparent via-pandora-cyan/50 to-transparent" />
+                <div className="pointer-events-none absolute top-0 left-0 h-full w-full -translate-x-full bg-[linear-gradient(90deg,transparent_0%,rgba(0,255,255,0.05)_50%,transparent_100%)] transition-transform duration-1000 group-hover:translate-x-full" />
 
-                <div className="flex items-center gap-4 relative z-10">
-                  <div className="bg-pandora-cyan text-black px-3 py-1 font-display font-bold text-lg rounded-sm shadow-[0_0_10px_rgba(0,255,255,0.4)]">
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="rounded-sm bg-pandora-cyan px-3 py-1 font-bold font-display text-black text-lg shadow-[0_0_10px_rgba(0,255,255,0.4)]">
                     #{currentUser.rank}
                   </div>
                   <div>
-                    <div className="text-[9px] font-mono text-gray-500 uppercase tracking-wider mb-0.5 flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <div className="mb-0.5 flex items-center gap-2 font-mono text-[9px] text-gray-500 uppercase tracking-wider">
+                      <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
                       Current Session
                     </div>
-                    <div className="text-sm font-bold text-white flex items-center gap-2">
+                    <div className="flex items-center gap-2 font-bold text-sm text-white">
                       {currentUser.name}{" "}
-                      <span className="text-pandora-cyan font-mono text-xs opacity-80">
+                      <span className="font-mono text-pandora-cyan text-xs opacity-80">
                         &lt;YOU&gt;
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="text-right relative z-10">
-                  <div className="text-[9px] font-mono text-gray-500 uppercase tracking-wider mb-0.5">
+                <div className="relative z-10 text-right">
+                  <div className="mb-0.5 font-mono text-[9px] text-gray-500 uppercase tracking-wider">
                     Net Profit
                   </div>
-                  <div className="text-xl font-display font-bold text-white flex items-center gap-2 justify-end">
+                  <div className="flex items-center justify-end gap-2 font-bold font-display text-white text-xl">
                     {formatPrice(currentUser.saved, currentUser.currency || displayCurrency)}
-                    <TrendingUp size={16} className="text-pandora-cyan" />
+                    <TrendingUp className="text-pandora-cyan" size={16} />
                   </div>
                 </div>
               </div>

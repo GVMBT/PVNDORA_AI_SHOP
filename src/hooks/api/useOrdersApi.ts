@@ -82,7 +82,7 @@ export function useOrdersTyped() {
   const createOrderFromCart = useCallback(
     async (
       promoCode: string | null = null,
-      paymentMethod: string = "card",
+      paymentMethod = "card",
       paymentGateway: string | null = null
     ): Promise<APICreateOrderResponse | null> => {
       try {

@@ -53,7 +53,7 @@ const STATIC_HEX_VALUES = ["A3F2", "B7E1", "C9D4", "D2A8", "E5B3", "F1C7", "A8D9
 
 const _HexStream = () => {
   return (
-    <div className="flex flex-col text-[8px] font-mono text-pandora-cyan/60 leading-tight opacity-50">
+    <div className="flex flex-col font-mono text-[8px] text-pandora-cyan/60 leading-tight opacity-50">
       {HEX_IDS.map((id, index) => (
         <span key={id}>0x{STATIC_HEX_VALUES[index]}</span>
       ))}
@@ -177,29 +177,29 @@ const Catalog: React.FC<CatalogProps> = ({
     if (onSelectProduct) onSelectProduct(product);
   };
 
-  const handleAddToCart = (product: ProductData, quantity: number = 1) => {
+  const handleAddToCart = (product: ProductData, quantity = 1) => {
     if (onHaptic) onHaptic("medium");
     if (onAddToCart) onAddToCart(product, quantity);
   };
 
   return (
     <section
+      className="relative z-30 min-h-screen w-full bg-transparent px-6 pt-24 pb-24 text-white md:-mt-24 md:pt-32 md:pl-28"
       id="catalog"
-      className="relative w-full bg-transparent text-white pt-24 pb-24 px-6 md:pl-28 md:pt-32 md:-mt-24 min-h-screen z-30"
     >
       {/* === VISUAL CONNECTOR (DATA STREAM) FROM HERO === */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 h-20 w-px bg-gradient-to-b from-transparent via-pandora-cyan/30 to-transparent z-0 opacity-50" />
+      <div className="absolute top-0 left-1/2 z-0 h-20 w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-pandora-cyan/30 to-transparent opacity-50" />
 
       {/* --- HEADER ROW --- */}
-      <div className="max-w-7xl mx-auto mb-10 flex flex-col xl:flex-row gap-6 items-start xl:items-end justify-between relative z-10 pt-8">
+      <div className="relative z-10 mx-auto mb-10 flex max-w-7xl flex-col items-start justify-between gap-6 pt-8 xl:flex-row xl:items-end">
         {/* Title Area: NARRATIVE UPDATE (Techno/Module) */}
         <div>
-          <h2 className="text-3xl font-display font-bold text-white mb-2 flex items-center gap-3">
-            <span className="w-2 h-8 bg-pandora-cyan block rounded-sm shadow-[0_0_10px_#00FFFF]"></span>
+          <h2 className="mb-2 flex items-center gap-3 font-bold font-display text-3xl text-white">
+            <span className="block h-8 w-2 rounded-sm bg-pandora-cyan shadow-[0_0_10px_#00FFFF]" />
             {tEn("catalog.pageTitle")}
           </h2>
-          <p className="text-gray-500 font-mono text-xs tracking-widest uppercase flex items-center gap-2">
-            <Cpu size={12} className="text-pandora-cyan" />
+          <p className="flex items-center gap-2 font-mono text-gray-500 text-xs uppercase tracking-widest">
+            <Cpu className="text-pandora-cyan" size={12} />
             <span>{t("catalog.header.source")}</span>
             <span className="text-gray-700">|</span>
             <span className="text-pandora-cyan">{t("catalog.header.status")}</span>
@@ -207,26 +207,26 @@ const Catalog: React.FC<CatalogProps> = ({
         </div>
 
         {/* Controls Area */}
-        <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto">
+        <div className="flex w-full flex-col gap-4 md:flex-row xl:w-auto">
           {/* Search Input */}
-          <div className="relative flex-grow md:w-80 group">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-              <Search className="h-4 w-4 text-gray-500 group-focus-within:text-pandora-cyan transition-colors" />
+          <div className="group relative flex-grow md:w-80">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+              <Search className="h-4 w-4 text-gray-500 transition-colors group-focus-within:text-pandora-cyan" />
             </div>
             <input
-              type="text"
-              value={searchQuery}
+              className="w-full rounded-sm border border-white/10 bg-[#0a0a0a] py-3 pr-4 pl-10 font-mono text-sm text-white uppercase tracking-wider transition-all placeholder:text-gray-600 focus:border-pandora-cyan/50 focus:bg-[#0f0f0f] focus:outline-none"
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t("catalog.search")}
-              className="w-full bg-[#0a0a0a] border border-white/10 text-white text-sm rounded-sm py-3 pl-10 pr-4 focus:outline-none focus:border-pandora-cyan/50 focus:bg-[#0f0f0f] transition-all placeholder:text-gray-600 font-mono uppercase tracking-wider"
+              type="text"
+              value={searchQuery}
             />
           </div>
 
-          <div className="flex gap-2 sm:gap-4 overflow-x-auto pb-2 -mb-2 scrollbar-hide">
+          <div className="scrollbar-hide -mb-2 flex gap-2 overflow-x-auto pb-2 sm:gap-4">
             {/* Availability Filter Dropdown */}
-            <div ref={availabilityRef} className="relative flex-shrink-0 z-50">
+            <div className="relative z-50 flex-shrink-0" ref={availabilityRef}>
               <button
-                type="button"
+                className="flex h-full min-w-fit touch-manipulation select-none items-center gap-2 whitespace-nowrap rounded-sm border border-white/10 bg-[#0a0a0a] px-3 py-2 font-mono text-gray-300 text-sm transition-all hover:border-pandora-cyan/50 sm:px-4"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -235,9 +235,9 @@ const Catalog: React.FC<CatalogProps> = ({
                   setIsAvailabilityOpen((prev) => !prev);
                   setIsSortOpen(false);
                 }}
-                className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap touch-manipulation select-none min-w-fit"
+                type="button"
               >
-                <span className="uppercase text-[9px] sm:text-[10px] tracking-wider overflow-visible">
+                <span className="overflow-visible text-[9px] uppercase tracking-wider sm:text-[10px]">
                   {activeAvailability === "All" &&
                     `${t("catalog.availability.label")}: ${t("catalog.availability.all")}`}
                   {activeAvailability === "Available" &&
@@ -248,19 +248,19 @@ const Catalog: React.FC<CatalogProps> = ({
                     `${t("catalog.availability.label")}: ${t("catalog.availability.discontinued")}`}
                 </span>
                 <ChevronDown
+                  className={`flex-shrink-0 transition-transform ${isAvailabilityOpen ? "rotate-180" : ""}`}
                   size={14}
-                  className={`transition-transform flex-shrink-0 ${isAvailabilityOpen ? "rotate-180" : ""}`}
                 />
               </button>
 
               <AnimatePresence>
                 {isAvailabilityOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
+                    className="absolute top-full left-0 z-[100] mt-2 w-fit min-w-full border border-white/20 bg-[#0a0a0a] shadow-black/80 shadow-xl"
                     exit={{ opacity: 0, y: -10 }}
+                    initial={{ opacity: 0, y: -10 }}
                     onClick={(e) => e.stopPropagation()}
-                    className="absolute top-full left-0 w-fit min-w-full mt-2 bg-[#0a0a0a] border border-white/20 z-[100] shadow-xl shadow-black/80"
                   >
                     {[
                       {
@@ -285,7 +285,7 @@ const Catalog: React.FC<CatalogProps> = ({
                       },
                     ].map((option) => (
                       <button
-                        type="button"
+                        className="flex w-full select-none items-center justify-between whitespace-nowrap px-4 py-3 text-left font-mono text-[10px] uppercase hover:bg-white/10 hover:text-pandora-cyan"
                         key={option.value}
                         onClick={(e) => {
                           e.preventDefault();
@@ -295,11 +295,11 @@ const Catalog: React.FC<CatalogProps> = ({
                           setActiveAvailability(option.value as AvailabilityFilter);
                           setIsAvailabilityOpen(false);
                         }}
-                        className="w-full text-left px-4 py-3 text-[10px] uppercase font-mono hover:bg-white/10 hover:text-pandora-cyan flex items-center justify-between select-none whitespace-nowrap"
+                        type="button"
                       >
                         <span className={`${option.color} overflow-visible`}>{option.label}</span>
                         {activeAvailability === option.value && (
-                          <Check size={12} className="text-pandora-cyan" />
+                          <Check className="text-pandora-cyan" size={12} />
                         )}
                       </button>
                     ))}
@@ -309,9 +309,9 @@ const Catalog: React.FC<CatalogProps> = ({
             </div>
 
             {/* Sort Dropdown */}
-            <div ref={sortRef} className="relative flex-shrink-0 z-50">
+            <div className="relative z-50 flex-shrink-0" ref={sortRef}>
               <button
-                type="button"
+                className="flex h-full touch-manipulation select-none items-center gap-2 whitespace-nowrap rounded-sm border border-white/10 bg-[#0a0a0a] px-3 py-2 font-mono text-gray-300 text-sm transition-all hover:border-pandora-cyan/50 sm:px-4"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -320,9 +320,9 @@ const Catalog: React.FC<CatalogProps> = ({
                   setIsSortOpen((prev) => !prev);
                   setIsAvailabilityOpen(false);
                 }}
-                className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap touch-manipulation select-none"
+                type="button"
               >
-                <span className="uppercase text-[9px] sm:text-[10px] tracking-wider">
+                <span className="text-[9px] uppercase tracking-wider sm:text-[10px]">
                   {sortBy === "popular" &&
                     `${t("catalog.sort.label")}: ${t("catalog.sort.popularity")}`}
                   {sortBy === "price_asc" &&
@@ -331,19 +331,19 @@ const Catalog: React.FC<CatalogProps> = ({
                     `${t("catalog.sort.label")}: ${t("catalog.sort.priceDesc")}`}
                 </span>
                 <ChevronDown
+                  className={`flex-shrink-0 transition-transform ${isSortOpen ? "rotate-180" : ""}`}
                   size={14}
-                  className={`transition-transform flex-shrink-0 ${isSortOpen ? "rotate-180" : ""}`}
                 />
               </button>
 
               <AnimatePresence>
                 {isSortOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
+                    className="absolute top-full left-0 z-[100] mt-2 w-fit min-w-full border border-white/20 bg-[#0a0a0a] shadow-black/80 shadow-xl"
                     exit={{ opacity: 0, y: -10 }}
+                    initial={{ opacity: 0, y: -10 }}
                     onClick={(e) => e.stopPropagation()}
-                    className="absolute top-full left-0 w-fit min-w-full mt-2 bg-[#0a0a0a] border border-white/20 z-[100] shadow-xl shadow-black/80"
                   >
                     {[
                       { label: t("catalog.sort.popularity"), value: "popular" },
@@ -351,7 +351,7 @@ const Catalog: React.FC<CatalogProps> = ({
                       { label: t("catalog.sort.priceDesc"), value: "price_desc" },
                     ].map((option) => (
                       <button
-                        type="button"
+                        className="flex w-full select-none items-center justify-between whitespace-nowrap px-4 py-3 text-left font-mono text-[10px] uppercase hover:bg-white/10 hover:text-pandora-cyan"
                         key={option.value}
                         onClick={(e) => {
                           e.preventDefault();
@@ -361,11 +361,11 @@ const Catalog: React.FC<CatalogProps> = ({
                           setSortBy(option.value as SortOption);
                           setIsSortOpen(false);
                         }}
-                        className="w-full text-left px-4 py-3 text-[10px] uppercase font-mono hover:bg-white/10 hover:text-pandora-cyan flex items-center justify-between select-none whitespace-nowrap"
+                        type="button"
                       >
                         <span className="overflow-visible">{option.label}</span>
                         {sortBy === option.value && (
-                          <Check size={12} className="text-pandora-cyan" />
+                          <Check className="text-pandora-cyan" size={12} />
                         )}
                       </button>
                     ))}
@@ -375,26 +375,26 @@ const Catalog: React.FC<CatalogProps> = ({
             </div>
 
             {/* View Toggle */}
-            <div className="flex bg-[#0a0a0a] border border-white/10 p-1 rounded-sm gap-1 flex-shrink-0">
+            <div className="flex flex-shrink-0 gap-1 rounded-sm border border-white/10 bg-[#0a0a0a] p-1">
               <button
-                type="button"
+                className={`rounded-sm p-1.5 transition-all sm:p-2 ${viewMode === "grid" ? "bg-white/10 text-pandora-cyan" : "text-gray-600 hover:text-white"}`}
                 onClick={() => {
                   if (onHaptic) onHaptic("light");
                   setViewMode("grid");
                 }}
-                className={`p-1.5 sm:p-2 rounded-sm transition-all ${viewMode === "grid" ? "bg-white/10 text-pandora-cyan" : "text-gray-600 hover:text-white"}`}
+                type="button"
               >
-                <Grid size={14} className="sm:w-4 sm:h-4" />
+                <Grid className="sm:h-4 sm:w-4" size={14} />
               </button>
               <button
-                type="button"
+                className={`rounded-sm p-1.5 transition-all sm:p-2 ${viewMode === "list" ? "bg-white/10 text-pandora-cyan" : "text-gray-600 hover:text-white"}`}
                 onClick={() => {
                   if (onHaptic) onHaptic("light");
                   setViewMode("list");
                 }}
-                className={`p-1.5 sm:p-2 rounded-sm transition-all ${viewMode === "list" ? "bg-white/10 text-pandora-cyan" : "text-gray-600 hover:text-white"}`}
+                type="button"
               >
-                <List size={14} className="sm:w-4 sm:h-4" />
+                <List className="sm:h-4 sm:w-4" size={14} />
               </button>
             </div>
           </div>
@@ -402,8 +402,8 @@ const Catalog: React.FC<CatalogProps> = ({
       </div>
 
       {/* --- CATEGORY TABS --- */}
-      <div className="max-w-7xl mx-auto mb-8 border-b border-white/5 pb-1">
-        <div className="flex gap-6 overflow-x-auto pb-2 scrollbar-hide">
+      <div className="mx-auto mb-8 max-w-7xl border-white/5 border-b pb-1">
+        <div className="scrollbar-hide flex gap-6 overflow-x-auto pb-2">
           {PRODUCT_CATEGORIES.map((cat) => {
             // Map categories to localization keys
             const categoryKeyMap: Record<string, string> = {
@@ -418,26 +418,24 @@ const Catalog: React.FC<CatalogProps> = ({
 
             return (
               <button
-                type="button"
+                className={`relative whitespace-nowrap pb-2 font-display font-medium text-sm uppercase tracking-wide transition-all duration-300 ${
+                  activeCategory === cat
+                    ? "text-pandora-cyan drop-shadow-[0_0_8px_rgba(0,255,255,0.5)]"
+                    : "text-gray-500 hover:text-gray-300"
+                }
+                `}
                 key={cat}
                 onClick={() => handleCategoryChange(cat)}
-                className={`
-                    relative pb-2 text-sm font-display font-medium tracking-wide transition-all duration-300 whitespace-nowrap uppercase
-                    ${
-                      activeCategory === cat
-                        ? "text-pandora-cyan drop-shadow-[0_0_8px_rgba(0,255,255,0.5)]"
-                        : "text-gray-500 hover:text-gray-300"
-                    }
-                `}
+                type="button"
               >
-                <span className="mr-1 opacity-50 text-[10px] font-mono">
+                <span className="mr-1 font-mono text-[10px] opacity-50">
                   0{PRODUCT_CATEGORIES.indexOf(cat) + 1}.
                 </span>
                 {cat === "All" ? t("catalog.all") : t(`catalog.category.${translationKey}`)}
                 {activeCategory === cat && (
                   <motion.div
+                    className="absolute right-0 bottom-0 left-0 h-0.5 bg-pandora-cyan shadow-[0_0_10px_#00FFFF]"
                     layoutId="activeTab"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-pandora-cyan shadow-[0_0_10px_#00FFFF]"
                   />
                 )}
               </button>
@@ -447,79 +445,79 @@ const Catalog: React.FC<CatalogProps> = ({
       </div>
 
       {/* --- CONTENT AREA --- */}
-      <div className="max-w-7xl mx-auto min-h-[400px]">
+      <div className="mx-auto min-h-[400px] max-w-7xl">
         <AnimatePresence mode="wait">
           {/* === GRID VIEW (IMPROVED SCAN EFFECT) === */}
           {viewMode === "grid" ? (
             <motion.div
-              key="grid"
-              initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
+              className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
               exit={{ opacity: 0 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+              initial={{ opacity: 0 }}
+              key="grid"
             >
               {filteredProducts.map((product) => (
                 <ProductCard
-                  key={product.id}
-                  product={product}
                   getProductAvailability={getProductAvailability}
-                  onSelect={handleProductClick}
+                  key={product.id}
                   onAddToCart={handleAddToCart}
+                  onSelect={handleProductClick}
+                  product={product}
                 />
               ))}
             </motion.div>
           ) : (
             /* === LIST VIEW (TERMINAL STYLE) === */
             <motion.div
-              key="list"
-              initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
               className="flex flex-col gap-2"
+              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }}
+              key="list"
             >
               {filteredProducts.map((product, i) => (
                 <motion.div
-                  initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
+                  className="group relative flex cursor-pointer items-center justify-between overflow-hidden border border-white/10 bg-[#0a0a0a] p-3 transition-all duration-200 hover:border-pandora-cyan hover:bg-white/[0.02]"
+                  initial={{ opacity: 0, x: -20 }}
                   key={product.id}
                   onClick={() => handleProductClick(product)}
-                  className="group flex items-center justify-between p-3 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan hover:bg-white/[0.02] cursor-pointer transition-all duration-200 relative overflow-hidden"
+                  transition={{ delay: i * 0.05 }}
                 >
                   {/* Hover Scanline for List View */}
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-pandora-cyan opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute top-0 bottom-0 left-0 w-1 bg-pandora-cyan opacity-0 transition-opacity group-hover:opacity-100" />
 
                   <div className="flex items-center gap-4 pl-2">
-                    <div className="w-12 h-12 bg-black border border-white/10 flex items-center justify-center shrink-0 relative overflow-hidden">
+                    <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden border border-white/10 bg-black">
                       {/* Small image for list view */}
                       <img
-                        src={product.image}
                         alt={product.name}
-                        className="absolute inset-0 w-full h-full object-cover opacity-50 grayscale group-hover:opacity-100 group-hover:grayscale-0 transition-all"
+                        className="absolute inset-0 h-full w-full object-cover opacity-50 grayscale transition-all group-hover:opacity-100 group-hover:grayscale-0"
+                        src={product.image}
                       />
-                      <div className="relative z-10 font-mono text-[9px] text-white bg-black/50 px-1">
+                      <div className="relative z-10 bg-black/50 px-1 font-mono text-[9px] text-white">
                         {product.category.substring(0, 3).toUpperCase()}
                       </div>
                     </div>
                     <div>
                       <div className="flex items-center gap-3">
-                        <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider group-hover:text-pandora-cyan">
+                        <h3 className="font-bold font-mono text-sm text-white uppercase tracking-wider group-hover:text-pandora-cyan">
                           {product.name}
                         </h3>
                         {product.popular && (
-                          <span className="text-[9px] text-pandora-cyan bg-pandora-cyan/10 px-1">
+                          <span className="bg-pandora-cyan/10 px-1 text-[9px] text-pandora-cyan">
                             HOT
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] font-mono text-gray-500">
+                      <div className="font-mono text-[10px] text-gray-500">
                         SKU: {product.sku} {" // "} VER: {product.version}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-8 md:gap-12 pr-4">
-                    <div className="hidden md:flex flex-col items-end">
+                  <div className="flex items-center gap-8 pr-4 md:gap-12">
+                    <div className="hidden flex-col items-end md:flex">
                       {(() => {
                         const avail = getProductAvailability(product);
                         const cfg = {
@@ -546,8 +544,8 @@ const Catalog: React.FC<CatalogProps> = ({
                         }[avail];
                         return (
                           <div className="flex items-center gap-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${cfg.color}`} />
-                            <span className={`text-[10px] font-mono ${cfg.textColor}`}>
+                            <div className={`h-1.5 w-1.5 rounded-full ${cfg.color}`} />
+                            <span className={`font-mono text-[10px] ${cfg.textColor}`}>
                               {cfg.text}
                             </span>
                           </div>
@@ -555,12 +553,12 @@ const Catalog: React.FC<CatalogProps> = ({
                       })()}
                     </div>
 
-                    <div className="flex items-center gap-4 min-w-[100px] justify-end">
-                      <span className="block text-lg font-bold text-white font-mono">
+                    <div className="flex min-w-[100px] items-center justify-end gap-4">
+                      <span className="block font-bold font-mono text-lg text-white">
                         {formatPrice(product.price, product.currency)}
                       </span>
                       <ChevronDown
-                        className="-rotate-90 text-gray-600 group-hover:text-pandora-cyan transition-colors"
+                        className="-rotate-90 text-gray-600 transition-colors group-hover:text-pandora-cyan"
                         size={16}
                       />
                     </div>
@@ -572,9 +570,9 @@ const Catalog: React.FC<CatalogProps> = ({
         </AnimatePresence>
 
         {filteredProducts.length === 0 && (
-          <div className="text-center py-20 opacity-50 border border-dashed border-white/10 mt-10">
-            <p className="font-mono text-pandora-cyan text-lg">{t("catalog.empty")}</p>
-            <p className="text-sm text-gray-500 mt-2">{t("catalog.emptyHint")}</p>
+          <div className="mt-10 border border-white/10 border-dashed py-20 text-center opacity-50">
+            <p className="font-mono text-lg text-pandora-cyan">{t("catalog.empty")}</p>
+            <p className="mt-2 text-gray-500 text-sm">{t("catalog.emptyHint")}</p>
           </div>
         )}
       </div>

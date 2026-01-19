@@ -69,7 +69,7 @@ export function useSupportTyped() {
   const createTicket = useCallback(
     async (
       message: string,
-      issueType: string = "general",
+      issueType = "general",
       orderId?: string,
       itemId?: string
     ): Promise<{ success: boolean; ticket_id?: string; message?: string }> => {
@@ -138,7 +138,7 @@ export function useAIChatTyped() {
   );
 
   const getHistory = useCallback(
-    async (limit: number = 20): Promise<ChatHistoryItem[]> => {
+    async (limit = 20): Promise<ChatHistoryItem[]> => {
       try {
         const response = await get<{ messages: ChatHistoryItem[] }>(`/ai/history?limit=${limit}`);
         const messages = response.messages || [];

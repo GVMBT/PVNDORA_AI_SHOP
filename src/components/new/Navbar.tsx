@@ -116,48 +116,48 @@ const NavbarComponent: React.FC<NavbarProps> = ({
     <>
       {/* === DESKTOP SIDEBAR (Expandable) === */}
       <motion.nav
+        animate={{ width: isHovered ? 288 : 80 }}
+        className="fixed top-0 left-0 z-50 hidden h-screen flex-col overflow-hidden border-white/10 border-r bg-[#050505] shadow-[10px_0_30px_rgba(0,0,0,0.5)] md:flex"
+        initial={{ width: 80 }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        initial={{ width: 80 }}
-        animate={{ width: isHovered ? 288 : 80 }}
-        transition={{ type: "spring", stiffness: 400, damping: 35 }}
-        className="hidden md:flex fixed top-0 left-0 h-screen z-50 flex-col bg-[#050505] border-r border-white/10 overflow-hidden shadow-[10px_0_30px_rgba(0,0,0,0.5)]"
         style={{ willChange: "width" }}
+        transition={{ type: "spring", stiffness: 400, damping: 35 }}
       >
         {/* Logo Section */}
         <button
-          type="button"
-          className="h-24 flex items-center shrink-0 relative cursor-pointer border-0 bg-transparent w-full"
+          className="relative flex h-24 w-full shrink-0 cursor-pointer items-center border-0 bg-transparent"
           onClick={() => handleClick(onNavigateHome)}
+          type="button"
         >
           {/* Unified Logo Container - fixed position, flex layout */}
           <motion.div
-            className="absolute left-0 h-full flex items-center gap-3"
             animate={{
               paddingLeft: isHovered ? 20 : 0,
               justifyContent: isHovered ? "flex-start" : "center",
               width: isHovered ? "auto" : "100%",
             }}
-            transition={{ type: "spring", stiffness: 400, damping: 35 }}
+            className="absolute left-0 flex h-full items-center gap-3"
             style={{ willChange: "padding-left, justify-content" }}
+            transition={{ type: "spring", stiffness: 400, damping: 35 }}
           >
             {/* Logo Icon Container - always centered with nav icons when collapsed */}
             <div
-              className="w-10 h-10 flex items-center justify-center relative z-10 group shrink-0"
+              className="group relative z-10 flex h-10 w-10 shrink-0 items-center justify-center"
               style={{ willChange: "transform" }}
             >
               {/* Logo Glow (Internal Core) */}
-              <div className="absolute inset-0 bg-pandora-cyan blur-md opacity-40 group-hover:opacity-60 transition-opacity duration-200" />
+              <div className="absolute inset-0 bg-pandora-cyan opacity-40 blur-md transition-opacity duration-200 group-hover:opacity-60" />
 
               {/* PVNDORA Logo */}
               <svg
-                width="36"
+                aria-labelledby="pvndora-logo-title"
+                className="relative z-10 drop-shadow-[0_0_10px_rgba(0,255,255,0.3)] group-hover:drop-shadow-[0_0_15px_rgba(0,255,255,0.5)]"
+                fill="none"
                 height="40"
                 viewBox="0 0 195 215"
-                fill="none"
+                width="36"
                 xmlns="http://www.w3.org/2000/svg"
-                className="relative z-10 drop-shadow-[0_0_10px_rgba(0,255,255,0.3)] group-hover:drop-shadow-[0_0_15px_rgba(0,255,255,0.5)]"
-                aria-labelledby="pvndora-logo-title"
               >
                 <title id="pvndora-logo-title">PVNDORA Logo</title>
                 <g filter={`url(#${logoId}-filter0_f)`}>
@@ -169,106 +169,106 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                 </g>
                 <g filter={`url(#${logoId}-filter1_d)`}>
                   <rect
-                    width="99.2765"
-                    height="99.272"
-                    transform="matrix(0.866025 -0.5 0.866025 0.5 4.80518 51.1382)"
                     fill="#06F8F7"
                     fillOpacity="0.01"
+                    height="99.272"
+                    transform="matrix(0.866025 -0.5 0.866025 0.5 4.80518 51.1382)"
+                    width="99.2765"
                   />
                 </g>
                 <g filter={`url(#${logoId}-filter2_d)`}>
                   <rect
-                    width="98.1495"
-                    height="98.1249"
-                    transform="matrix(0.866025 0.5 0 1 5.19995 55.2204)"
                     fill="#06F8F7"
                     fillOpacity="0.01"
+                    height="98.1249"
+                    transform="matrix(0.866025 0.5 0 1 5.19995 55.2204)"
+                    width="98.1495"
                   />
                 </g>
                 <rect
-                  width="100"
+                  fill="#D9D9D9"
                   height="100"
                   transform="matrix(0.866025 0.5 0 1 3.19995 54.2952)"
-                  fill="#D9D9D9"
+                  width="100"
                 />
                 <rect
-                  width="100"
-                  height="100"
-                  transform="matrix(0.866025 0.5 0 1 3.19995 54.2952)"
                   fill={`url(#${logoId}-paint0_linear)`}
-                />
-                <rect
-                  width="100"
                   height="100"
                   transform="matrix(0.866025 0.5 0 1 3.19995 54.2952)"
+                  width="100"
+                />
+                <rect
                   fill={`url(#${logoId}-paint1_linear)`}
+                  height="100"
+                  transform="matrix(0.866025 0.5 0 1 3.19995 54.2952)"
+                  width="100"
                 />
                 <rect
-                  width="100"
-                  height="100"
-                  transform="matrix(0.866025 -0.5 0.866025 0.5 4.19995 50.2952)"
                   fill="#D9D9D9"
-                />
-                <rect
-                  width="100"
                   height="100"
                   transform="matrix(0.866025 -0.5 0.866025 0.5 4.19995 50.2952)"
+                  width="100"
+                />
+                <rect
                   fill="#272928"
+                  height="100"
+                  transform="matrix(0.866025 -0.5 0.866025 0.5 4.19995 50.2952)"
+                  width="100"
                 />
                 <g filter={`url(#${logoId}-filter3_dd)`}>
                   <rect
-                    width="100"
+                    fill="#06F8F7"
                     height="100"
                     transform="matrix(0.866025 -0.5 0 1 98.2 105.295)"
-                    fill="#06F8F7"
+                    width="100"
                   />
                 </g>
                 <rect
-                  width="100"
+                  fill="#D9D9D9"
                   height="100"
                   transform="matrix(0.866025 -0.5 0 1 107.2 112.295)"
-                  fill="#D9D9D9"
+                  width="100"
                 />
                 <rect
-                  width="100"
+                  fill={`url(#${logoId}-paint2_linear)`}
                   height="100"
                   transform="matrix(0.866025 -0.5 0 1 107.2 112.295)"
-                  fill={`url(#${logoId}-paint2_linear)`}
+                  width="100"
                 />
                 <defs>
                   <filter
+                    colorInterpolationFilters="sRGB"
+                    filterUnits="userSpaceOnUse"
+                    height="160.875"
                     id={`${logoId}-filter0_f`}
+                    width="181.4"
                     x="-4.86374e-05"
                     y="41.12"
-                    width="181.4"
-                    height="160.875"
-                    filterUnits="userSpaceOnUse"
-                    colorInterpolationFilters="sRGB"
                   >
                     <feFlood floodOpacity="0" result="BackgroundImageFix" />
                     <feBlend
-                      mode="normal"
                       in="SourceGraphic"
                       in2="BackgroundImageFix"
+                      mode="normal"
                       result="shape"
                     />
-                    <feGaussianBlur stdDeviation="4.1" result="effect1_foregroundBlur_120_61" />
+                    <feGaussianBlur result="effect1_foregroundBlur_120_61" stdDeviation="4.1" />
                   </filter>
                   <filter
+                    colorInterpolationFilters="sRGB"
+                    filterUnits="userSpaceOnUse"
+                    height="102.274"
                     id={`${logoId}-filter1_d`}
+                    width="174.948"
                     x="3.30518"
                     y="0"
-                    width="174.948"
-                    height="102.274"
-                    filterUnits="userSpaceOnUse"
-                    colorInterpolationFilters="sRGB"
                   >
                     <feFlood floodOpacity="0" result="BackgroundImageFix" />
                     <feColorMatrix
                       in="SourceAlpha"
+                      result="hardAlpha"
                       type="matrix"
                       values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-                      result="hardAlpha"
                     />
                     <feOffset />
                     <feGaussianBlur stdDeviation="0.75" />
@@ -277,32 +277,32 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       values="0 0 0 0 0.0196078 0 0 0 0 0.972549 0 0 0 0 0.976471 0 0 0 1 0"
                     />
                     <feBlend
-                      mode="normal"
                       in2="BackgroundImageFix"
+                      mode="normal"
                       result="effect1_dropShadow_120_61"
                     />
                     <feBlend
-                      mode="normal"
                       in="SourceGraphic"
                       in2="effect1_dropShadow_120_61"
+                      mode="normal"
                       result="shape"
                     />
                   </filter>
                   <filter
+                    colorInterpolationFilters="sRGB"
+                    filterUnits="userSpaceOnUse"
+                    height="151.4"
                     id={`${logoId}-filter2_d`}
+                    width="89.2"
                     x="3.09995"
                     y="53.1204"
-                    width="89.2"
-                    height="151.4"
-                    filterUnits="userSpaceOnUse"
-                    colorInterpolationFilters="sRGB"
                   >
                     <feFlood floodOpacity="0" result="BackgroundImageFix" />
                     <feColorMatrix
                       in="SourceAlpha"
+                      result="hardAlpha"
                       type="matrix"
                       values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-                      result="hardAlpha"
                     />
                     <feOffset />
                     <feGaussianBlur stdDeviation="1.05" />
@@ -311,32 +311,32 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       values="0 0 0 0 0.0196078 0 0 0 0 0.972549 0 0 0 0 0.976471 0 0 0 1 0"
                     />
                     <feBlend
-                      mode="normal"
                       in2="BackgroundImageFix"
+                      mode="normal"
                       result="effect1_dropShadow_120_61"
                     />
                     <feBlend
-                      mode="normal"
                       in="SourceGraphic"
                       in2="effect1_dropShadow_120_61"
+                      mode="normal"
                       result="shape"
                     />
                   </filter>
                   <filter
+                    colorInterpolationFilters="sRGB"
+                    filterUnits="userSpaceOnUse"
+                    height="169.152"
                     id={`${logoId}-filter3_dd`}
+                    width="105.755"
                     x="88.624"
                     y="45.7192"
-                    width="105.755"
-                    height="169.152"
-                    filterUnits="userSpaceOnUse"
-                    colorInterpolationFilters="sRGB"
                   >
                     <feFlood floodOpacity="0" result="BackgroundImageFix" />
                     <feColorMatrix
                       in="SourceAlpha"
+                      result="hardAlpha"
                       type="matrix"
                       values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-                      result="hardAlpha"
                     />
                     <feOffset />
                     <feGaussianBlur stdDeviation="0.684" />
@@ -345,15 +345,15 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       values="0 0 0 0 0.0196078 0 0 0 0 0.972549 0 0 0 0 0.976471 0 0 0 1 0"
                     />
                     <feBlend
-                      mode="normal"
                       in2="BackgroundImageFix"
+                      mode="normal"
                       result="effect1_dropShadow_120_61"
                     />
                     <feColorMatrix
                       in="SourceAlpha"
+                      result="hardAlpha"
                       type="matrix"
                       values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-                      result="hardAlpha"
                     />
                     <feOffset />
                     <feGaussianBlur stdDeviation="4.788" />
@@ -362,46 +362,46 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       values="0 0 0 0 0.0196078 0 0 0 0 0.972549 0 0 0 0 0.976471 0 0 0 1 0"
                     />
                     <feBlend
-                      mode="normal"
                       in2="effect1_dropShadow_120_61"
+                      mode="normal"
                       result="effect2_dropShadow_120_61"
                     />
                     <feBlend
-                      mode="normal"
                       in="SourceGraphic"
                       in2="effect2_dropShadow_120_61"
+                      mode="normal"
                       result="shape"
                     />
                   </filter>
                   <linearGradient
+                    gradientUnits="userSpaceOnUse"
                     id={`${logoId}-paint0_linear`}
                     x1="213.042"
-                    y1="27.4789"
                     x2="111.971"
+                    y1="27.4789"
                     y2="-40.2546"
-                    gradientUnits="userSpaceOnUse"
                   >
                     <stop stopColor="#444444" />
                     <stop offset="1" stopColor="#212121" />
                   </linearGradient>
                   <linearGradient
+                    gradientUnits="userSpaceOnUse"
                     id={`${logoId}-paint1_linear`}
                     x1="-3.00935e-09"
-                    y1="54.5"
                     x2="99.2591"
+                    y1="54.5"
                     y2="41.2692"
-                    gradientUnits="userSpaceOnUse"
                   >
                     <stop stopColor="#252422" />
                     <stop offset="1" stopColor="#222220" />
                   </linearGradient>
                   <linearGradient
+                    gradientUnits="userSpaceOnUse"
                     id={`${logoId}-paint2_linear`}
                     x1="9.36506e-07"
-                    y1="-26.5"
                     x2="117.96"
+                    y1="-26.5"
                     y2="42.2236"
-                    gradientUnits="userSpaceOnUse"
                   >
                     <stop stopColor="#2E2D2B" />
                     <stop offset="1" stopColor="#222220" />
@@ -414,25 +414,25 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             <AnimatePresence mode="wait">
               {isHovered && (
                 <motion.div
-                  key="logo-text"
-                  initial={{ opacity: 0, width: 0, marginLeft: 0 }}
                   animate={{ opacity: 1, width: "auto", marginLeft: 12 }}
+                  className="overflow-hidden whitespace-nowrap"
                   exit={{ opacity: 0, width: 0, marginLeft: 0 }}
+                  initial={{ opacity: 0, width: 0, marginLeft: 0 }}
+                  key="logo-text"
+                  style={{ willChange: "width, opacity, margin-left" }}
                   transition={{
                     width: { duration: 0.25, ease: "easeOut" },
                     opacity: { duration: 0.2, delay: 0.05 },
                     marginLeft: { duration: 0.25 },
                   }}
-                  className="overflow-hidden whitespace-nowrap"
-                  style={{ willChange: "width, opacity, margin-left" }}
                 >
                   <div>
-                    <h1 className="font-display font-bold text-xl text-white tracking-widest h-6 flex items-center">
-                      <Typewriter text="PVNDORA" speed={40} delay={150} />
+                    <h1 className="flex h-6 items-center font-bold font-display text-white text-xl tracking-widest">
+                      <Typewriter delay={150} speed={40} text="PVNDORA" />
                     </h1>
-                    <div className="text-[9px] font-mono text-gray-500 tracking-widest h-4 flex items-center">
-                      <span className="text-pandora-cyan mr-1 opacity-50">&gt;</span>
-                      <Typewriter text="MARKET_PROTOCOL_V2" delay={500} speed={20} />
+                    <div className="flex h-4 items-center font-mono text-[9px] text-gray-500 tracking-widest">
+                      <span className="mr-1 text-pandora-cyan opacity-50">&gt;</span>
+                      <Typewriter delay={500} speed={20} text="MARKET_PROTOCOL_V2" />
                     </div>
                   </div>
                 </motion.div>
@@ -442,102 +442,102 @@ const NavbarComponent: React.FC<NavbarProps> = ({
         </button>
 
         {/* Navigation Items */}
-        <div className="flex-1 flex flex-col gap-4 py-6 px-3 w-full">
+        <div className="flex w-full flex-1 flex-col gap-4 px-3 py-6">
           <NavItem
-            icon={<LayoutGrid size={18} />}
-            label={t("navbar.catalog")}
-            subLabel={t("navbar.catalogSub")}
-            onClick={() => handleClick(onNavigateHome)}
             active={activeTab === "catalog"}
-            isExpanded={isHovered}
             delay={0.1}
+            icon={<LayoutGrid size={18} />}
+            isExpanded={isHovered}
+            label={t("navbar.catalog")}
+            onClick={() => handleClick(onNavigateHome)}
+            subLabel={t("navbar.catalogSub")}
           />
           <NavItem
-            icon={<Box size={18} />}
-            label={t("navbar.orders")}
-            subLabel={t("navbar.ordersSub")}
-            onClick={() => handleClick(onNavigateOrders)}
             active={activeTab === "orders"}
-            isExpanded={isHovered}
             delay={0.2}
+            icon={<Box size={18} />}
+            isExpanded={isHovered}
+            label={t("navbar.orders")}
+            onClick={() => handleClick(onNavigateOrders)}
+            subLabel={t("navbar.ordersSub")}
           />
           <NavItem
-            icon={<Trophy size={18} />}
-            label={t("navbar.leaderboard")}
-            subLabel={t("navbar.leaderboardSub")}
-            onClick={() => handleClick(onNavigateLeaderboard)}
             active={activeTab === "leaderboard"}
-            isExpanded={isHovered}
             delay={0.3}
+            icon={<Trophy size={18} />}
+            isExpanded={isHovered}
+            label={t("navbar.leaderboard")}
+            onClick={() => handleClick(onNavigateLeaderboard)}
+            subLabel={t("navbar.leaderboardSub")}
           />
           <NavItem
-            icon={<User size={18} />}
-            label={t("navbar.profile")}
-            subLabel={t("navbar.profileSub")}
-            onClick={() => handleClick(onNavigateProfile)}
             active={activeTab === "profile"}
-            isExpanded={isHovered}
             delay={0.4}
+            icon={<User size={18} />}
+            isExpanded={isHovered}
+            label={t("navbar.profile")}
+            onClick={() => handleClick(onNavigateProfile)}
+            subLabel={t("navbar.profileSub")}
           />
           <NavItem
-            icon={<Command size={18} />}
-            label={t("navbar.studio")}
-            subLabel={t("navbar.studioSub")}
-            onClick={isAdmin ? () => handleClick(onNavigateStudio) : undefined}
             active={activeTab === "studio"}
-            isExpanded={isHovered}
             delay={0.5}
+            icon={<Command size={18} />}
+            isExpanded={isHovered}
+            label={t("navbar.studio")}
+            onClick={isAdmin ? () => handleClick(onNavigateStudio) : undefined}
+            subLabel={t("navbar.studioSub")}
           />
         </div>
 
         {/* Footer Info (Visible on Expand) */}
         <div
-          className="mt-auto border-t border-white/5 bg-white/[0.02] relative overflow-hidden"
+          className="relative mt-auto overflow-hidden border-white/5 border-t bg-white/[0.02]"
           style={{ minHeight: isHovered ? "80px" : "60px" }}
         >
           {/* Collapsed View: Hint for CMD+K */}
           <div
-            className={`absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-200 ${isHovered ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+            className={`absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-200 ${isHovered ? "pointer-events-none opacity-0" : "opacity-100"}`}
           >
-            <div className="w-8 h-8 flex items-center justify-center rounded bg-white/5 border border-white/10 mb-1">
-              <Command size={14} className="text-gray-600" />
+            <div className="mb-1 flex h-8 w-8 items-center justify-center rounded border border-white/10 bg-white/5">
+              <Command className="text-gray-600" size={14} />
             </div>
-            <span className="text-[8px] text-gray-600 font-mono tracking-wider">CMD+K</span>
+            <span className="font-mono text-[8px] text-gray-600 tracking-wider">CMD+K</span>
           </div>
 
           {/* Expanded View */}
           <AnimatePresence>
             {isHovered && (
               <motion.div
-                initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ delay: 0.2 }}
                 className="flex flex-col gap-3 p-4"
+                exit={{ opacity: 0 }}
+                initial={{ opacity: 0 }}
+                transition={{ delay: 0.2 }}
               >
-                <div className="flex items-center justify-between text-[10px] font-mono text-gray-400">
+                <div className="flex items-center justify-between font-mono text-[10px] text-gray-400">
                   <span className="flex items-center gap-2">
-                    <Shield size={10} /> <Typewriter text="ENCRYPTED" delay={200} />
+                    <Shield size={10} /> <Typewriter delay={200} text="ENCRYPTED" />
                   </span>
                   <span className="text-pandora-cyan">
-                    <Typewriter text="V.2.4.0" delay={400} />
+                    <Typewriter delay={400} text="V.2.4.0" />
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded bg-gray-800 border border-white/10 flex items-center justify-center">
-                    <Activity size={14} className="text-green-500" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded border border-white/10 bg-gray-800">
+                    <Activity className="text-green-500" size={14} />
                   </div>
                   <div className="flex-1">
-                    <div className="text-[10px] text-gray-500 font-mono uppercase">
-                      <Typewriter text={t("navbar.status")} delay={500} />
+                    <div className="font-mono text-[10px] text-gray-500 uppercase">
+                      <Typewriter delay={500} text={t("navbar.status")} />
                     </div>
-                    <div className="text-xs text-white font-bold">
-                      <Typewriter text={t("navbar.online").toUpperCase()} delay={700} />
+                    <div className="font-bold text-white text-xs">
+                      <Typewriter delay={700} text={t("navbar.online").toUpperCase()} />
                     </div>
                   </div>
                 </div>
                 <button
-                  type="button"
+                  className="mt-2 flex cursor-pointer items-center gap-2 font-mono text-red-400 text-xs uppercase transition-colors hover:text-red-300"
                   onClick={() => {
                     if (onHaptic) onHaptic();
                     if (onLogout) {
@@ -548,10 +548,10 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                       globalThis.location.reload();
                     }
                   }}
-                  className="flex items-center gap-2 mt-2 text-xs text-red-400 hover:text-red-300 transition-colors font-mono uppercase cursor-pointer"
+                  type="button"
                 >
                   <LogOut size={12} />{" "}
-                  <Typewriter text={t("navbar.disconnect").toUpperCase()} delay={900} speed={50} />
+                  <Typewriter delay={900} speed={50} text={t("navbar.disconnect").toUpperCase()} />
                 </button>
               </motion.div>
             )}
@@ -564,17 +564,17 @@ const NavbarComponent: React.FC<NavbarProps> = ({
       <AnimatePresence>
         {cartCount > 0 && (
           <motion.button
-            initial={{ scale: 0, rotate: 180 }}
             animate={{ scale: 1, rotate: 0 }}
+            className="group fixed bottom-20 left-4 z-[110] md:top-6 md:right-6 md:bottom-auto md:left-auto"
             exit={{ scale: 0, rotate: -180 }}
+            initial={{ scale: 0, rotate: 180 }}
             onClick={onOpenCart}
-            className="fixed z-[110] group bottom-20 left-4 md:bottom-auto md:left-auto md:top-6 md:right-6"
           >
-            <div className="relative bg-pandora-cyan text-black p-3 md:p-4 rounded-full shadow-[0_0_20px_rgba(0,255,255,0.4)] hover:bg-white hover:shadow-[0_0_30px_#FFFFFF] transition-all duration-300">
-              <ShoppingCart size={22} className="group-hover:scale-110 transition-transform" />
+            <div className="relative rounded-full bg-pandora-cyan p-3 text-black shadow-[0_0_20px_rgba(0,255,255,0.4)] transition-all duration-300 hover:bg-white hover:shadow-[0_0_30px_#FFFFFF] md:p-4">
+              <ShoppingCart className="transition-transform group-hover:scale-110" size={22} />
 
               {/* Count Badge */}
-              <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-[0_0_10px_red] animate-pulse">
+              <div className="absolute -top-1 -right-1 flex h-5 w-5 animate-pulse items-center justify-center rounded-full bg-red-500 font-bold text-[10px] text-white shadow-[0_0_10px_red]">
                 {cartCount}
               </div>
             </div>
@@ -584,39 +584,36 @@ const NavbarComponent: React.FC<NavbarProps> = ({
 
       {/* === MOBILE BOTTOM BAR === */}
       <nav
-        className={`
-            md:hidden fixed bottom-0 left-0 w-full bg-[#050505]/95 backdrop-blur-xl border-t border-white/10 z-50 pb-safe 
-            transition-transform duration-500 ease-in-out
-            ${showMobile ? "translate-y-0" : "translate-y-[120%]"}
+        className={`fixed bottom-0 left-0 z-50 w-full border-white/10 border-t bg-[#050505]/95 pb-safe backdrop-blur-xl transition-transform duration-500 ease-in-out md:hidden ${showMobile ? "translate-y-0" : "translate-y-[120%]"}
         `}
       >
-        <div className="grid grid-cols-4 h-16 items-center relative gap-1">
+        <div className="relative grid h-16 grid-cols-4 items-center gap-1">
           {/* Active Indicator Line */}
-          <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-pandora-cyan/50 to-transparent opacity-50" />
+          <div className="absolute top-0 left-0 h-[1px] w-full bg-gradient-to-r from-transparent via-pandora-cyan/50 to-transparent opacity-50" />
 
           <MobileNavItem
+            active={activeTab === "catalog"}
             icon={<LayoutGrid size={20} />}
             label={t("navbar.mobile.catalog")}
             onClick={() => handleClick(onNavigateHome)}
-            active={activeTab === "catalog"}
           />
           <MobileNavItem
+            active={activeTab === "orders"}
             icon={<Box size={20} />}
             label={t("navbar.mobile.orders")}
             onClick={() => handleClick(onNavigateOrders)}
-            active={activeTab === "orders"}
           />
           <MobileNavItem
+            active={activeTab === "leaderboard"}
             icon={<Trophy size={20} />}
             label={t("navbar.mobile.leaderboard")}
             onClick={() => handleClick(onNavigateLeaderboard)}
-            active={activeTab === "leaderboard"}
           />
           <MobileNavItem
+            active={activeTab === "profile"}
             icon={<User size={20} />}
             label={t("navbar.mobile.profile")}
             onClick={() => handleClick(onNavigateProfile)}
-            active={activeTab === "profile"}
           />
         </div>
       </nav>
@@ -646,41 +643,37 @@ const NavItem: React.FC<NavItemProps> = ({
   delay = 0,
 }) => (
   <motion.button
-    type="button"
-    onClick={onClick}
-    disabled={!onClick}
-    className={`
-            relative flex items-center justify-center md:justify-start h-12 md:h-14 w-full group/item
-            ${active ? "bg-white/5" : onClick ? "hover:bg-white/5" : ""}
-            ${!onClick ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-        `}
     animate={{
       paddingLeft: isExpanded ? 12 : 0,
       paddingRight: isExpanded ? 16 : 0,
       justifyContent: isExpanded ? "flex-start" : "center",
     }}
-    transition={{ type: "spring", stiffness: 400, damping: 35 }}
+    className={`group/item relative flex h-12 w-full items-center justify-center md:h-14 md:justify-start ${active ? "bg-white/5" : onClick ? "hover:bg-white/5" : ""}
+            ${onClick ? "cursor-pointer" : "cursor-not-allowed opacity-50"}
+        `}
+    disabled={!onClick}
+    onClick={onClick}
     style={{ willChange: "padding-left, padding-right" }}
     title={isExpanded ? undefined : label}
+    transition={{ type: "spring", stiffness: 400, damping: 35 }}
+    type="button"
   >
     {/* Active Indicator (Left Line) */}
     <motion.div
-      className="absolute left-0 top-1/2 -translate-y-1/2 h-8 w-1 bg-pandora-cyan rounded-r-sm"
       animate={{ opacity: active ? 1 : 0 }}
+      className="absolute top-1/2 left-0 h-8 w-1 -translate-y-1/2 rounded-r-sm bg-pandora-cyan"
       transition={{ duration: 0.2 }}
     />
 
     {/* Icon Container (Standard Rounded Square) */}
     <motion.div
-      className="flex items-center justify-center shrink-0 relative z-10"
       animate={{ width: isExpanded ? 80 : "100%" }}
-      transition={{ type: "spring", stiffness: 400, damping: 35 }}
+      className="relative z-10 flex shrink-0 items-center justify-center"
       style={{ willChange: "width" }}
+      transition={{ type: "spring", stiffness: 400, damping: 35 }}
     >
       <div
-        className={`
-                    w-10 h-10 flex items-center justify-center rounded-lg transition-colors duration-200
-                    ${active ? "bg-pandora-cyan/20 text-pandora-cyan shadow-[0_0_10px_rgba(0,255,255,0.3)]" : "bg-white/5 text-gray-500 group-hover/item:text-white group-hover/item:bg-white/10"}
+        className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors duration-200 ${active ? "bg-pandora-cyan/20 text-pandora-cyan shadow-[0_0_10px_rgba(0,255,255,0.3)]" : "bg-white/5 text-gray-500 group-hover/item:bg-white/10 group-hover/item:text-white"}
                 `}
       >
         {icon}
@@ -691,39 +684,39 @@ const NavItem: React.FC<NavItemProps> = ({
     <AnimatePresence mode="wait">
       {isExpanded && (
         <motion.div
-          key="nav-text"
-          initial={{ opacity: 0, x: -10, width: 0 }}
           animate={{ opacity: 1, x: 0, width: "auto" }}
+          className="flex flex-1 items-center justify-between overflow-hidden whitespace-nowrap pr-4 pl-1"
           exit={{ opacity: 0, x: -10, width: 0 }}
+          initial={{ opacity: 0, x: -10, width: 0 }}
+          key="nav-text"
+          style={{ willChange: "width, opacity" }}
           transition={{
             delay: delay * 0.1,
             duration: 0.25,
             ease: "easeOut",
           }}
-          className="flex-1 pl-1 pr-4 whitespace-nowrap overflow-hidden flex justify-between items-center"
-          style={{ willChange: "width, opacity" }}
         >
           <div className="text-left">
             <div
-              className={`text-sm font-bold tracking-wide ${active ? "text-white" : "text-gray-400 group-hover/item:text-white"}`}
+              className={`font-bold text-sm tracking-wide ${active ? "text-white" : "text-gray-400 group-hover/item:text-white"}`}
             >
-              <Typewriter text={label} delay={delay * 1000} speed={25} />
+              <Typewriter delay={delay * 1000} speed={25} text={label} />
             </div>
             {subLabel && (
-              <div className="text-[10px] font-mono text-gray-600 group-hover/item:text-pandora-cyan transition-colors duration-200">
-                <Typewriter text={subLabel} delay={delay * 1000 + 100} speed={15} />
+              <div className="font-mono text-[10px] text-gray-600 transition-colors duration-200 group-hover/item:text-pandora-cyan">
+                <Typewriter delay={delay * 1000 + 100} speed={15} text={subLabel} />
               </div>
             )}
           </div>
 
-          {active && <ChevronRight size={14} className="text-pandora-cyan animate-pulse" />}
+          {active && <ChevronRight className="animate-pulse text-pandora-cyan" size={14} />}
         </motion.div>
       )}
     </AnimatePresence>
 
     {/* Hover Glitch Effect Background (Scanline) */}
     {active && (
-      <div className="absolute bottom-0 left-20 right-0 h-[1px] bg-gradient-to-r from-pandora-cyan/50 to-transparent" />
+      <div className="absolute right-0 bottom-0 left-20 h-[1px] bg-gradient-to-r from-pandora-cyan/50 to-transparent" />
     )}
   </motion.button>
 );
@@ -737,9 +730,9 @@ interface MobileNavItemProps {
 
 const MobileNavItem: React.FC<MobileNavItemProps> = ({ icon, label, active, onClick }) => (
   <button
-    type="button"
+    className="flex h-full w-full flex-col items-center justify-center gap-1 transition-transform active:scale-95"
     onClick={onClick}
-    className="flex flex-col items-center justify-center gap-1 h-full w-full active:scale-95 transition-transform"
+    type="button"
   >
     <div
       className={`transition-all duration-300 ${active ? "text-pandora-cyan drop-shadow-[0_0_8px_rgba(0,255,255,0.6)]" : "text-gray-500"}`}
@@ -747,7 +740,7 @@ const MobileNavItem: React.FC<MobileNavItemProps> = ({ icon, label, active, onCl
       {icon}
     </div>
     <span
-      className={`text-[9px] font-mono font-bold tracking-wider uppercase ${active ? "text-white" : "text-gray-600"}`}
+      className={`font-bold font-mono text-[9px] uppercase tracking-wider ${active ? "text-white" : "text-gray-600"}`}
     >
       {label}
     </span>

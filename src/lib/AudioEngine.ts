@@ -37,7 +37,7 @@ const SOUND_FILES: Record<string, string> = {
 class AudioEngineClass {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
-  private enabled: boolean = true;
+  private enabled = true;
 
   // AudioBuffer cache for instant playback
   private readonly soundCache: Map<string, AudioBuffer> = new Map();
@@ -172,8 +172,8 @@ class AudioEngineClass {
   /**
    * Play a sound file from cache or load it
    */
-  private async playSoundFile(key: string, volume: number = 1): Promise<void> {
-    if (!this.ctx || !this.masterGain || !this.enabled) return;
+  private async playSoundFile(key: string, volume = 1): Promise<void> {
+    if (!(this.ctx && this.masterGain && this.enabled)) return;
 
     const buffer = await this.loadSound(key);
     if (!buffer) {
@@ -213,7 +213,7 @@ class AudioEngineClass {
    * Play a single tone (procedural fallback)
    */
   private playTone(config: ToneConfig, soundKey?: string): void {
-    if (!this.ctx || !this.masterGain || !this.enabled) return;
+    if (!(this.ctx && this.masterGain && this.enabled)) return;
     // Throttle frequent sounds to prevent CPU overload
     if (this.shouldThrottle(soundKey)) return;
 
@@ -240,8 +240,8 @@ class AudioEngineClass {
   /**
    * Play white noise burst (procedural)
    */
-  private playNoise(duration: number, volume: number = 0.02, delay: number = 0): void {
-    if (!this.ctx || !this.masterGain || !this.enabled) return;
+  private playNoise(duration: number, volume = 0.02, delay = 0): void {
+    if (!(this.ctx && this.masterGain && this.enabled)) return;
 
     const now = this.ctx.currentTime + delay;
     const bufferSize = Math.floor(this.ctx.sampleRate * duration);
@@ -278,9 +278,9 @@ class AudioEngineClass {
     endFreq: number,
     duration: number,
     type: OscillatorType = "sine",
-    volume: number = 0.03
+    volume = 0.03
   ): void {
-    if (!this.ctx || !this.masterGain || !this.enabled) return;
+    if (!(this.ctx && this.masterGain && this.enabled)) return;
 
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
@@ -492,7 +492,7 @@ class AudioEngineClass {
    * Typewriter effect - for menu expansion, text reveal
    * Uses ui-short.ogg or procedural fallback
    */
-  typewriter(charCount: number = 5): void {
+  typewriter(charCount = 5): void {
     // For typewriter, we can use ui-short.ogg or procedural
     // Using procedural for variety
     for (let i = 0; i < charCount; i++) {

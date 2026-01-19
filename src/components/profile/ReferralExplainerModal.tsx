@@ -115,51 +115,51 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-          initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
           exit={{ opacity: 0 }}
+          initial={{ opacity: 0 }}
         >
           {/* Backdrop */}
           <motion.div
-            className="absolute inset-0 bg-black/90 backdrop-blur-sm"
-            onClick={onClose}
-            initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-black/90 backdrop-blur-sm"
             exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            onClick={onClose}
           />
 
           {/* Modal */}
           <motion.div
-            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-[#050505] border border-pandora-cyan/30 shadow-2xl shadow-pandora-cyan/10"
-            initial={{ scale: 0.9, y: 50, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
+            className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto border border-pandora-cyan/30 bg-[#050505] shadow-2xl shadow-pandora-cyan/10"
             exit={{ scale: 0.9, y: 50, opacity: 0 }}
+            initial={{ scale: 0.9, y: 50, opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
           >
             {/* Animated top border */}
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-pandora-cyan to-transparent" />
+            <div className="absolute top-0 left-0 h-[2px] w-full bg-gradient-to-r from-transparent via-pandora-cyan to-transparent" />
 
             {/* Close button */}
             <button
-              type="button"
+              className="absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center text-gray-500 transition-colors hover:text-white"
               onClick={onClose}
-              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-gray-500 hover:text-white transition-colors z-10"
+              type="button"
             >
               <X size={20} />
             </button>
 
             {/* Header */}
-            <div className="p-6 pb-4 border-b border-white/5">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 bg-pandora-cyan/10 border border-pandora-cyan/30 rounded-sm flex items-center justify-center">
-                  <Shield size={20} className="text-pandora-cyan" />
+            <div className="border-white/5 border-b p-6 pb-4">
+              <div className="mb-2 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-sm border border-pandora-cyan/30 bg-pandora-cyan/10">
+                  <Shield className="text-pandora-cyan" size={20} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-white font-display tracking-tight">
+                  <h2 className="font-bold font-display text-white text-xl tracking-tight">
                     {isRu ? "ПРОТОКОЛ АПЛИНКА" : "UPLINK PROTOCOL"}
                   </h2>
-                  <p className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">
+                  <p className="font-mono text-[10px] text-gray-500 uppercase tracking-widest">
                     {isRu ? "РЕФЕРАЛЬНАЯ СИСТЕМА PVNDORA" : "PVNDORA REFERRAL SYSTEM"}
                   </p>
                 </div>
@@ -167,14 +167,14 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
             </div>
 
             {/* Content */}
-            <div className="p-6 space-y-6">
+            <div className="space-y-6 p-6">
               {/* How It Works Section */}
               <div>
-                <h3 className="text-sm font-bold text-pandora-cyan mb-3 flex items-center gap-2">
+                <h3 className="mb-3 flex items-center gap-2 font-bold text-pandora-cyan text-sm">
                   <Zap size={14} /> {isRu ? "КАК ЭТО РАБОТАЕТ" : "HOW IT WORKS"}
                 </h3>
-                <div className="bg-white/5 border border-white/10 p-4 rounded-sm">
-                  <p className="text-sm text-gray-300 leading-relaxed">
+                <div className="rounded-sm border border-white/10 bg-white/5 p-4">
+                  <p className="text-gray-300 text-sm leading-relaxed">
                     {isRu
                       ? "Каждый пользователь получает уникальный реферальный код. Когда приглашённый вами пользователь совершает покупку, вы получаете комиссию. Чем больше ваш оборот — тем выше уровень допуска и глубже сеть."
                       : "Every user gets a unique referral code. When your invited user makes a purchase, you earn a commission. Higher turnover = higher clearance level = deeper network access."}
@@ -184,61 +184,61 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
 
               {/* Network Levels Visualization */}
               <div>
-                <h3 className="text-sm font-bold text-pandora-cyan mb-3 flex items-center gap-2">
+                <h3 className="mb-3 flex items-center gap-2 font-bold text-pandora-cyan text-sm">
                   <Users size={14} /> {isRu ? "УРОВНИ СЕТИ" : "NETWORK LEVELS"}
                 </h3>
 
                 {/* Visual Flow */}
-                <div className="bg-black/50 border border-white/10 p-4 rounded-sm mb-4">
-                  <div className="flex items-center justify-center gap-2 flex-wrap">
+                <div className="mb-4 rounded-sm border border-white/10 bg-black/50 p-4">
+                  <div className="flex flex-wrap items-center justify-center gap-2">
                     <div className="text-center">
-                      <div className="w-12 h-12 bg-pandora-cyan/20 border border-pandora-cyan/50 rounded-full flex items-center justify-center mb-1 mx-auto">
-                        <span className="text-pandora-cyan font-bold">ВЫ</span>
+                      <div className="mx-auto mb-1 flex h-12 w-12 items-center justify-center rounded-full border border-pandora-cyan/50 bg-pandora-cyan/20">
+                        <span className="font-bold text-pandora-cyan">ВЫ</span>
                       </div>
-                      <span className="text-[9px] text-gray-500 font-mono">UPLINK</span>
+                      <span className="font-mono text-[9px] text-gray-500">UPLINK</span>
                     </div>
 
-                    <ArrowRight size={16} className="text-pandora-cyan/50" />
+                    <ArrowRight className="text-pandora-cyan/50" size={16} />
 
                     <div className="text-center">
-                      <div className="w-12 h-12 bg-green-500/20 border border-green-500/50 rounded-full flex items-center justify-center mb-1 mx-auto">
-                        <span className="text-green-500 text-sm font-bold">
+                      <div className="mx-auto mb-1 flex h-12 w-12 items-center justify-center rounded-full border border-green-500/50 bg-green-500/20">
+                        <span className="font-bold text-green-500 text-sm">
                           {commissions.level1}%
                         </span>
                       </div>
-                      <span className="text-[9px] text-gray-500 font-mono">
+                      <span className="font-mono text-[9px] text-gray-500">
                         {isRu ? "УР.1" : "LV.1"}
                       </span>
                     </div>
 
-                    <ArrowRight size={16} className="text-yellow-500/50" />
+                    <ArrowRight className="text-yellow-500/50" size={16} />
 
                     <div className="text-center">
-                      <div className="w-12 h-12 bg-yellow-500/20 border border-yellow-500/50 rounded-full flex items-center justify-center mb-1 mx-auto">
-                        <span className="text-yellow-500 text-sm font-bold">
+                      <div className="mx-auto mb-1 flex h-12 w-12 items-center justify-center rounded-full border border-yellow-500/50 bg-yellow-500/20">
+                        <span className="font-bold text-sm text-yellow-500">
                           {commissions.level2}%
                         </span>
                       </div>
-                      <span className="text-[9px] text-gray-500 font-mono">
+                      <span className="font-mono text-[9px] text-gray-500">
                         {isRu ? "УР.2" : "LV.2"}
                       </span>
                     </div>
 
-                    <ArrowRight size={16} className="text-red-500/50" />
+                    <ArrowRight className="text-red-500/50" size={16} />
 
                     <div className="text-center">
-                      <div className="w-12 h-12 bg-red-500/20 border border-red-500/50 rounded-full flex items-center justify-center mb-1 mx-auto">
-                        <span className="text-red-500 text-sm font-bold">
+                      <div className="mx-auto mb-1 flex h-12 w-12 items-center justify-center rounded-full border border-red-500/50 bg-red-500/20">
+                        <span className="font-bold text-red-500 text-sm">
                           {commissions.level3}%
                         </span>
                       </div>
-                      <span className="text-[9px] text-gray-500 font-mono">
+                      <span className="font-mono text-[9px] text-gray-500">
                         {isRu ? "УР.3" : "LV.3"}
                       </span>
                     </div>
                   </div>
 
-                  <p className="text-[10px] text-gray-500 text-center mt-3 font-mono">
+                  <p className="mt-3 text-center font-mono text-[10px] text-gray-500">
                     {isRu
                       ? "Уровень 1 = ваши прямые рефералы. Уровни 2-3 = рефералы ваших рефералов."
                       : "Level 1 = your direct referrals. Levels 2-3 = referrals of your referrals."}
@@ -248,7 +248,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
 
               {/* Clearance Levels */}
               <div>
-                <h3 className="text-sm font-bold text-pandora-cyan mb-3 flex items-center gap-2">
+                <h3 className="mb-3 flex items-center gap-2 font-bold text-pandora-cyan text-sm">
                   <Target size={14} /> {isRu ? "УРОВНИ ДОПУСКА" : "CLEARANCE LEVELS"}
                 </h3>
 
@@ -264,8 +264,8 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
 
                     return (
                       <div
+                        className={`rounded-sm border p-3 transition-all ${getLevelCardClasses(isCurrentLevel, isUnlocked, lvl.bgColor, lvl.borderColor)}`}
                         key={lvl.level}
-                        className={`p-3 border rounded-sm transition-all ${getLevelCardClasses(isCurrentLevel, isUnlocked, lvl.bgColor, lvl.borderColor)}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
@@ -274,12 +274,12 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                               <div className={`font-bold font-display ${lvl.color}`}>
                                 {lvl.name}
                                 {isCurrentLevel && (
-                                  <span className="ml-2 text-[9px] bg-pandora-cyan/20 text-pandora-cyan px-2 py-0.5 rounded-full font-mono">
+                                  <span className="ml-2 rounded-full bg-pandora-cyan/20 px-2 py-0.5 font-mono text-[9px] text-pandora-cyan">
                                     {isRu ? "ТЕКУЩИЙ" : "CURRENT"}
                                   </span>
                                 )}
                               </div>
-                              <div className="text-[10px] text-gray-500 font-mono">
+                              <div className="font-mono text-[10px] text-gray-500">
                                 {getLevelDescription(lvl)}
                               </div>
                             </div>
@@ -287,7 +287,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
 
                           {threshold !== null && (
                             <div className="text-right">
-                              <div className="text-xs text-gray-500 font-mono">
+                              <div className="font-mono text-gray-500 text-xs">
                                 {isRu ? "ПОРОГ" : "THRESHOLD"}
                               </div>
                               <div
@@ -323,15 +323,15 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                         Math.min(100, Math.max(0, (currentTurnover / nextThreshold) * 100));
 
                       return (
-                        <div className="mt-4 p-3 bg-pandora-cyan/5 border border-pandora-cyan/20 rounded-sm">
-                          <div className="flex items-center justify-between text-[10px] font-mono text-gray-500 mb-2">
+                        <div className="mt-4 rounded-sm border border-pandora-cyan/20 bg-pandora-cyan/5 p-3">
+                          <div className="mb-2 flex items-center justify-between font-mono text-[10px] text-gray-500">
                             <span>{isRu ? "ВАШ ОБОРОТ" : "YOUR TURNOVER"}</span>
                             <span>
                               {formatPrice(currentTurnover, currency as CurrencyCode)} /{" "}
                               {formatPrice(nextThreshold, currency as CurrencyCode)}
                             </span>
                           </div>
-                          <div className="h-2 bg-black/50 rounded-full overflow-hidden">
+                          <div className="h-2 overflow-hidden rounded-full bg-black/50">
                             <div
                               className="h-full bg-gradient-to-r from-pandora-cyan to-white transition-all duration-500"
                               style={{
@@ -340,7 +340,7 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
                             />
                           </div>
                           {progressPercent >= 100 && currentLevel < 3 && (
-                            <div className="mt-2 text-[9px] text-green-500 font-mono text-center">
+                            <div className="mt-2 text-center font-mono text-[9px] text-green-500">
                               {isRu
                                 ? "✓ Порог достигнут! Обновите профиль."
                                 : "✓ Threshold reached! Refresh profile."}
@@ -354,11 +354,11 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
 
               {/* Examples */}
               <div>
-                <h3 className="text-sm font-bold text-pandora-cyan mb-3 flex items-center gap-2">
+                <h3 className="mb-3 flex items-center gap-2 font-bold text-pandora-cyan text-sm">
                   <Sparkles size={14} /> {isRu ? "ПРИМЕР ЗАРАБОТКА" : "EARNINGS EXAMPLE"}
                 </h3>
-                <div className="bg-green-500/5 border border-green-500/20 p-4 rounded-sm">
-                  <p className="text-sm text-gray-300 leading-relaxed">
+                <div className="rounded-sm border border-green-500/20 bg-green-500/5 p-4">
+                  <p className="text-gray-300 text-sm leading-relaxed">
                     {isRu
                       ? `Ваш реферал покупает подписку за $20. При уровне PROXY вы получаете ${commissions.level1}% = $2. При уровне OPERATOR вы также получите ${commissions.level2}% = $1.40 с покупок 2-й линии. При ARCHITECT — ещё ${commissions.level3}% с 3-й линии.`
                       : `Your referral buys a $20 subscription. At PROXY level, you earn ${commissions.level1}% = $2. At OPERATOR level, you also earn ${commissions.level2}% = $1.40 from Level 2 purchases. At ARCHITECT — additional ${commissions.level3}% from Level 3.`}
@@ -368,11 +368,11 @@ const ReferralExplainerModal: React.FC<ReferralExplainerModalProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="p-6 pt-4 border-t border-white/5">
+            <div className="border-white/5 border-t p-6 pt-4">
               <button
-                type="button"
+                className="flex w-full items-center justify-center gap-2 rounded-sm bg-pandora-cyan py-3 font-bold text-black uppercase tracking-widest transition-colors hover:bg-white"
                 onClick={onClose}
-                className="w-full bg-pandora-cyan text-black font-bold py-3 uppercase tracking-widest hover:bg-white transition-colors flex items-center justify-center gap-2 rounded-sm"
+                type="button"
               >
                 {isRu ? "ПОНЯТНО" : "GOT IT"}
               </button>

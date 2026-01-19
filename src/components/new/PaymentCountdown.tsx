@@ -61,7 +61,7 @@ export function PaymentCountdown({ deadline }: PaymentCountdownProps) {
 
   if (isExpired) {
     return (
-      <div className="text-[9px] font-mono text-red-400 flex items-center gap-1">
+      <div className="flex items-center gap-1 font-mono text-[9px] text-red-400">
         <AlertTriangle size={10} />
         PAYMENT_TIMEOUT — Order will be cancelled
       </div>
@@ -69,7 +69,7 @@ export function PaymentCountdown({ deadline }: PaymentCountdownProps) {
   }
 
   return (
-    <div className="text-[9px] font-mono text-orange-400 flex items-center gap-1">
+    <div className="flex items-center gap-1 font-mono text-[9px] text-orange-400">
       <Clock size={10} />
       TIME_LEFT: {timeLeft}
     </div>

@@ -17,34 +17,34 @@ interface ProductFilesProps {
 const ProductFiles: React.FC<ProductFilesProps> = ({ files }) => {
   return (
     <motion.div
-      key="files"
-      initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -5 }}
       className="space-y-2"
+      exit={{ opacity: 0, y: -5 }}
+      initial={{ opacity: 0, y: 5 }}
+      key="files"
     >
-      <div className="text-[10px] font-mono text-gray-500 mb-2 uppercase">
+      <div className="mb-2 font-mono text-[10px] text-gray-500 uppercase">
         Files included in payload:
       </div>
       {files.length === 0 && (
-        <div className="text-[10px] text-gray-600 font-mono uppercase">No attached payload</div>
+        <div className="font-mono text-[10px] text-gray-600 uppercase">No attached payload</div>
       )}
       {files.map((file) => (
         <div
+          className="flex items-center justify-between border border-white/10 bg-[#0e0e0e] p-3 transition-colors hover:border-pandora-cyan/30"
           key={file.name}
-          className="flex items-center justify-between bg-[#0e0e0e] border border-white/10 p-3 hover:border-pandora-cyan/30 transition-colors"
         >
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-white/5 flex items-center justify-center rounded-sm">
-              {file.type === "key" && <FileKey size={14} className="text-yellow-500" />}
-              {file.type === "doc" && <FileText size={14} className="text-blue-500" />}
-              {file.type === "config" && <Terminal size={14} className="text-gray-400" />}
-              {file.type === "net" && <Globe size={14} className="text-green-500" />}
-              {!file.type && <Lock size={14} className="text-gray-500" />}
+            <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-white/5">
+              {file.type === "key" && <FileKey className="text-yellow-500" size={14} />}
+              {file.type === "doc" && <FileText className="text-blue-500" size={14} />}
+              {file.type === "config" && <Terminal className="text-gray-400" size={14} />}
+              {file.type === "net" && <Globe className="text-green-500" size={14} />}
+              {!file.type && <Lock className="text-gray-500" size={14} />}
             </div>
             <div>
-              <div className="text-xs font-bold text-white">{file.name}</div>
-              <div className="text-[9px] text-gray-600 font-mono uppercase">
+              <div className="font-bold text-white text-xs">{file.name}</div>
+              <div className="font-mono text-[9px] text-gray-600 uppercase">
                 {file.type || "doc"} FILE | {file.size}
               </div>
             </div>

@@ -43,17 +43,17 @@ const SpecRow: React.FC<SpecRowProps> = ({
   const [showTooltip, setShowTooltip] = useState(false);
 
   return (
-    <div className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 relative group">
-      <span className="text-gray-500 tracking-wider text-[10px] flex items-center gap-1">
-        <span className="hidden sm:inline uppercase">{label}:</span>
+    <div className="group relative flex items-center justify-between border-white/5 border-b py-2 last:border-0">
+      <span className="flex items-center gap-1 text-[10px] text-gray-500 tracking-wider">
+        <span className="hidden uppercase sm:inline">{label}:</span>
         <span className="sm:hidden">{humanLabel}:</span>
         {tooltip && (
           <button
-            type="button"
+            className="text-gray-600 transition-colors hover:text-pandora-cyan"
             onClick={() => setShowTooltip(!showTooltip)}
             onMouseEnter={() => setShowTooltip(true)}
             onMouseLeave={() => setShowTooltip(false)}
-            className="text-gray-600 hover:text-pandora-cyan transition-colors"
+            type="button"
           >
             <Info size={10} />
           </button>
@@ -66,7 +66,7 @@ const SpecRow: React.FC<SpecRowProps> = ({
 
       {/* Tooltip */}
       {tooltip && showTooltip && (
-        <div className="absolute left-0 top-full z-50 bg-black border border-white/20 px-2 py-1 text-[9px] text-gray-400 max-w-[200px] whitespace-normal">
+        <div className="absolute top-full left-0 z-50 max-w-[200px] whitespace-normal border border-white/20 bg-black px-2 py-1 text-[9px] text-gray-400">
           {tooltip}
         </div>
       )}
@@ -149,57 +149,57 @@ const ProductSpecs: React.FC<ProductSpecsProps> = ({
 }) => {
   return (
     <motion.div
-      key="specs"
-      initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
+      className="space-y-0 font-mono text-xs"
       exit={{ opacity: 0, x: 10 }}
-      className="font-mono text-xs space-y-0"
+      initial={{ opacity: 0, x: -10 }}
+      key="specs"
     >
       <SpecRow
-        label="ACCESS_PROTOCOL"
         humanLabel={humanLabels.ACCESS_PROTOCOL.label}
-        value={accessProtocol}
         humanValue={getHumanValue(accessProtocol)}
-        valueColor={nodeStatusColor}
+        label="ACCESS_PROTOCOL"
         tooltip={humanLabels.ACCESS_PROTOCOL.tooltip}
+        value={accessProtocol}
+        valueColor={nodeStatusColor}
       />
       <SpecRow
-        label="UPTIME_ASSURANCE"
         humanLabel={humanLabels.UPTIME_ASSURANCE.label}
-        value={warrantyLabel}
         humanValue={getHumanValue(warrantyLabel)}
-        valueColor="text-pandora-cyan"
+        label="UPTIME_ASSURANCE"
         tooltip={humanLabels.UPTIME_ASSURANCE.tooltip}
+        value={warrantyLabel}
+        valueColor="text-pandora-cyan"
       />
       <SpecRow
-        label="SESSION_DURATION"
         humanLabel={humanLabels.SESSION_DURATION.label}
-        value={durationLabel}
         humanValue={getHumanValue(durationLabel)}
+        label="SESSION_DURATION"
         tooltip={humanLabels.SESSION_DURATION.tooltip}
+        value={durationLabel}
       />
       <SpecRow
-        label="DEPLOY_MODE"
         humanLabel={humanLabels.DEPLOY_MODE.label}
-        value={deliveryLabel}
         humanValue={getHumanValue(deliveryLabel)}
-        valueColor={nodeStatusColor}
+        label="DEPLOY_MODE"
         tooltip={humanLabels.DEPLOY_MODE.tooltip}
-      />
-      <SpecRow
-        label="SECURE_UPLINK"
-        humanLabel={humanLabels.SECURE_UPLINK.label}
-        value="AES-256-GCM"
-        humanValue="AES-256"
-        tooltip={humanLabels.SECURE_UPLINK.tooltip}
-      />
-      <SpecRow
-        label="NODE_STATUS"
-        humanLabel={humanLabels.NODE_STATUS.label}
-        value={nodeStatus}
-        humanValue={getHumanValue(nodeStatus)}
+        value={deliveryLabel}
         valueColor={nodeStatusColor}
+      />
+      <SpecRow
+        humanLabel={humanLabels.SECURE_UPLINK.label}
+        humanValue="AES-256"
+        label="SECURE_UPLINK"
+        tooltip={humanLabels.SECURE_UPLINK.tooltip}
+        value="AES-256-GCM"
+      />
+      <SpecRow
+        humanLabel={humanLabels.NODE_STATUS.label}
+        humanValue={getHumanValue(nodeStatus)}
+        label="NODE_STATUS"
         tooltip={humanLabels.NODE_STATUS.tooltip}
+        value={nodeStatus}
+        valueColor={nodeStatusColor}
       />
     </motion.div>
   );

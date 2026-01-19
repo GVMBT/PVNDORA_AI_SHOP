@@ -111,43 +111,43 @@ const SupportChat: React.FC<SupportChatProps> = ({
       {/* === WIDGET CONTAINER === */}
       {/* Dynamic bottom position: moves up if raiseOnMobile is true to clear HUD/Footers */}
       <div
-        className={`fixed right-4 md:bottom-12 md:right-12 z-[100] flex flex-col items-end pointer-events-none transition-all duration-500 ease-in-out ${raiseOnMobile ? "bottom-48" : "bottom-24"}`}
+        className={`pointer-events-none fixed right-4 z-[100] flex flex-col items-end transition-all duration-500 ease-in-out md:right-12 md:bottom-12 ${raiseOnMobile ? "bottom-48" : "bottom-24"}`}
       >
         <AnimatePresence mode="wait">
           {/* === STATE 1: OPEN WINDOW (RESIZED) === */}
           {isOpen ? (
             <motion.div
-              key="window"
-              initial={{ opacity: 0, y: 40, scale: 0.8, filter: "blur(10px)" }}
               animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+              className="pointer-events-auto relative flex h-[50vh] w-[85vw] flex-col overflow-hidden rounded-sm border border-pandora-cyan/30 bg-[#050505]/95 shadow-[0_0_50px_rgba(0,255,255,0.15)] backdrop-blur-xl md:h-[480px] md:w-[350px]"
               exit={{ opacity: 0, y: 40, scale: 0.8, filter: "blur(10px)" }}
+              initial={{ opacity: 0, y: 40, scale: 0.8, filter: "blur(10px)" }}
+              key="window"
               transition={{ type: "spring", stiffness: 350, damping: 30 }}
-              className="pointer-events-auto w-[85vw] h-[50vh] md:w-[350px] md:h-[480px] bg-[#050505]/95 backdrop-blur-xl border border-pandora-cyan/30 shadow-[0_0_50px_rgba(0,255,255,0.15)] flex flex-col overflow-hidden relative rounded-sm"
             >
               {/* CRT Screen Effects */}
-              <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-20 pointer-events-none bg-[length:100%_4px,3px_100%]" />
-              <div className="absolute top-0 left-0 right-0 h-px bg-white/20 z-20 shadow-[0_0_10px_white]" />
+              <div className="pointer-events-none absolute inset-0 z-20 bg-[length:100%_4px,3px_100%] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))]" />
+              <div className="absolute top-0 right-0 left-0 z-20 h-px bg-white/20 shadow-[0_0_10px_white]" />
 
               {/* Header */}
-              <div className="h-12 bg-pandora-cyan/10 border-b border-white/10 flex items-center justify-between px-3 shrink-0 relative z-30">
+              <div className="relative z-30 flex h-12 shrink-0 items-center justify-between border-white/10 border-b bg-pandora-cyan/10 px-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-black/50 border border-pandora-cyan/30 flex items-center justify-center rounded-sm">
-                    <Terminal size={12} className="text-pandora-cyan" />
+                  <div className="flex h-6 w-6 items-center justify-center rounded-sm border border-pandora-cyan/30 bg-black/50">
+                    <Terminal className="text-pandora-cyan" size={12} />
                   </div>
                   <div>
-                    <div className="font-mono font-bold text-[10px] tracking-widest text-white">
+                    <div className="font-bold font-mono text-[10px] text-white tracking-widest">
                       {t("support.title")}
                     </div>
-                    <div className="font-mono text-[8px] text-pandora-cyan flex items-center gap-1">
-                      <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse" />
+                    <div className="flex items-center gap-1 font-mono text-[8px] text-pandora-cyan">
+                      <span className="h-1 w-1 animate-pulse rounded-full bg-green-500" />
                       {t("support.channelOpen")}
                     </div>
                   </div>
                 </div>
                 <button
-                  type="button"
+                  className="flex h-6 w-6 items-center justify-center rounded-sm text-gray-400 transition-all hover:bg-white/10 hover:text-white"
                   onClick={() => onToggle(false)}
-                  className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all rounded-sm"
+                  type="button"
                 >
                   <ChevronDown size={14} />
                 </button>
@@ -155,20 +155,20 @@ const SupportChat: React.FC<SupportChatProps> = ({
 
               {/* Chat Body */}
               <div
+                className="scrollbar-thin scrollbar-thumb-pandora-cyan/20 scrollbar-track-transparent relative z-30 flex-1 space-y-4 overflow-y-auto p-3 font-mono text-xs"
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto p-3 space-y-4 font-mono text-xs relative z-30 scrollbar-thin scrollbar-thumb-pandora-cyan/20 scrollbar-track-transparent"
               >
                 {messages.map((msg) => (
                   <div
-                    key={msg.id}
                     className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+                    key={msg.id}
                   >
                     <div
-                      className={`max-w-[90%] relative group ${msg.sender === "user" ? "items-end flex flex-col" : ""}`}
+                      className={`group relative max-w-[90%] ${msg.sender === "user" ? "flex flex-col items-end" : ""}`}
                     >
                       {/* Metadata */}
                       <div
-                        className={`text-[8px] text-gray-600 mb-1 flex items-center gap-2 ${msg.sender === "user" ? "flex-row-reverse" : ""}`}
+                        className={`mb-1 flex items-center gap-2 text-[8px] text-gray-600 ${msg.sender === "user" ? "flex-row-reverse" : ""}`}
                       >
                         <span className="font-bold uppercase tracking-wider">
                           {msg.sender === "agent"
@@ -180,20 +180,18 @@ const SupportChat: React.FC<SupportChatProps> = ({
 
                       {/* Bubble */}
                       <div
-                        className={`
-                                            p-2.5 border backdrop-blur-sm relative text-[11px] leading-relaxed
-                                            ${
-                                              msg.sender === "user"
-                                                ? "bg-white/10 border-white/20 text-gray-100 rounded-sm rounded-tr-none"
-                                                : "bg-pandora-cyan/5 border-pandora-cyan/30 text-pandora-cyan rounded-sm rounded-tl-none shadow-[0_0_15px_rgba(0,255,255,0.05)]"
-                                            }
+                        className={`relative border p-2.5 text-[11px] leading-relaxed backdrop-blur-sm ${
+                          msg.sender === "user"
+                            ? "rounded-sm rounded-tr-none border-white/20 bg-white/10 text-gray-100"
+                            : "rounded-sm rounded-tl-none border-pandora-cyan/30 bg-pandora-cyan/5 text-pandora-cyan shadow-[0_0_15px_rgba(0,255,255,0.05)]"
+                        }
                                         `}
                       >
                         <p className="whitespace-pre-wrap">{msg.text}</p>
 
                         {/* Decorative corners */}
                         {msg.sender === "agent" && (
-                          <div className="absolute top-0 left-0 w-1.5 h-1.5 border-t border-l border-pandora-cyan opacity-50" />
+                          <div className="absolute top-0 left-0 h-1.5 w-1.5 border-pandora-cyan border-t border-l opacity-50" />
                         )}
                       </div>
                     </div>
@@ -202,8 +200,8 @@ const SupportChat: React.FC<SupportChatProps> = ({
 
                 {isTyping && (
                   <div className="flex justify-start">
-                    <div className="bg-pandora-cyan/5 border border-pandora-cyan/20 p-2 text-pandora-cyan text-[10px] flex items-center gap-2 rounded-sm rounded-tl-none">
-                      <Activity size={10} className="animate-pulse" />
+                    <div className="flex items-center gap-2 rounded-sm rounded-tl-none border border-pandora-cyan/20 bg-pandora-cyan/5 p-2 text-[10px] text-pandora-cyan">
+                      <Activity className="animate-pulse" size={10} />
                       <span>{t("support.typing")}</span>
                     </div>
                   </div>
@@ -211,31 +209,31 @@ const SupportChat: React.FC<SupportChatProps> = ({
               </div>
 
               {/* Input Area */}
-              <div className="p-3 bg-black/90 border-t border-white/10 shrink-0 relative z-30">
-                <div className="relative flex items-end gap-2 bg-[#0a0a0a] border border-white/10 p-1.5 rounded-sm focus-within:border-pandora-cyan/50 transition-colors">
+              <div className="relative z-30 shrink-0 border-white/10 border-t bg-black/90 p-3">
+                <div className="relative flex items-end gap-2 rounded-sm border border-white/10 bg-[#0a0a0a] p-1.5 transition-colors focus-within:border-pandora-cyan/50">
                   <button
+                    className="flex h-8 items-center justify-center p-1.5 text-gray-500 transition-colors hover:text-white"
                     type="button"
-                    className="p-1.5 text-gray-500 hover:text-white transition-colors h-8 flex items-center justify-center"
                   >
                     <Paperclip size={14} />
                   </button>
                   <textarea
-                    value={inputValue}
+                    className="h-8 flex-1 resize-none border-none bg-transparent py-2 font-mono text-[11px] text-white leading-relaxed outline-none placeholder:text-gray-700"
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={t("support.inputPlaceholder")}
-                    className="flex-1 bg-transparent border-none outline-none text-white font-mono text-[11px] placeholder:text-gray-700 h-8 py-2 resize-none leading-relaxed"
+                    value={inputValue}
                   />
                   <button
-                    type="button"
+                    className={`flex h-8 w-8 items-center justify-center rounded-sm transition-all ${inputValue.trim() ? "bg-pandora-cyan text-black hover:bg-white" : "bg-white/5 text-gray-600"}`}
                     onClick={handleSend}
-                    className={`h-8 w-8 flex items-center justify-center rounded-sm transition-all ${inputValue.trim() ? "bg-pandora-cyan text-black hover:bg-white" : "bg-white/5 text-gray-600"}`}
+                    type="button"
                   >
                     <Send size={14} />
                   </button>
                 </div>
-                <div className="text-[8px] text-gray-600 font-mono mt-1.5 text-center flex items-center justify-center gap-2">
-                  <div className="w-1 h-1 bg-green-500 rounded-full" />
+                <div className="mt-1.5 flex items-center justify-center gap-2 text-center font-mono text-[8px] text-gray-600">
+                  <div className="h-1 w-1 rounded-full bg-green-500" />
                   {t("support.encryption")}
                 </div>
               </div>
@@ -243,52 +241,52 @@ const SupportChat: React.FC<SupportChatProps> = ({
           ) : (
             /* === STATE 2: THE CYBERPUNK WIDGET (HUD STYLE) === */
             <motion.div
-              key="widget"
-              initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
+              className="group pointer-events-auto relative cursor-pointer"
               exit={{ scale: 0, opacity: 0 }}
-              className="pointer-events-auto relative group cursor-pointer"
+              initial={{ scale: 0, opacity: 0 }}
+              key="widget"
               onClick={toggleChat}
             >
               {/* 1. Status Label (Floating Next to Widget) - Hidden on Mobile */}
               <motion.div
-                initial={{ x: 20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
+                className="pointer-events-none absolute top-1/2 right-full mr-6 hidden -translate-y-1/2 items-center gap-3 md:flex"
+                initial={{ x: 20, opacity: 0 }}
                 transition={{ delay: 0.5 }}
-                className="absolute right-full mr-6 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-3 pointer-events-none"
               >
-                <div className="bg-black/80 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-sm shadow-xl">
-                  <div className="text-[10px] font-bold text-pandora-cyan font-mono tracking-widest whitespace-nowrap flex items-center gap-2">
-                    <Activity size={10} className="animate-pulse" />
+                <div className="rounded-sm border border-white/10 bg-black/80 px-3 py-1.5 shadow-xl backdrop-blur-md">
+                  <div className="flex items-center gap-2 whitespace-nowrap font-bold font-mono text-[10px] text-pandora-cyan tracking-widest">
+                    <Activity className="animate-pulse" size={10} />
                     {t("support.systemOnline")}
                   </div>
                 </div>
                 {/* Connecting Line */}
-                <div className="w-6 h-px bg-gradient-to-r from-white/20 to-pandora-cyan/50" />
+                <div className="h-px w-6 bg-gradient-to-r from-white/20 to-pandora-cyan/50" />
               </motion.div>
 
               {/* 2. The Core Widget Container */}
-              <div className="relative w-16 h-16 md:w-20 md:h-20 flex items-center justify-center">
+              <div className="relative flex h-16 w-16 items-center justify-center md:h-20 md:w-20">
                 {/* Rotating Outer Ring (Dashed) */}
-                <div className="absolute inset-0 rounded-full border border-dashed border-white/20 hud-spin" />
+                <div className="hud-spin absolute inset-0 rounded-full border border-white/20 border-dashed" />
 
                 {/* Counter-Rotating Inner Ring */}
-                <div className="absolute inset-1 rounded-full border border-t-transparent border-l-transparent border-pandora-cyan/30 hud-spin-rev" />
+                <div className="hud-spin-rev absolute inset-1 rounded-full border border-pandora-cyan/30 border-t-transparent border-l-transparent" />
 
                 {/* Pulsing Glow Background */}
-                <div className="absolute inset-2 bg-pandora-cyan/5 rounded-full blur-md animate-pulse" />
+                <div className="absolute inset-2 animate-pulse rounded-full bg-pandora-cyan/5 blur-md" />
 
                 {/* The Solid Hexagon Core (Now with proper clip-path) */}
-                <div className="relative z-10 w-10 h-10 md:w-12 md:h-12 bg-[#0a0a0a] flex items-center justify-center clip-hexagon group-hover:bg-pandora-cyan transition-colors duration-300 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+                <div className="clip-hexagon relative z-10 flex h-10 w-10 items-center justify-center bg-[#0a0a0a] shadow-[0_0_20px_rgba(0,0,0,0.5)] transition-colors duration-300 group-hover:bg-pandora-cyan md:h-12 md:w-12">
                   <MessageSquare
+                    className="relative z-20 text-pandora-cyan transition-colors duration-300 group-hover:text-black"
                     size={20}
-                    className="text-pandora-cyan group-hover:text-black transition-colors duration-300 relative z-20"
                   />
                 </div>
 
                 {/* Notification Dot */}
-                <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-black z-20 shadow-[0_0_10px_red] animate-bounce">
-                  <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-75" />
+                <div className="absolute top-2 right-2 z-20 h-3 w-3 animate-bounce rounded-full border-2 border-black bg-red-500 shadow-[0_0_10px_red]">
+                  <span className="absolute inset-0 animate-ping rounded-full bg-red-500 opacity-75" />
                 </div>
               </div>
             </motion.div>
@@ -300,11 +298,11 @@ const SupportChat: React.FC<SupportChatProps> = ({
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm md:hidden"
             exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
             onClick={() => onToggle(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] md:hidden"
           />
         )}
       </AnimatePresence>

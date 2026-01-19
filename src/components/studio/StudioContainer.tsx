@@ -2,11 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "../../hooks/useLocale";
 import { useStudioInit } from "../../hooks/useStudioRealtime";
 import { AudioEngine } from "../../lib/AudioEngine";
-import {
-  selectActiveGeneration,
-  selectActiveModel,
-  useStudioStore,
-} from "../../stores/studioStore";
+import { useStudioStore } from "../../stores/studioStore";
 import { CommandDeck } from "./CommandDeck";
 import { HistorySidebar } from "./HistorySidebar";
 import { TopHUD } from "./TopHUD";
@@ -31,9 +27,7 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
   useStudioInit();
 
   // Store state
-  const {
-    startGeneration,
-  } = useStudioStore();
+  const { startGeneration } = useStudioStore();
 
   // Local UI State
   const [activeDomain, setActiveDomain] = useState<DomainType>("video");
@@ -122,11 +116,9 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && uploadTarget) {
-      if (uploadTarget === "video") {
-        if (file.size > 50 * 1024 * 1024) {
-          alert("Video too large. Max 50MB for preview.");
-          return;
-        }
+      if (uploadTarget === "video" && file.size > 50 * 1024 * 1024) {
+        alert("Video too large. Max 50MB for preview.");
+        return;
       }
 
       const reader = new FileReader();
@@ -159,7 +151,7 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
 
     if (veoMode === "text" && !prompt.trim()) return alert("Enter a prompt");
     if (veoMode === "image" && !startFrame) return alert("Upload start frame");
-    if (veoMode === "cinematic" && (!startFrame || !endFrame))
+    if (veoMode === "cinematic" && !(startFrame && endFrame))
       return alert("Upload start and end frames");
     if (veoMode === "extend" && !videoInput) return alert("Upload video to extend");
 
@@ -184,11 +176,11 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
       // Call real API
       const generationId = await startGeneration({
         model_id: activeModelId,
-        prompt: prompt,
+        prompt,
         config: {
           resolution: veoResolution,
           aspect_ratio: aspectRatio,
-          duration_seconds: parseInt(veoDuration.replace("s", ""), 10),
+          duration_seconds: Number.parseInt(veoDuration.replace("s", ""), 10),
           custom_params: {
             mode: veoMode,
           },
@@ -201,7 +193,7 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
           id: generationId,
           domain: activeDomain,
           modelId: activeModelId,
-          prompt: prompt,
+          prompt,
           status: "processing",
           timestamp: Date.now(),
           cost: estimatedCost,
@@ -238,83 +230,83 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
   };
 
   return (
-    <div className="fixed inset-0 bg-[#020202] text-white overflow-hidden font-mono selection:bg-pandora-cyan selection:text-black z-50 flex">
-      <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+    <div className="fixed inset-0 z-50 flex overflow-hidden bg-[#020202] font-mono text-white selection:bg-pandora-cyan selection:text-black">
+      <input className="hidden" onChange={handleFileUpload} ref={fileInputRef} type="file" />
 
       {/* --- BACKGROUND LAYERS --- */}
       <Scanline />
       <HexGrid />
       {/* Ambient glow from center */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,_rgba(0,255,255,0.08)_0%,_rgba(0,0,0,0)_50%)] pointer-events-none" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,_rgba(0,255,255,0.08)_0%,_rgba(0,0,0,0)_50%)]" />
       {/* Vignette effect */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_transparent_30%,_rgba(0,0,0,0.9)_100%)] pointer-events-none" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_transparent_30%,_rgba(0,0,0,0.9)_100%)]" />
       {/* Corner data streams */}
       <DataStream position="left" />
       <DataStream position="right" />
       {/* Edge glow lines */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-pandora-cyan/30 to-transparent" />
-      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-pandora-cyan/20 to-transparent" />
+      <div className="absolute top-0 right-0 left-0 h-px bg-gradient-to-r from-transparent via-pandora-cyan/30 to-transparent" />
+      <div className="absolute right-0 bottom-0 left-0 h-px bg-gradient-to-r from-transparent via-pandora-cyan/20 to-transparent" />
 
       {/* --- HISTORY SIDEBAR --- */}
       <HistorySidebar
+        activeTaskId={activeTaskId}
+        history={history}
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
-        history={history}
-        activeTaskId={activeTaskId}
         onTaskSelect={setActiveTaskId}
       />
 
       {/* --- MAIN AREA --- */}
-      <div className="flex-1 flex flex-col relative h-full">
+      <div className="relative flex h-full flex-1 flex-col">
         {/* TOP HUD */}
         <TopHUD
           activeDomain={activeDomain}
-          userBalance={userBalance}
-          onNavigateHome={onNavigateHome}
-          onTopUp={onTopUp}
-          onDomainSwitch={handleDomainSwitch}
-          onSidebarToggle={() => setIsHistoryOpen(!isHistoryOpen)}
           isSidebarOpen={isHistoryOpen}
+          onDomainSwitch={handleDomainSwitch}
+          onNavigateHome={onNavigateHome}
+          onSidebarToggle={() => setIsHistoryOpen(!isHistoryOpen)}
+          onTopUp={onTopUp}
+          userBalance={userBalance}
         />
 
         {/* VIEWPORT */}
         <Viewport
-          activeTask={activeTask}
-          activeModel={activeModel}
-          generationLogs={generationLogs}
           activeDomain={activeDomain}
+          activeModel={activeModel}
+          activeTask={activeTask}
+          generationLogs={generationLogs}
         />
 
         {/* --- COMMAND DECK (FOOTER) --- */}
         <CommandDeck
-          userBalance={userBalance}
-          onTopUp={onTopUp}
+          activeDomain={activeDomain}
+          activeModel={activeModel}
+          activeModelId={activeModelId}
+          aspectRatio={aspectRatio}
+          endFrame={endFrame}
           estimatedCost={estimatedCost}
           isGenerating={isGenerating}
-          prompt={prompt}
-          onPromptChange={setPrompt}
           onGenerate={handleGenerate}
-          activeModel={activeModel}
-          veoMode={veoMode}
-          setVeoMode={setVeoMode}
-          showAdvanced={showAdvanced}
-          setShowAdvanced={setShowAdvanced}
-          veoResolution={veoResolution}
-          setVeoResolution={setVeoResolution}
-          aspectRatio={aspectRatio}
-          setAspectRatio={setAspectRatio}
-          veoDuration={veoDuration}
-          setVeoDuration={setVeoDuration}
-          showModelSelector={showModelSelector}
-          setShowModelSelector={setShowModelSelector}
-          activeModelId={activeModelId}
-          setActiveModelId={setActiveModelId}
-          activeDomain={activeDomain}
-          startFrame={startFrame}
-          endFrame={endFrame}
-          videoInput={videoInput}
+          onPromptChange={setPrompt}
+          onTopUp={onTopUp}
+          prompt={prompt}
           refImages={refImages}
+          setActiveModelId={setActiveModelId}
+          setAspectRatio={setAspectRatio}
+          setShowAdvanced={setShowAdvanced}
+          setShowModelSelector={setShowModelSelector}
+          setVeoDuration={setVeoDuration}
+          setVeoMode={setVeoMode}
+          setVeoResolution={setVeoResolution}
+          showAdvanced={showAdvanced}
+          showModelSelector={showModelSelector}
+          startFrame={startFrame}
           triggerUpload={triggerUpload}
+          userBalance={userBalance}
+          veoDuration={veoDuration}
+          veoMode={veoMode}
+          veoResolution={veoResolution}
+          videoInput={videoInput}
         />
       </div>
     </div>

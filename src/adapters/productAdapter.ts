@@ -41,7 +41,7 @@ function deriveAvailability(apiProduct: APIProduct): ProductAvailability {
  *
  * Frontend should NOT do any currency conversion - just display final_price as-is.
  */
-export function adaptProduct(apiProduct: APIProduct, currency: string = "USD"): CatalogProduct {
+export function adaptProduct(apiProduct: APIProduct, currency = "USD"): CatalogProduct {
   // Derive categories: use API categories array, fallback to product type
   const productCategories =
     apiProduct.categories && apiProduct.categories.length > 0
@@ -78,10 +78,7 @@ export function adaptProduct(apiProduct: APIProduct, currency: string = "USD"): 
 /**
  * Adapt a list of API products
  */
-export function adaptProductList(
-  apiProducts: APIProduct[],
-  currency: string = "USD"
-): CatalogProduct[] {
+export function adaptProductList(apiProducts: APIProduct[], currency = "USD"): CatalogProduct[] {
   return apiProducts.map((p) => adaptProduct(p, currency));
 }
 
@@ -90,7 +87,7 @@ export function adaptProductList(
  */
 export function adaptProductDetail(
   response: APIProductResponse,
-  currency: string = "USD"
+  currency = "USD"
 ): ProductDetailData {
   const { product, social_proof } = response;
   const baseProduct = adaptProduct(product, product.currency || currency);

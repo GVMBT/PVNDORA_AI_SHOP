@@ -148,7 +148,7 @@ const DecryptText: React.FC<DecryptTextProps> = ({ text, revealed }) => {
     };
   }, [revealed, text]);
 
-  return <span className="font-mono whitespace-pre-wrap">{display}</span>;
+  return <span className="whitespace-pre-wrap font-mono">{display}</span>;
 };
 
 interface OrderItemProps {
@@ -185,14 +185,14 @@ const OrderItem: React.FC<OrderItemProps> = ({
   const countdown = useCountdown(item.deadlineRaw);
 
   return (
-    <div className="relative pl-4 border-l-2 border-white/10 group-hover:border-pandora-cyan/30 transition-colors">
+    <div className="relative border-white/10 border-l-2 pl-4 transition-colors group-hover:border-pandora-cyan/30">
       {/* Item Header */}
-      <div className="flex justify-between items-start mb-3">
-        <h3 className="font-bold text-white text-sm tracking-wide">{item.name}</h3>
+      <div className="mb-3 flex items-start justify-between">
+        <h3 className="font-bold text-sm text-white tracking-wide">{item.name}</h3>
 
-        <div className="text-[10px] font-mono">
+        <div className="font-mono text-[10px]">
           {item.status === "delivered" && (
-            <span className="text-green-500 flex items-center gap-1">
+            <span className="flex items-center gap-1 text-green-500">
               <Check size={10} /> {t("orders.itemStatus.delivered")}
             </span>
           )}
@@ -200,18 +200,18 @@ const OrderItem: React.FC<OrderItemProps> = ({
             <>
               {/* Show QUEUED only if payment is confirmed */}
               {item.orderRawStatus && item.orderRawStatus !== "pending" ? (
-                <span className="text-orange-400 flex items-center gap-1">
+                <span className="flex items-center gap-1 text-orange-400">
                   <Clock size={10} /> {t("orders.itemStatus.queued")}
                 </span>
               ) : (
-                <span className="text-gray-500 flex items-center gap-1">
+                <span className="flex items-center gap-1 text-gray-500">
                   <Clock size={10} /> {t("orders.itemStatus.awaitingPayment")}
                 </span>
               )}
             </>
           )}
           {item.status === "cancelled" && (
-            <span className="text-red-500 flex items-center gap-1">
+            <span className="flex items-center gap-1 text-red-500">
               <AlertTriangle size={10} /> {t("orders.itemStatus.cancelled")}
             </span>
           )}
@@ -223,14 +223,14 @@ const OrderItem: React.FC<OrderItemProps> = ({
         <div className="space-y-3">
           {/* Credentials Box */}
           {item.credentials && (
-            <div className="bg-black border border-white/10 border-dashed p-3 relative group/key">
-              <div className="text-[10px] text-gray-500 font-mono mb-2 flex justify-between items-center border-b border-white/5 pb-2">
+            <div className="group/key relative border border-white/10 border-dashed bg-black p-3">
+              <div className="mb-2 flex items-center justify-between border-white/5 border-b pb-2 font-mono text-[10px] text-gray-500">
                 <span>{t("orders.item.accessKeyEncrypted")}</span>
                 <div className="flex items-center gap-2">
                   <button
-                    type="button"
+                    className="text-gray-500 transition-colors hover:text-white"
                     onClick={() => onToggleReveal(item.id)}
-                    className="text-gray-500 hover:text-white transition-colors"
+                    type="button"
                   >
                     {isRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
                   </button>
@@ -243,17 +243,17 @@ const OrderItem: React.FC<OrderItemProps> = ({
               </div>
 
               {/* Key Content */}
-              <div className="flex justify-between items-center mt-2 gap-2">
-                <div className="font-mono text-xs sm:text-sm text-pandora-cyan tracking-wider overflow-hidden min-w-0 flex-1">
-                  <div className="break-all overflow-x-auto scrollbar-hide max-w-full whitespace-pre-wrap">
-                    <DecryptText text={item.credentials} revealed={isRevealed} />
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1 overflow-hidden font-mono text-pandora-cyan text-xs tracking-wider sm:text-sm">
+                  <div className="scrollbar-hide max-w-full overflow-x-auto whitespace-pre-wrap break-all">
+                    <DecryptText revealed={isRevealed} text={item.credentials} />
                   </div>
                 </div>
                 <button
-                  type="button"
+                  className="flex-shrink-0 rounded-sm bg-white/5 p-1.5 transition-colors hover:bg-pandora-cyan hover:text-black"
                   onClick={() => onCopy(item.credentials ?? "", item.id)}
-                  className="p-1.5 bg-white/5 hover:bg-pandora-cyan hover:text-black transition-colors rounded-sm flex-shrink-0"
                   title="Copy to Clipboard"
+                  type="button"
                 >
                   {copiedId === item.id ? <Check size={14} /> : <Copy size={14} />}
                 </button>
@@ -262,21 +262,21 @@ const OrderItem: React.FC<OrderItemProps> = ({
           )}
 
           {/* Actions Row: Review + Report Issue (Only for delivered items) */}
-          <div className="flex justify-end items-center gap-2 pt-2">
+          <div className="flex items-center justify-end gap-2 pt-2">
             {/* Report Issue Button (if within warranty) */}
             {item.status === "delivered" && item.canRequestRefund && onOpenSupport && (
               <button
-                type="button"
+                className="flex items-center gap-2 border border-green-500/30 px-3 py-1.5 font-bold font-mono text-[10px] text-green-400 transition-all hover:bg-green-500/20"
                 onClick={() =>
                   onOpenSupport({
-                    orderId: orderId,
+                    orderId,
                     itemId: String(item.id),
                     orderTotal: 0, // Will be filled by parent
                     productNames: [item.name],
                     reason: `WARRANTY_CLAIM: Проблема с аккаунтом "${item.name}"`,
                   })
                 }
-                className="flex items-center gap-2 text-[10px] font-bold font-mono text-green-400 border border-green-500/30 px-3 py-1.5 hover:bg-green-500/20 transition-all"
+                type="button"
               >
                 <AlertTriangle size={12} />
                 {t("orders.item.reportIssue")}
@@ -285,15 +285,15 @@ const OrderItem: React.FC<OrderItemProps> = ({
 
             {/* Review Action */}
             {item.hasReview ? (
-              <div className="flex items-center gap-2 text-[10px] font-mono text-gray-500 border border-white/5 px-3 py-1.5 rounded-sm select-none opacity-60">
-                <Check size={12} className="text-pandora-cyan" />
+              <div className="flex select-none items-center gap-2 rounded-sm border border-white/5 px-3 py-1.5 font-mono text-[10px] text-gray-500 opacity-60">
+                <Check className="text-pandora-cyan" size={12} />
                 {t("orders.item.feedbackLogged")}
               </div>
             ) : (
               <button
-                type="button"
+                className="flex items-center gap-2 border border-pandora-cyan/30 px-3 py-1.5 font-bold font-mono text-[10px] text-pandora-cyan transition-all hover:bg-pandora-cyan hover:text-black"
                 onClick={() => onOpenReview(item.id, item.name, orderId)}
-                className="flex items-center gap-2 text-[10px] font-bold font-mono text-pandora-cyan border border-pandora-cyan/30 px-3 py-1.5 hover:bg-pandora-cyan hover:text-black transition-all"
+                type="button"
               >
                 <MessageSquare size={12} />
                 {t("orders.item.initializeReview")}
@@ -305,11 +305,11 @@ const OrderItem: React.FC<OrderItemProps> = ({
 
       {/* === WAITING: Pre-order or Processing === */}
       {item.status === "waiting" && (
-        <div className="mt-2 bg-[#0c0c0c] border border-orange-500/20 p-3">
+        <div className="mt-2 border border-orange-500/20 bg-[#0c0c0c] p-3">
           {/* Show PROVISIONING only if payment is confirmed */}
           {item.orderRawStatus && item.orderRawStatus !== "pending" ? (
             <>
-              <div className="flex justify-between text-[10px] font-mono text-orange-400 mb-1">
+              <div className="mb-1 flex justify-between font-mono text-[10px] text-orange-400">
                 <span className="flex items-center gap-1">
                   <Activity size={10} /> {t("orders.itemStatus.provisioning")}...
                 </span>
@@ -319,27 +319,27 @@ const OrderItem: React.FC<OrderItemProps> = ({
               </div>
 
               {/* Progress Bar */}
-              <div className="w-full h-1 bg-gray-800 mt-2 mb-2 relative overflow-hidden">
+              <div className="relative mt-2 mb-2 h-1 w-full overflow-hidden bg-gray-800">
                 <div
                   className="absolute top-0 left-0 h-full bg-orange-500 shadow-[0_0_10px_orange]"
                   style={{ width: `${item.progress || 0}%` }}
                 />
-                <div className="absolute top-0 left-0 h-full w-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
+                <div className="absolute top-0 left-0 h-full w-full animate-pulse bg-gradient-to-r from-transparent via-white/30 to-transparent" />
               </div>
 
               {/* Deadline with Countdown */}
-              <div className="border-t border-white/5 pt-2 mt-2 flex justify-between items-center">
-                <p className="text-[10px] text-gray-500 font-mono">
+              <div className="mt-2 flex items-center justify-between border-white/5 border-t pt-2">
+                <p className="font-mono text-[10px] text-gray-500">
                   &gt; {t("orders.item.deadline")}: {item.deadline}
                 </p>
                 {item.deadlineRaw && !countdown.isExpired && (
-                  <div className="flex items-center gap-1.5 text-[10px] font-mono text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded">
-                    <Timer size={10} className="animate-pulse" />
+                  <div className="flex items-center gap-1.5 rounded bg-orange-500/10 px-2 py-0.5 font-mono text-[10px] text-orange-400">
+                    <Timer className="animate-pulse" size={10} />
                     <span>{countdown.formatted}</span>
                   </div>
                 )}
                 {countdown.isExpired && item.deadlineRaw && (
-                  <div className="flex items-center gap-1 text-[10px] font-mono text-red-400">
+                  <div className="flex items-center gap-1 font-mono text-[10px] text-red-400">
                     <AlertTriangle size={10} />
                     <span>{t("orders.itemStatus.deadlineExpired")}</span>
                   </div>
@@ -349,7 +349,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
           ) : (
             /* For unpaid orders, show payment deadline only */
             item.deadline && (
-              <p className="text-[10px] text-gray-500 font-mono">
+              <p className="font-mono text-[10px] text-gray-500">
                 &gt; {t("orders.item.deadline")}: {item.deadline}
               </p>
             )
@@ -359,7 +359,7 @@ const OrderItem: React.FC<OrderItemProps> = ({
 
       {/* === REFUNDED === */}
       {item.status === "cancelled" && (
-        <div className="mt-2 bg-red-900/5 border border-red-500/20 p-2 font-mono text-[10px] text-red-400">
+        <div className="mt-2 border border-red-500/20 bg-red-900/5 p-2 font-mono text-[10px] text-red-400">
           &gt; {item.reason}
         </div>
       )}

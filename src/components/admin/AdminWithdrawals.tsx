@@ -113,29 +113,29 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
 
     if (status === "PENDING") {
       return (
-        <div className="p-4 border-t border-white/10 space-y-3">
+        <div className="space-y-3 border-white/10 border-t p-4">
           <textarea
-            value={comment}
+            className="w-full resize-none border border-white/20 bg-black p-3 text-white text-xs outline-none"
             onChange={(e) => setComment(e.target.value)}
             placeholder="Комментарий (опционально)..."
-            className="w-full bg-black border border-white/20 p-3 text-xs text-white outline-none resize-none"
             rows={3}
+            value={comment}
           />
           <div className="flex gap-2">
             <button
-              type="button"
-              onClick={handleApprove}
+              className="flex flex-1 items-center justify-center gap-2 border border-green-500/50 bg-green-500/20 px-4 py-2 font-bold font-mono text-[10px] text-green-400 hover:bg-green-500/30 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={processing}
-              className="flex-1 flex items-center justify-center gap-2 bg-green-500/20 border border-green-500/50 text-green-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleApprove}
+              type="button"
             >
               <Check size={14} />
               ОДОБРИТЬ
             </button>
             <button
-              type="button"
-              onClick={handleReject}
+              className="flex flex-1 items-center justify-center gap-2 border border-red-500/50 bg-red-500/20 px-4 py-2 font-bold font-mono text-[10px] text-red-400 hover:bg-red-500/30 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={processing}
-              className="flex-1 flex items-center justify-center gap-2 bg-red-500/20 border border-red-500/50 text-red-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-red-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleReject}
+              type="button"
             >
               <X size={14} />
               ОТКЛОНИТЬ
@@ -147,19 +147,19 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
 
     if (status === "PROCESSING") {
       return (
-        <div className="p-4 border-t border-white/10 space-y-3">
+        <div className="space-y-3 border-white/10 border-t p-4">
           <textarea
-            value={comment}
+            className="w-full resize-none border border-white/20 bg-black p-3 text-white text-xs outline-none"
             onChange={(e) => setComment(e.target.value)}
             placeholder="Комментарий при завершении (опционально)..."
-            className="w-full bg-black border border-white/20 p-3 text-xs text-white outline-none resize-none"
             rows={3}
+            value={comment}
           />
           <button
-            type="button"
-            onClick={handleComplete}
+            className="flex w-full items-center justify-center gap-2 border border-blue-500/50 bg-blue-500/20 px-4 py-2 font-bold font-mono text-[10px] text-blue-400 hover:bg-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={processing}
-            className="w-full flex items-center justify-center gap-2 bg-blue-500/20 border border-blue-500/50 text-blue-400 px-4 py-2 text-[10px] font-bold font-mono hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleComplete}
+            type="button"
           >
             <Send size={14} />
             ОТМЕТИТЬ ВЫПОЛНЕННЫМ
@@ -169,7 +169,7 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
     }
 
     return (
-      <div className="p-4 border-t border-white/10">
+      <div className="border-white/10 border-t p-4">
         <div className="text-center text-gray-600 text-xs">
           Заявка {getStatusLabel(selectedWithdrawal.status).toLowerCase()}
         </div>
@@ -199,48 +199,48 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
+    <div className="grid h-[calc(100vh-200px)] grid-cols-1 gap-6 lg:grid-cols-3">
       {/* Withdrawal List */}
       <div
         className={`${
           selectedWithdrawalId ? "hidden lg:block" : "block"
-        } lg:col-span-1 space-y-4 overflow-y-auto pr-2`}
+        } space-y-4 overflow-y-auto pr-2 lg:col-span-1`}
       >
-        <div className="flex justify-between items-center mb-2">
-          <h3 className="font-display font-bold text-white">ОЧЕРЕДЬ</h3>
-          <div className="text-xs font-mono text-gray-500">
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="font-bold font-display text-white">ОЧЕРЕДЬ</h3>
+          <div className="font-mono text-gray-500 text-xs">
             {withdrawals.filter((w) => w.status?.toUpperCase() === "PENDING").length} ожидает
           </div>
         </div>
         {withdrawals.length === 0 ? (
-          <div className="bg-[#0e0e0e] border border-white/10 p-8 text-center text-gray-500 text-xs">
+          <div className="border border-white/10 bg-[#0e0e0e] p-8 text-center text-gray-500 text-xs">
             Нет заявок на вывод
           </div>
         ) : (
           withdrawals.map((w) => (
             <button
-              key={w.id}
-              type="button"
-              onClick={() => setSelectedWithdrawalId(w.id)}
-              className={`bg-[#0e0e0e] border p-4 transition-colors cursor-pointer group relative text-left w-full ${
+              className={`group relative w-full cursor-pointer border bg-[#0e0e0e] p-4 text-left transition-colors ${
                 selectedWithdrawalId === w.id
                   ? "border-pandora-cyan bg-pandora-cyan/5"
                   : "border-white/10 hover:border-white/30"
               }`}
+              key={w.id}
+              onClick={() => setSelectedWithdrawalId(w.id)}
+              type="button"
             >
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-[10px] font-mono text-gray-500">{w.id.slice(0, 8)}</span>
-                <span className={`text-[10px] font-mono ${getStatusColor(w.status)}`}>
+              <div className="mb-2 flex items-start justify-between">
+                <span className="font-mono text-[10px] text-gray-500">{w.id.slice(0, 8)}</span>
+                <span className={`font-mono text-[10px] ${getStatusColor(w.status)}`}>
                   {getStatusLabel(w.status)}
                 </span>
               </div>
-              <div className="font-bold text-white text-sm mb-1">
+              <div className="mb-1 font-bold text-sm text-white">
                 {formatAmountWithCurrency(w.amount_debited ?? w.amount, w.balance_currency)}
               </div>
-              <div className="text-xs text-gray-400 mb-1">
+              <div className="mb-1 text-gray-400 text-xs">
                 {w.first_name || w.username || `Пользователь ${w.telegram_id || "Неизвестно"}`}
               </div>
-              <div className="text-[10px] font-mono text-gray-600 mt-1">
+              <div className="mt-1 font-mono text-[10px] text-gray-600">
                 {formatDate(w.created_at)}
               </div>
             </button>
@@ -252,17 +252,17 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
       <div
         className={`${
           selectedWithdrawalId ? "flex" : "hidden lg:flex"
-        } lg:col-span-2 bg-[#0e0e0e] border border-white/10 flex-col h-full relative`}
+        } relative h-full flex-col border border-white/10 bg-[#0e0e0e] lg:col-span-2`}
       >
         {selectedWithdrawal ? (
           <>
-            <div className="p-4 border-b border-white/10 bg-black/50">
-              <div className="flex items-center justify-between mb-3">
+            <div className="border-white/10 border-b bg-black/50 p-4">
+              <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <button
-                    type="button"
+                    className="text-gray-500 hover:text-white lg:hidden"
                     onClick={() => setSelectedWithdrawalId(null)}
-                    className="lg:hidden text-gray-500 hover:text-white"
+                    type="button"
                   >
                     <ArrowUpRight className="rotate-[-135deg]" size={20} />
                   </button>
@@ -270,13 +270,13 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                     <h3 className="font-bold text-white">
                       ВЫВОД-{selectedWithdrawal.id.slice(0, 8)}
                     </h3>
-                    <div className="text-[10px] font-mono text-gray-500 mt-1">
+                    <div className="mt-1 font-mono text-[10px] text-gray-500">
                       {formatDate(selectedWithdrawal.created_at)}
                     </div>
                   </div>
                 </div>
                 <div
-                  className={`text-[10px] font-mono px-2 py-1 border ${getStatusColor(selectedWithdrawal.status)} border-current/30`}
+                  className={`border px-2 py-1 font-mono text-[10px] ${getStatusColor(selectedWithdrawal.status)} border-current/30`}
                 >
                   {getStatusLabel(selectedWithdrawal.status)}
                 </div>
@@ -285,36 +285,36 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
               {/* Withdrawal Info */}
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div>
-                  <div className="text-gray-500 mb-1">Сумма</div>
-                  <div className="text-white font-mono text-lg font-bold">
+                  <div className="mb-1 text-gray-500">Сумма</div>
+                  <div className="font-bold font-mono text-lg text-white">
                     {formatAmountWithCurrency(
                       selectedWithdrawal.amount_debited ?? selectedWithdrawal.amount,
                       selectedWithdrawal.balance_currency
                     )}
                   </div>
                   {selectedWithdrawal.amount_to_pay && (
-                    <div className="text-xs text-gray-400 mt-1">
+                    <div className="mt-1 text-gray-400 text-xs">
                       К выплате: {selectedWithdrawal.amount_to_pay} USDT
                     </div>
                   )}
                 </div>
                 <div>
-                  <div className="text-gray-500 mb-1">Метод</div>
-                  <div className="text-white font-mono uppercase">
+                  <div className="mb-1 text-gray-500">Метод</div>
+                  <div className="font-mono text-white uppercase">
                     {selectedWithdrawal.payment_method || "КРИПТО"}
                   </div>
                 </div>
                 <div>
-                  <div className="text-gray-500 mb-1">Пользователь</div>
-                  <div className="text-white font-mono">
+                  <div className="mb-1 text-gray-500">Пользователь</div>
+                  <div className="font-mono text-white">
                     {selectedWithdrawal.first_name || selectedWithdrawal.username || "Неизвестно"}
                   </div>
                   {selectedWithdrawal.telegram_id && (
                     <a
+                      className="mt-1 flex items-center gap-1 text-pandora-cyan hover:text-pandora-cyan/80"
                       href={`tg://user?id=${selectedWithdrawal.telegram_id}`}
-                      target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-pandora-cyan hover:text-pandora-cyan/80 mt-1"
+                      target="_blank"
                     >
                       <ExternalLink size={12} />
                       <span className="text-[10px]">Написать в Telegram</span>
@@ -322,8 +322,8 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
                   )}
                 </div>
                 <div>
-                  <div className="text-gray-500 mb-1">Баланс</div>
-                  <div className="text-white font-mono">
+                  <div className="mb-1 text-gray-500">Баланс</div>
+                  <div className="font-mono text-white">
                     {selectedWithdrawal.user_balance === undefined
                       ? "Н/Д"
                       : formatAmountWithCurrency(
@@ -335,17 +335,17 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
               </div>
             </div>
 
-            <div className="flex-1 p-4 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto p-4">
               {/* Payment Details */}
               <div className="mb-6">
-                <div className="text-[10px] font-mono text-gray-500 mb-2">РЕКВИЗИТЫ</div>
-                <div className="bg-black/50 border border-white/10 p-4">
+                <div className="mb-2 font-mono text-[10px] text-gray-500">РЕКВИЗИТЫ</div>
+                <div className="border border-white/10 bg-black/50 p-4">
                   {selectedWithdrawal.payment_details?.details ? (
-                    <div className="font-mono text-sm text-white break-all select-all">
+                    <div className="select-all break-all font-mono text-sm text-white">
                       {selectedWithdrawal.payment_details.details}
                     </div>
                   ) : (
-                    <div className="text-xs text-gray-500">Реквизиты не указаны</div>
+                    <div className="text-gray-500 text-xs">Реквизиты не указаны</div>
                   )}
                 </div>
               </div>
@@ -353,8 +353,8 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
               {/* Admin Comment (if exists) */}
               {selectedWithdrawal.admin_comment && (
                 <div className="mb-6">
-                  <div className="text-[10px] font-mono text-gray-500 mb-2">КОММЕНТАРИЙ АДМИНА</div>
-                  <div className="bg-pandora-cyan/10 border border-pandora-cyan/30 p-4 text-xs text-gray-300 whitespace-pre-wrap">
+                  <div className="mb-2 font-mono text-[10px] text-gray-500">КОММЕНТАРИЙ АДМИНА</div>
+                  <div className="whitespace-pre-wrap border border-pandora-cyan/30 bg-pandora-cyan/10 p-4 text-gray-300 text-xs">
                     {selectedWithdrawal.admin_comment}
                   </div>
                 </div>
@@ -363,8 +363,8 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
               {/* Processed Info */}
               {selectedWithdrawal.processed_at && (
                 <div className="mb-6">
-                  <div className="text-[10px] font-mono text-gray-500 mb-2">ОБРАБОТАНО</div>
-                  <div className="text-xs text-gray-400">
+                  <div className="mb-2 font-mono text-[10px] text-gray-500">ОБРАБОТАНО</div>
+                  <div className="text-gray-400 text-xs">
                     {formatDate(selectedWithdrawal.processed_at)}
                   </div>
                 </div>
@@ -375,8 +375,8 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
             {renderActionButtons()}
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-600 opacity-50">
-            <Wallet size={48} className="mb-4" />
+          <div className="flex flex-1 flex-col items-center justify-center text-gray-600 opacity-50">
+            <Wallet className="mb-4" size={48} />
             <span className="font-mono text-xs uppercase tracking-widest">Выберите заявку</span>
           </div>
         )}

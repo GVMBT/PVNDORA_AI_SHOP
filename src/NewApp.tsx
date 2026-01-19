@@ -259,7 +259,7 @@ function NewAppInner() {
 
   // Cart handlers
   const handleAddToCart = useCallback(
-    async (product: CatalogProduct, quantity: number = 1) => {
+    async (product: CatalogProduct, quantity = 1) => {
       try {
         await addToCart(String(product.id), quantity);
         AudioEngine.addToCart();
@@ -321,7 +321,7 @@ function NewAppInner() {
   const handleBootComplete = useCallback(
     (results: Record<string, unknown>) => {
       const authResult = results.auth as { authenticated?: boolean } | undefined;
-      setIsAuthenticated(authResult?.authenticated || false);
+      setIsAuthenticated(authResult?.authenticated);
 
       setIsBooted(true);
       sessionStorage.set(CACHE.BOOT_STATE_KEY, "true");
@@ -370,7 +370,7 @@ function NewAppInner() {
 
   // Handle startapp parameters (checkout, pay_product_id, etc.)
   useEffect(() => {
-    if (!isBooted || !isAuthenticated) return;
+    if (!(isBooted && isAuthenticated)) return;
 
     // Get startapp from various sources
     const urlParams = new URLSearchParams(globalThis.location.search);
@@ -435,7 +435,6 @@ function NewAppInner() {
     return (
       <div className="min-h-screen bg-black">
         <PaymentResult
-          orderId={actualId}
           isTopUp={isTopUp}
           onComplete={() => {
             // Clear payment redirect state to prevent reload loop
@@ -449,6 +448,7 @@ function NewAppInner() {
             sessionStorage.remove("payment_redirect_id");
             setCurrentView(isTopUp ? "profile" : "orders");
           }}
+          orderId={actualId}
         />
       </div>
     );
@@ -458,9 +458,9 @@ function NewAppInner() {
   if (!isBooted) {
     return (
       <BootSequence
-        tasks={bootTasks}
-        onComplete={handleBootComplete}
         minDuration={UI.BOOT_MIN_DURATION}
+        onComplete={handleBootComplete}
+        tasks={bootTasks}
       />
     );
   }
@@ -469,10 +469,10 @@ function NewAppInner() {
   // This prevents the redirect loop when returning from payment
   if (isAuthenticated === null || isAuthChecking) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-black">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-pandora-cyan/30 border-t-pandora-cyan rounded-full animate-spin mx-auto mb-4" />
-          <div className="text-xs text-gray-500 font-mono">VERIFYING_SESSION</div>
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-pandora-cyan/30 border-t-pandora-cyan" />
+          <div className="font-mono text-gray-500 text-xs">VERIFYING_SESSION</div>
         </div>
       </div>
     );
@@ -487,8 +487,8 @@ function NewAppInner() {
       return (
         <React.Suspense
           fallback={
-            <div className="min-h-screen bg-black flex items-center justify-center">
-              <div className="w-8 h-8 border-2 border-pandora-cyan/30 border-t-pandora-cyan rounded-full animate-spin" />
+            <div className="flex min-h-screen items-center justify-center bg-black">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-pandora-cyan/30 border-t-pandora-cyan" />
             </div>
           }
         >
@@ -499,10 +499,10 @@ function NewAppInner() {
 
     return (
       <LoginPage
-        onLoginSuccess={() => setIsAuthenticated(true)}
         botUsername={BOT.USERNAME}
-        redirectPath="/"
+        onLoginSuccess={() => setIsAuthenticated(true)}
         onNavigateLegal={handleNavigateLegal}
+        redirectPath="/"
       />
     );
   }
@@ -512,32 +512,32 @@ function NewAppInner() {
     <AppLayout>
       {currentView !== "admin" && currentView !== "payment-result" && currentView !== "studio" && (
         <Navbar
-          showMobile={!selectedProduct}
-          cartCount={cart?.items?.length || 0}
-          onOpenCart={handleOpenCart}
-          onNavigateHome={() => navigate("home")}
-          onNavigateOrders={() => navigate("orders")}
-          onNavigateProfile={() => navigate("profile")}
-          onNavigateLeaderboard={() => navigate("leaderboard")}
-          onNavigateStudio={() => navigate("studio")}
           activeTab={getActiveTab()}
+          cartCount={cart?.items?.length || 0}
           onHaptic={() => handleFeedback("light")}
           onLogout={handleLogout}
+          onNavigateHome={() => navigate("home")}
+          onNavigateLeaderboard={() => navigate("leaderboard")}
+          onNavigateOrders={() => navigate("orders")}
+          onNavigateProfile={() => navigate("profile")}
+          onNavigateStudio={() => navigate("studio")}
+          onOpenCart={handleOpenCart}
+          showMobile={!selectedProduct}
         />
       )}
 
       <AppRouter
         currentView={currentView}
-        selectedProduct={selectedProduct}
         legalDoc={legalDoc}
-        paymentResultOrderId={paymentResultOrderId}
+        onAddToCart={handleAddToCart}
+        onBackToCatalog={handleBackToCatalog}
+        onHaptic={handleFeedback}
         onNavigate={navigate}
         onNavigateLegal={handleNavigateLegal}
-        onProductSelect={handleProductSelect}
-        onBackToCatalog={handleBackToCatalog}
-        onAddToCart={handleAddToCart}
         onOpenSupport={handleOpenSupport}
-        onHaptic={handleFeedback}
+        onProductSelect={handleProductSelect}
+        paymentResultOrderId={paymentResultOrderId}
+        selectedProduct={selectedProduct}
       />
 
       <Suspense fallback={null}>
@@ -555,9 +555,9 @@ function NewAppInner() {
         {isCheckoutOpen && (
           <Suspense fallback={null}>
             <CheckoutModalConnected
+              onAwaitingPayment={handleAwaitingPayment}
               onClose={handleCloseCheckout}
               onSuccess={handleCheckoutSuccess}
-              onAwaitingPayment={handleAwaitingPayment}
             />
           </Suspense>
         )}
@@ -565,24 +565,24 @@ function NewAppInner() {
 
       {currentView !== "studio" && (
         <SupportChatConnected
+          initialContext={supportContext}
           isOpen={isSupportWidgetOpen}
+          onHaptic={() => handleFeedback("light")}
           onToggle={(val) => {
             setIsSupportWidgetOpen(val);
             if (!val) setSupportContext(null);
           }}
-          onHaptic={() => handleFeedback("light")}
           raiseOnMobile={currentView === "leaderboard"}
-          initialContext={supportContext}
         />
       )}
 
       {isBooted && (
         <BackgroundMusic
+          autoPlay={true}
           key="background-music-persistent"
+          loop={true}
           src="/sound.ogg"
           volume={0.2}
-          autoPlay={true}
-          loop={true}
         />
       )}
     </AppLayout>
@@ -596,9 +596,9 @@ function NewApp() {
   return (
     <LocaleProvider>
       <HUDProvider
-        position="top-right"
-        maxNotifications={UI.HUD_MAX_NOTIFICATIONS}
         defaultDuration={UI.HUD_DURATION}
+        maxNotifications={UI.HUD_MAX_NOTIFICATIONS}
+        position="top-right"
       >
         <CyberModalProvider>
           <NewAppInner />

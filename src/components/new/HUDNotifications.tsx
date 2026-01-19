@@ -165,42 +165,35 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
 
   return (
     <motion.div
-      layout
-      initial={{
-        opacity: 0,
-        x: isRight ? 100 : -100,
-        scale: 0.9,
-      }}
       animate={{
         opacity: 1,
         x: 0,
         scale: 1,
       }}
+      className={`group relative cursor-pointer border-l-2 ${config.borderColor} ${config.bgColor}backdrop-blur-md min-w-[280px] max-w-[360px] border border-white/5 p-3 shadow-[0_4px_20px_rgba(0,0,0,0.5)] transition-colors hover:border-white/10`}
       exit={{
         opacity: 0,
         x: isRight ? 100 : -100,
         scale: 0.9,
       }}
+      initial={{
+        opacity: 0,
+        x: isRight ? 100 : -100,
+        scale: 0.9,
+      }}
+      layout
+      onClick={() => onRemove(notification.id)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       transition={{
         type: "spring",
         stiffness: 500,
         damping: 30,
       }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onClick={() => onRemove(notification.id)}
-      className={`
-        relative cursor-pointer group
-        border-l-2 ${config.borderColor} ${config.bgColor}
-        backdrop-blur-md border border-white/5
-        p-3 min-w-[280px] max-w-[360px]
-        shadow-[0_4px_20px_rgba(0,0,0,0.5)]
-        hover:border-white/10 transition-colors
-      `}
     >
       {/* Scanline effect */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-[0.02]"
+        className="pointer-events-none absolute inset-0 opacity-[0.02]"
         style={{
           backgroundImage:
             "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.1) 2px, rgba(255,255,255,0.1) 4px)",
@@ -208,20 +201,20 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
       />
 
       {/* Header row */}
-      <div className="flex items-center gap-2 mb-1">
+      <div className="mb-1 flex items-center gap-2">
         <span className={`${config.textColor}`}>{config.icon}</span>
         <span className="font-mono text-[10px] text-gray-500">{config.prefix}</span>
-        <span className="font-mono text-[10px] text-gray-600 ml-auto">{timestamp}</span>
+        <span className="ml-auto font-mono text-[10px] text-gray-600">{timestamp}</span>
       </div>
 
       {/* Title */}
-      <div className={`font-mono text-xs font-bold uppercase tracking-wide ${config.textColor}`}>
+      <div className={`font-bold font-mono text-xs uppercase tracking-wide ${config.textColor}`}>
         {notification.title}
       </div>
 
       {/* Message */}
       {notification.message && (
-        <div className="font-mono text-[11px] text-gray-400 mt-1 leading-relaxed">
+        <div className="mt-1 font-mono text-[11px] text-gray-400 leading-relaxed">
           {notification.message}
         </div>
       )}
@@ -229,15 +222,15 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
       {/* Progress bar */}
       {notification.progress !== undefined && (
         <div className="mt-2">
-          <div className="h-1 bg-gray-800 rounded-full overflow-hidden">
+          <div className="h-1 overflow-hidden rounded-full bg-gray-800">
             <motion.div
+              animate={{ width: `${notification.progress}%` }}
               className={`h-full ${notification.type === "success" ? "bg-pandora-cyan" : "bg-white/50"}`}
               initial={{ width: 0 }}
-              animate={{ width: `${notification.progress}%` }}
               transition={{ duration: 0.3 }}
             />
           </div>
-          <div className="font-mono text-[9px] text-gray-500 mt-1 text-right">
+          <div className="mt-1 text-right font-mono text-[9px] text-gray-500">
             {notification.progress}%
           </div>
         </div>
@@ -246,16 +239,16 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
       {/* Auto-dismiss progress indicator */}
       {notification.duration && notification.duration > 0 && !isHovered && (
         <motion.div
+          animate={{ width: "0%" }}
           className="absolute bottom-0 left-0 h-[2px] bg-white/20"
           initial={{ width: "100%" }}
-          animate={{ width: "0%" }}
           transition={{ duration: notification.duration / 1000, ease: "linear" }}
         />
       )}
 
       {/* Close hint */}
-      <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <XCircle size={12} className="text-gray-500" />
+      <div className="absolute top-1 right-1 opacity-0 transition-opacity group-hover:opacity-100">
+        <XCircle className="text-gray-500" size={12} />
       </div>
     </motion.div>
   );
@@ -409,15 +402,11 @@ export const HUDProvider: React.FC<HUDProviderProps> = ({
 
       {/* Notifications Container */}
       <div
-        className={`
-          fixed ${positionClasses[position]} z-[9998]
-          flex flex-col gap-2
-          pointer-events-none
-        `}
+        className={`fixed ${positionClasses[position]} pointer-events-none z-[9998] flex flex-col gap-2`}
       >
         <AnimatePresence mode="popLayout">
           {notifications.map((notification) => (
-            <div key={notification.id} className="pointer-events-auto">
+            <div className="pointer-events-auto" key={notification.id}>
               <NotificationItem
                 notification={notification}
                 onRemove={removeNotification}

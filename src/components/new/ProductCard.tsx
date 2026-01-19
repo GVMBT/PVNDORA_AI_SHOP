@@ -39,7 +39,7 @@ const HexStream = () => {
   // Static hex values for decorative display (not security-critical)
   const hexValues = ["A3F2", "B7E1", "C9D4", "D2A8", "E5B3", "F1C7", "A8D9", "B4E6"] as const;
   return (
-    <div className="flex flex-col text-[8px] font-mono text-pandora-cyan/60 leading-tight opacity-50">
+    <div className="flex flex-col font-mono text-[8px] text-pandora-cyan/60 leading-tight opacity-50">
       {hexValues.map((hex) => (
         <span key={hex}>0x{hex}</span>
       ))}
@@ -103,47 +103,47 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
+      className="group relative flex cursor-pointer flex-col overflow-hidden border border-white/10 bg-[#0a0a0a] shadow-lg transition-all duration-300 hover:border-pandora-cyan/50 hover:shadow-[0_0_30px_rgba(0,255,255,0.1)]"
       exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.2 }}
+      initial={{ opacity: 0, scale: 0.95 }}
+      layout
       onClick={() => onSelect(product)}
-      onMouseMove={handleCardMouseMove}
       onMouseLeave={handleCardMouseLeave}
-      className="group relative bg-[#0a0a0a] border border-white/10 flex flex-col overflow-hidden hover:border-pandora-cyan/50 transition-all duration-300 cursor-pointer shadow-lg hover:shadow-[0_0_30px_rgba(0,255,255,0.1)]"
+      onMouseMove={handleCardMouseMove}
+      transition={{ duration: 0.2 }}
     >
       {/* Technical Header */}
-      <div className="flex justify-between items-center px-4 py-2 border-b border-white/5 bg-white/[0.02] relative z-20">
-        <span className="text-[9px] font-mono text-gray-500">{product.sku}</span>
+      <div className="relative z-20 flex items-center justify-between border-white/5 border-b bg-white/[0.02] px-4 py-2">
+        <span className="font-mono text-[9px] text-gray-500">{product.sku}</span>
         <div className="flex items-center gap-2">
           <div
-            className={`w-1.5 h-1.5 rounded-full ${statusConfig.color} ${statusConfig.pulse ? "animate-pulse" : ""}`}
+            className={`h-1.5 w-1.5 rounded-full ${statusConfig.color} ${statusConfig.pulse ? "animate-pulse" : ""}`}
           />
-          <span className={`text-[9px] font-mono uppercase ${statusConfig.textColor}`}>
+          <span className={`font-mono text-[9px] uppercase ${statusConfig.textColor}`}>
             {statusConfig.label}
           </span>
         </div>
       </div>
 
       {/* Image & Holographic Grid Section */}
-      <div className="h-40 w-full relative overflow-hidden bg-black/50">
+      <div className="relative h-40 w-full overflow-hidden bg-black/50">
         {/* Optimized Media Component (supports video/particles) */}
         <ProductCardMedia
-          image={product.image}
-          video={product.video}
-          useParticles={product.popular} // Enable particles for popular items
+          alt={product.name}
+          className="transition-transform duration-700 group-hover:scale-105"
+          image={product.image} // Enable particles for popular items
           parallaxX={cardX}
           parallaxY={cardY}
-          alt={product.name}
-          className="group-hover:scale-105 transition-transform duration-700"
+          useParticles={product.popular}
+          video={product.video}
         />
 
         {/* --- HOLOGRAPHIC GRID PROJECTION --- */}
-        <div className="absolute inset-0 z-20 pointer-events-none overflow-hidden opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden opacity-0 transition-opacity duration-300 group-hover:opacity-100">
           {/* 1. Moving Grid (Waterflow Effect) */}
           <div
-            className="absolute -top-[100%] left-0 w-full h-[300%] animate-[scan_6s_linear_infinite]"
+            className="absolute -top-[100%] left-0 h-[300%] w-full animate-[scan_6s_linear_infinite]"
             style={{
               backgroundImage:
                 "linear-gradient(to right, rgba(0, 255, 255, 0.15) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 255, 255, 0.15) 1px, transparent 1px)",
@@ -155,50 +155,50 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
           {/* 2. Central Targeting Reticle (Rotating) */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-16 h-16 border border-pandora-cyan/30 rounded-full flex items-center justify-center animate-[spin_4s_linear_infinite]">
-              <div className="w-12 h-12 border-t border-b border-pandora-cyan/60 rounded-full" />
+            <div className="flex h-16 w-16 animate-[spin_4s_linear_infinite] items-center justify-center rounded-full border border-pandora-cyan/30">
+              <div className="h-12 w-12 rounded-full border-pandora-cyan/60 border-t border-b" />
             </div>
-            <Crosshair size={24} className="text-pandora-cyan absolute" />
+            <Crosshair className="absolute text-pandora-cyan" size={24} />
           </div>
 
           {/* 3. Data Stream (Right Side) */}
-          <div className="absolute right-1 top-2 bottom-2 w-8 overflow-hidden flex flex-col justify-center items-end">
+          <div className="absolute top-2 right-1 bottom-2 flex w-8 flex-col items-end justify-center overflow-hidden">
             <HexStream />
           </div>
 
           {/* 4. Scanning Bar (Visual Lead) */}
-          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent via-pandora-cyan/10 to-transparent animate-[scan_2s_linear_infinite] opacity-50" />
+          <div className="absolute top-0 left-0 h-full w-full animate-[scan_2s_linear_infinite] bg-gradient-to-b from-transparent via-pandora-cyan/10 to-transparent opacity-50" />
         </div>
 
         {/* --- TACTICAL BRACKETS (Corner Snapping) --- */}
-        <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-pandora-cyan z-30 transition-all duration-200 transform -translate-x-2 -translate-y-2 opacity-0 group-hover:translate-x-1 group-hover:translate-y-1 group-hover:opacity-100" />
-        <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-pandora-cyan z-30 transition-all duration-200 transform translate-x-2 -translate-y-2 opacity-0 group-hover:-translate-x-1 group-hover:translate-y-1 group-hover:opacity-100" />
-        <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-pandora-cyan z-30 transition-all duration-200 transform -translate-x-2 translate-y-2 opacity-0 group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:opacity-100" />
-        <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-pandora-cyan z-30 transition-all duration-200 transform translate-x-2 translate-y-2 opacity-0 group-hover:-translate-x-1 group-hover:-translate-y-1 group-hover:opacity-100" />
+        <div className="absolute top-0 left-0 z-30 h-3 w-3 -translate-x-2 -translate-y-2 transform border-pandora-cyan border-t-2 border-l-2 opacity-0 transition-all duration-200 group-hover:translate-x-1 group-hover:translate-y-1 group-hover:opacity-100" />
+        <div className="absolute top-0 right-0 z-30 h-3 w-3 translate-x-2 -translate-y-2 transform border-pandora-cyan border-t-2 border-r-2 opacity-0 transition-all duration-200 group-hover:-translate-x-1 group-hover:translate-y-1 group-hover:opacity-100" />
+        <div className="absolute bottom-0 left-0 z-30 h-3 w-3 -translate-x-2 translate-y-2 transform border-pandora-cyan border-b-2 border-l-2 opacity-0 transition-all duration-200 group-hover:translate-x-1 group-hover:-translate-y-1 group-hover:opacity-100" />
+        <div className="absolute right-0 bottom-0 z-30 h-3 w-3 translate-x-2 translate-y-2 transform border-pandora-cyan border-r-2 border-b-2 opacity-0 transition-all duration-200 group-hover:-translate-x-1 group-hover:-translate-y-1 group-hover:opacity-100" />
 
         {/* Trending Badge */}
         {product.popular && (
-          <div className="absolute top-2 left-2 bg-pandora-cyan text-black text-[9px] font-bold px-2 py-0.5 uppercase tracking-wider flex items-center gap-1 z-30 shadow-[0_0_10px_#00FFFF]">
-            <Zap size={8} fill="currentColor" /> {t("catalog.card.trending")}
+          <div className="absolute top-2 left-2 z-30 flex items-center gap-1 bg-pandora-cyan px-2 py-0.5 font-bold text-[9px] text-black uppercase tracking-wider shadow-[0_0_10px_#00FFFF]">
+            <Zap fill="currentColor" size={8} /> {t("catalog.card.trending")}
           </div>
         )}
       </div>
 
       {/* Info Body */}
-      <div className="p-4 flex flex-col flex-grow relative bg-[#0a0a0a]">
+      <div className="relative flex flex-grow flex-col bg-[#0a0a0a] p-4">
         <div className="mb-4">
-          <div className="flex justify-between items-start">
-            <h3 className="text-sm font-display font-bold text-white tracking-wide group-hover:text-pandora-cyan transition-colors line-clamp-1">
+          <div className="flex items-start justify-between">
+            <h3 className="line-clamp-1 font-bold font-display text-sm text-white tracking-wide transition-colors group-hover:text-pandora-cyan">
               {product.name}
             </h3>
-            <span className="text-[9px] font-mono text-gray-500 border border-white/10 px-1.5 rounded bg-white/5">
+            <span className="rounded border border-white/10 bg-white/5 px-1.5 font-mono text-[9px] text-gray-500">
               {product.category}
             </span>
           </div>
-          <div className="w-full h-px bg-white/10 my-3 group-hover:bg-pandora-cyan/30 transition-colors" />
+          <div className="my-3 h-px w-full bg-white/10 transition-colors group-hover:bg-pandora-cyan/30" />
 
           {/* Mini Specs */}
-          <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-gray-400">
+          <div className="grid grid-cols-2 gap-2 font-mono text-[10px] text-gray-400">
             <div className="flex items-center gap-1">
               <HardDrive size={10} /> {t("catalog.card.warranty", { hours: product.warranty })}
             </div>
@@ -210,20 +210,20 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
         <div className="mt-auto flex items-center justify-between">
           <div className="flex flex-col">
-            <span className="text-[9px] text-gray-600 font-mono uppercase">
+            <span className="font-mono text-[9px] text-gray-600 uppercase">
               {t("catalog.creditsRequired")}
             </span>
-            <div className="text-lg font-bold text-white group-hover:text-pandora-cyan transition-colors">
+            <div className="font-bold text-lg text-white transition-colors group-hover:text-pandora-cyan">
               {formatPrice(product.price, product.currency)}
             </div>
           </div>
           <button
-            type="button"
+            className="group/btn border border-white/10 bg-white/5 p-2 text-white shadow-none transition-all hover:border-pandora-cyan hover:bg-pandora-cyan hover:text-black hover:shadow-[0_0_15px_#00FFFF]"
             onClick={(e) => {
               e.stopPropagation();
               onAddToCart(product, 1);
             }}
-            className="bg-white/5 hover:bg-pandora-cyan text-white hover:text-black p-2 border border-white/10 hover:border-pandora-cyan transition-all group/btn shadow-none hover:shadow-[0_0_15px_#00FFFF]"
+            type="button"
           >
             <ShoppingCart size={16} />
           </button>

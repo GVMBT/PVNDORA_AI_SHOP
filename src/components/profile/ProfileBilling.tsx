@@ -153,16 +153,16 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
   };
 
   return (
-    <div className="border border-white/10 bg-[#050505] overflow-hidden">
+    <div className="overflow-hidden border border-white/10 bg-[#050505]">
       {/* Header */}
-      <div className="bg-[#0a0a0a] border-b border-white/10 p-4 flex items-center justify-between">
+      <div className="flex items-center justify-between border-white/10 border-b bg-[#0a0a0a] p-4">
         <div className="flex items-center gap-2">
-          <History size={14} className="text-pandora-cyan" />
-          <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-white/90">
+          <History className="text-pandora-cyan" size={14} />
+          <div className="font-bold font-mono text-[10px] text-white/90 uppercase tracking-widest">
             {t("profile.billing.title")}
           </div>
         </div>
-        <div className="text-[9px] font-mono text-gray-500 uppercase">
+        <div className="font-mono text-[9px] text-gray-500 uppercase">
           {localizedLogs.length} LOGS DETECTED
         </div>
       </div>
@@ -170,17 +170,17 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
       <div className="p-0 font-mono text-xs">
         {localizedLogs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-gray-600">
-            <div className="w-12 h-12 rounded-full border border-white/5 flex items-center justify-center mb-4">
-              <History size={20} className="opacity-20" />
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-white/5">
+              <History className="opacity-20" size={20} />
             </div>
-            <span className="uppercase tracking-[0.2em] text-[9px] font-bold">
+            <span className="font-bold text-[9px] uppercase tracking-[0.2em]">
               {t("profile.billing.noTransactions")}
             </span>
           </div>
         ) : (
           <div className="divide-y divide-white/5">
             {/* Desktop Header Row (Hidden on Mobile) */}
-            <div className="hidden sm:grid grid-cols-12 gap-4 px-6 py-3 bg-white/[0.02] border-b border-white/5 text-[9px] font-bold text-gray-500 uppercase tracking-wider">
+            <div className="hidden grid-cols-12 gap-4 border-white/5 border-b bg-white/[0.02] px-6 py-3 font-bold text-[9px] text-gray-500 uppercase tracking-wider sm:grid">
               <div className="col-span-2 flex items-center gap-2">ID | Type</div>
               <div className="col-span-5">Source / Activity</div>
               <div className="col-span-3 text-right">Amount</div>
@@ -189,12 +189,12 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
 
             {localizedLogs.map((log) => (
               <div
+                className="group relative overflow-hidden px-4 py-4 transition-all duration-200 hover:bg-white/[0.03] sm:px-6 sm:py-3"
                 key={log.id}
-                className="group px-4 sm:px-6 py-4 sm:py-3 hover:bg-white/[0.03] transition-all duration-200 relative overflow-hidden"
               >
                 {/* Visual indicator bar */}
                 <div
-                  className={`absolute left-0 top-0 bottom-0 w-[2px] transition-all duration-300 ${
+                  className={`absolute top-0 bottom-0 left-0 w-[2px] transition-all duration-300 ${
                     log.isIncome
                       ? "bg-green-500/0 group-hover:bg-green-500/50"
                       : "bg-pandora-cyan/0 group-hover:bg-pandora-cyan/50"
@@ -202,22 +202,22 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
                 />
 
                 {/* Desktop View */}
-                <div className="hidden sm:grid grid-cols-12 gap-4 items-center">
+                <div className="hidden grid-cols-12 items-center gap-4 sm:grid">
                   {/* ID & Type */}
                   <div className="col-span-2 flex items-center gap-3">
                     <div
-                      className={`p-2 rounded-sm ${
+                      className={`rounded-sm p-2 ${
                         log.isIncome ? "bg-green-500/10 text-green-500" : "bg-white/5 text-gray-400"
                       }`}
                     >
                       {log.isIncome ? <ArrowUpRight size={14} /> : <ArrowDownLeft size={14} />}
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-gray-600 text-[9px] leading-none uppercase tracking-tighter">
+                      <span className="text-[9px] text-gray-600 uppercase leading-none tracking-tighter">
                         #{log.id}
                       </span>
                       <span
-                        className={`text-[10px] font-bold ${
+                        className={`font-bold text-[10px] ${
                           log.isIncome ? "text-green-500/80" : "text-pandora-cyan/80"
                         }`}
                       >
@@ -228,19 +228,19 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
 
                   {/* Source */}
                   <div className="col-span-5 flex flex-col">
-                    <span className="text-white font-bold text-sm tracking-tight group-hover:text-pandora-cyan transition-colors truncate">
+                    <span className="truncate font-bold text-sm text-white tracking-tight transition-colors group-hover:text-pandora-cyan">
                       {log.localizedSource}
                     </span>
-                    <span className="text-[10px] text-gray-500 uppercase tracking-widest opacity-50 truncate">
+                    <span className="truncate text-[10px] text-gray-500 uppercase tracking-widest opacity-50">
                       {log.details ||
                         (log.referenceId ? `#${log.referenceId.substring(0, 8)}` : "")}
                     </span>
                   </div>
 
                   {/* Amount */}
-                  <div className="col-span-3 text-right flex flex-col items-end">
+                  <div className="col-span-3 flex flex-col items-end text-right">
                     <span
-                      className={`text-base font-bold ${
+                      className={`font-bold text-base ${
                         log.isIncome ? "text-green-400" : "text-white"
                       }`}
                     >
@@ -249,8 +249,8 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
                   </div>
 
                   {/* Date */}
-                  <div className="col-span-2 text-right flex flex-col items-end justify-center">
-                    <div className="flex items-center gap-1.5 text-gray-500 group-hover:text-gray-400 transition-colors">
+                  <div className="col-span-2 flex flex-col items-end justify-center text-right">
+                    <div className="flex items-center gap-1.5 text-gray-500 transition-colors group-hover:text-gray-400">
                       <Clock size={10} />
                       <span className="text-[10px]">{log.date}</span>
                     </div>
@@ -258,11 +258,11 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
                 </div>
 
                 {/* Mobile View */}
-                <div className="sm:hidden flex flex-col gap-3">
+                <div className="flex flex-col gap-3 sm:hidden">
                   <div className="flex items-start justify-between">
                     <div className="flex gap-3">
                       <div
-                        className={`p-2.5 rounded-sm shrink-0 ${
+                        className={`shrink-0 rounded-sm p-2.5 ${
                           log.isIncome
                             ? "bg-green-500/10 text-green-500"
                             : "bg-white/5 text-gray-400"
@@ -270,14 +270,14 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
                       >
                         {log.isIncome ? <ArrowUpRight size={16} /> : <ArrowDownLeft size={16} />}
                       </div>
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-white font-bold text-sm truncate pr-2">
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate pr-2 font-bold text-sm text-white">
                           {log.localizedSource}
                         </span>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-gray-600 text-[9px] font-mono">#{log.id}</span>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <span className="font-mono text-[9px] text-gray-600">#{log.id}</span>
                           <span
-                            className={`px-1.5 py-0.5 text-[8px] font-bold border rounded-sm tracking-wider ${getLogBadgeClasses(log.isIncome, log.type)}`}
+                            className={`rounded-sm border px-1.5 py-0.5 font-bold text-[8px] tracking-wider ${getLogBadgeClasses(log.isIncome, log.type)}`}
                           >
                             {typeLabels[log.type] || log.type}
                           </span>
@@ -285,19 +285,19 @@ const ProfileBilling: React.FC<ProfileBillingProps> = ({
                       </div>
                     </div>
                     <div
-                      className={`font-bold text-base shrink-0 ${
+                      className={`shrink-0 font-bold text-base ${
                         log.isIncome ? "text-green-400" : "text-white"
                       }`}
                     >
                       {log.formattedAmount}
                     </div>
                   </div>
-                  <div className="flex items-center justify-between border-t border-white/5 pt-2 mt-1">
-                    <div className="flex items-center gap-1.5 text-gray-500 text-[9px] uppercase tracking-widest font-bold opacity-50 truncate max-w-[60%]">
+                  <div className="mt-1 flex items-center justify-between border-white/5 border-t pt-2">
+                    <div className="flex max-w-[60%] items-center gap-1.5 truncate font-bold text-[9px] text-gray-500 uppercase tracking-widest opacity-50">
                       {log.details ||
                         (log.referenceId ? `#${log.referenceId.substring(0, 8)}` : "Completed")}
                     </div>
-                    <div className="flex items-center gap-1.5 text-gray-500 text-[10px]">
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
                       <Clock size={10} />
                       <span>{log.date}</span>
                     </div>

@@ -2,22 +2,22 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 export const Scanline = () => (
-  <div className="absolute inset-0 pointer-events-none z-0">
+  <div className="pointer-events-none absolute inset-0 z-0">
     {/* CRT Scanlines */}
-    <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.15)_50%)] bg-[length:100%_3px] opacity-30" />
+    <div className="absolute inset-0 bg-[length:100%_3px] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.15)_50%)] opacity-30" />
     {/* RGB Shift */}
-    <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,0,0,0.03),rgba(0,255,0,0.01),rgba(0,0,255,0.03))] bg-[length:3px_100%] opacity-40" />
+    <div className="absolute inset-0 bg-[length:3px_100%] bg-[linear-gradient(90deg,rgba(255,0,0,0.03),rgba(0,255,0,0.01),rgba(0,0,255,0.03))] opacity-40" />
     {/* Animated scan beam */}
     <motion.div
-      className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-pandora-cyan/20 to-transparent"
       animate={{ top: ["0%", "100%"] }}
-      transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+      className="absolute right-0 left-0 h-[2px] bg-gradient-to-r from-transparent via-pandora-cyan/20 to-transparent"
+      transition={{ duration: 8, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
     />
   </div>
 );
 
 export const HexGrid = () => (
-  <div className="absolute inset-0 pointer-events-none">
+  <div className="pointer-events-none absolute inset-0">
     {/* Primary Grid */}
     <div
       className="absolute inset-0 opacity-[0.04]"
@@ -44,16 +44,16 @@ export const DataStream = ({ position }: { position: "left" | "right" }) => {
   const isLeft = position === "left";
   return (
     <div
-      className={`absolute top-20 ${isLeft ? "left-4" : "right-4"} w-32 pointer-events-none hidden lg:block`}
+      className={`absolute top-20 ${isLeft ? "left-4" : "right-4"} pointer-events-none hidden w-32 lg:block`}
     >
       <div className="space-y-1 font-mono text-[8px] text-pandora-cyan/40">
         {["RENDER", "BUFFER", "NEURAL", "CODEC", "FRAME", "SYNC"].map((label, i) => (
           <motion.div
-            key={`data-${label}`}
-            initial={{ opacity: 0 }}
             animate={{ opacity: [0.2, 0.6, 0.2] }}
-            transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
             className={`flex ${isLeft ? "justify-start" : "justify-end"}`}
+            initial={{ opacity: 0 }}
+            key={`data-${label}`}
+            transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, delay: i * 0.3 }}
           >
             <span className="tracking-wider">
               {isLeft
@@ -75,7 +75,7 @@ export const StatusOrb = ({ status }: { status: "idle" | "processing" | "ready" 
     ready: "bg-green-500 shadow-green-500/50",
   };
   return (
-    <div className={`w-2 h-2 rounded-full ${colors[status]} shadow-[0_0_10px_currentColor]`} />
+    <div className={`h-2 w-2 rounded-full ${colors[status]} shadow-[0_0_10px_currentColor]`} />
   );
 };
 
@@ -94,9 +94,9 @@ export const HUDCorner = ({
   };
   return (
     <motion.div
-      initial={{ opacity: 0.5 }}
       animate={{ opacity: active ? 1 : 0.5, scale: active ? 1.1 : 1 }}
-      className={`absolute w-6 h-6 border-pandora-cyan/50 ${styles[position]} z-20 transition-all duration-300`}
+      className={`absolute h-6 w-6 border-pandora-cyan/50 ${styles[position]} z-20 transition-all duration-300`}
+      initial={{ opacity: 0.5 }}
     />
   );
 };

@@ -56,7 +56,7 @@ export function useAdminMigrationApi() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getStats = useCallback(async (days: number = 30): Promise<MigrationStats | null> => {
+  const getStats = useCallback(async (days = 30): Promise<MigrationStats | null> => {
     setLoading(true);
     try {
       const data = await adminRequest<MigrationStats>(`/migration/stats?days=${days}`);
@@ -71,7 +71,7 @@ export function useAdminMigrationApi() {
     }
   }, []);
 
-  const getTrend = useCallback(async (days: number = 14): Promise<MigrationTrend[]> => {
+  const getTrend = useCallback(async (days = 14): Promise<MigrationTrend[]> => {
     setLoading(true);
     try {
       const data = await adminRequest<MigrationTrend[]>(`/migration/trend?days=${days}`);
@@ -86,7 +86,7 @@ export function useAdminMigrationApi() {
     }
   }, []);
 
-  const getTopProducts = useCallback(async (limit: number = 10): Promise<TopMigratingProduct[]> => {
+  const getTopProducts = useCallback(async (limit = 10): Promise<TopMigratingProduct[]> => {
     setLoading(true);
     try {
       const data = await adminRequest<TopMigratingProduct[]>(

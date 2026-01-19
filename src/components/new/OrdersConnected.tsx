@@ -54,10 +54,10 @@ const OrdersConnected: React.FC<OrdersConnectedProps> = ({ onBack, onOpenSupport
   // Loading state
   if (!isInitialized || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-2 border-pandora-cyan border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <div className="font-mono text-xs text-gray-500 uppercase tracking-widest">
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-2 border-pandora-cyan border-t-transparent" />
+          <div className="font-mono text-gray-500 text-xs uppercase tracking-widest">
             {t("common.loadingOrders")}
           </div>
         </div>
@@ -68,15 +68,15 @@ const OrdersConnected: React.FC<OrdersConnectedProps> = ({ onBack, onOpenSupport
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="text-red-500 text-6xl mb-4">⚠</div>
-          <div className="font-mono text-sm text-red-400 mb-2">CONNECTION_ERROR</div>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="max-w-md text-center">
+          <div className="mb-4 text-6xl text-red-500">⚠</div>
+          <div className="mb-2 font-mono text-red-400 text-sm">CONNECTION_ERROR</div>
           <p className="text-gray-500 text-sm">{error}</p>
           <button
-            type="button"
+            className="mt-6 border border-white/20 bg-white/10 px-6 py-2 font-mono text-white text-xs uppercase transition-colors hover:bg-white/20"
             onClick={() => getOrders()}
-            className="mt-6 px-6 py-2 bg-white/10 border border-white/20 text-white text-xs font-mono uppercase hover:bg-white/20 transition-colors"
+            type="button"
           >
             Retry Connection
           </button>
@@ -87,10 +87,10 @@ const OrdersConnected: React.FC<OrdersConnectedProps> = ({ onBack, onOpenSupport
 
   return (
     <Orders
-      orders={orders}
       onBack={onBack}
       onOpenSupport={onOpenSupport}
       onSubmitReview={handleSubmitReview}
+      orders={orders}
     />
   );
 };

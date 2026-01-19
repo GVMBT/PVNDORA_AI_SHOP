@@ -46,152 +46,148 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
   return (
     <>
       {/* Mobile Header */}
-      <div className="md:hidden h-16 border-b border-white/10 flex items-center justify-between px-4 bg-[#050505] z-50 relative">
-        <div className="font-display font-bold text-white tracking-widest flex items-center gap-2">
+      <div className="relative z-50 flex h-16 items-center justify-between border-white/10 border-b bg-[#050505] px-4 md:hidden">
+        <div className="flex items-center gap-2 font-bold font-display text-white tracking-widest">
           <Terminal className="text-red-500" size={18} /> ADMIN
         </div>
-        <button type="button" onClick={onClose} className="text-white">
+        <button className="text-white" onClick={onClose} type="button">
           <Menu size={24} />
         </button>
       </div>
 
       {/* Sidebar */}
       <div
-        className={`
-        fixed md:static inset-0 z-40 bg-[#050505] border-r border-white/10 transition-transform duration-300 flex flex-col
-        ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-        ${isCollapsed ? "md:w-20" : "md:w-64"}
-        w-64
-      `}
+        className={`fixed inset-0 z-40 flex flex-col border-white/10 border-r bg-[#050505] transition-transform duration-300 md:static ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+        ${isCollapsed ? "md:w-20" : "md:w-64"}w-64`}
       >
         <button
-          type="button"
-          className="hidden md:flex h-20 items-center px-6 border-b border-white/10 cursor-pointer hover:bg-white/5 transition-colors w-full text-left"
+          className="hidden h-20 w-full cursor-pointer items-center border-white/10 border-b px-6 text-left transition-colors hover:bg-white/5 md:flex"
           onClick={onToggleCollapse}
           title="Toggle Sidebar"
+          type="button"
         >
-          <Terminal className="text-red-500 mr-3 shrink-0" />
+          <Terminal className="mr-3 shrink-0 text-red-500" />
           {!isCollapsed && (
             <div className="overflow-hidden whitespace-nowrap">
-              <div className="font-display font-bold text-lg tracking-widest text-white">ADMIN</div>
-              <div className="text-[9px] font-mono text-red-500 uppercase">Root Access</div>
+              <div className="font-bold font-display text-lg text-white tracking-widest">ADMIN</div>
+              <div className="font-mono text-[9px] text-red-500 uppercase">Root Access</div>
             </div>
           )}
         </button>
 
-        <div className="flex-1 py-6 space-y-1 px-3 mt-16 md:mt-0">
+        <div className="mt-16 flex-1 space-y-1 px-3 py-6 md:mt-0">
           <AdminNavItem
+            active={currentView === "dashboard"}
+            collapsed={isCollapsed}
             icon={<LayoutDashboard size={18} />}
             label="Главная"
-            active={currentView === "dashboard"}
             onClick={() => {
               onViewChange("dashboard");
               onClose();
             }}
-            collapsed={isCollapsed}
           />
           <AdminNavItem
+            active={currentView === "catalog"}
+            collapsed={isCollapsed}
             icon={<Package size={18} />}
             label="Каталог"
-            active={currentView === "catalog"}
             onClick={() => {
               onViewChange("catalog");
               onClose();
             }}
-            collapsed={isCollapsed}
           />
           <AdminNavItem
+            active={currentView === "sales"}
+            collapsed={isCollapsed}
             icon={<BarChart3 size={18} />}
             label="Заказы"
-            active={currentView === "sales"}
             onClick={() => {
               onViewChange("sales");
               onClose();
             }}
-            collapsed={isCollapsed}
           />
           <AdminNavItem
+            active={currentView === "users"}
+            collapsed={isCollapsed}
             icon={<Users size={18} />}
             label="Пользователи"
-            active={currentView === "users"}
             onClick={() => {
               onViewChange("users");
               onClose();
             }}
-            collapsed={isCollapsed}
           />
           <AdminNavItem
+            active={currentView === "partners"}
+            collapsed={isCollapsed}
             icon={<Crown size={18} />}
             label="VIP Партнёры"
-            active={currentView === "partners"}
             onClick={() => {
               onViewChange("partners");
               onClose();
             }}
-            collapsed={isCollapsed}
           />
           <AdminNavItem
+            active={currentView === "support"}
+            collapsed={isCollapsed}
             icon={<LifeBuoy size={18} />}
             label="Поддержка"
-            active={currentView === "support"}
             onClick={() => {
               onViewChange("support");
               onClose();
             }}
-            collapsed={isCollapsed}
           />
           <AdminNavItem
+            active={currentView === "promo"}
+            collapsed={isCollapsed}
             icon={<Tag size={18} />}
             label="Промокоды"
-            active={currentView === "promo"}
             onClick={() => {
               onViewChange("promo");
               onClose();
             }}
-            collapsed={isCollapsed}
           />
           <AdminNavItem
+            active={currentView === "accounting"}
+            collapsed={isCollapsed}
             icon={<Calculator size={18} />}
             label="Бухгалтерия"
-            active={currentView === "accounting"}
             onClick={() => {
               onViewChange("accounting");
               onClose();
             }}
-            collapsed={isCollapsed}
           />
           <AdminNavItem
+            active={currentView === "withdrawals"}
+            collapsed={isCollapsed}
             icon={<Wallet size={18} />}
             label="Выводы"
-            active={currentView === "withdrawals"}
             onClick={() => {
               onViewChange("withdrawals");
               onClose();
             }}
-            collapsed={isCollapsed}
           />
           <AdminNavItem
+            active={currentView === "migration"}
+            collapsed={isCollapsed}
             icon={<ArrowRightLeft size={18} />}
             label="Миграция"
-            active={currentView === "migration"}
             onClick={() => {
               onViewChange("migration");
               onClose();
             }}
-            collapsed={isCollapsed}
           />
         </div>
 
-        <div className="p-4 border-t border-white/10">
+        <div className="border-white/10 border-t p-4">
           <button
-            type="button"
-            onClick={onExit}
-            className={`flex items-center gap-3 w-full text-gray-500 hover:text-white transition-colors p-2 rounded-sm hover:bg-white/5 ${
+            className={`flex w-full items-center gap-3 rounded-sm p-2 text-gray-500 transition-colors hover:bg-white/5 hover:text-white ${
               isCollapsed ? "justify-center" : ""
             }`}
+            onClick={onExit}
+            type="button"
           >
             <LogOut size={18} />
-            {!isCollapsed && <span className="text-sm font-bold uppercase">Exit System</span>}
+            {!isCollapsed && <span className="font-bold text-sm uppercase">Exit System</span>}
           </button>
         </div>
       </div>

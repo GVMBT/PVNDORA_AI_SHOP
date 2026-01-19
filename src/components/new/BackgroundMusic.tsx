@@ -131,7 +131,7 @@ const handleAudioLoadError = (
   const currentRetry = retryCountRef.current ?? 0;
   if (currentRetry < maxRetries) {
     (retryCountRef as React.MutableRefObject<number>).current = currentRetry + 1;
-    const delay = Math.min(2000 * 2 ** (currentRetry + 1), 10000);
+    const delay = Math.min(2000 * 2 ** (currentRetry + 1), 10_000);
 
     setTimeout(() => {
       if (!cancelled()) {
@@ -189,7 +189,7 @@ const setupAudioEventListeners = (
   };
 
   const handlePause = () => {
-    if (!cancelled() && !document.hidden) {
+    if (!(cancelled() || document.hidden)) {
       (isPlayingRef as React.MutableRefObject<boolean>).current = false;
       setIsPlaying(false);
     }
@@ -435,7 +435,7 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
   useEffect(() => {
     const tryPlay = () => {
       const audio = audioRef.current;
-      if (!audio || !autoPlay || isMuted || loadError || isLoading || isPlayingRef.current) {
+      if (!(audio && autoPlay) || isMuted || loadError || isLoading || isPlayingRef.current) {
         return;
       }
 
@@ -468,21 +468,21 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
   }
 
   return (
-    <div className="fixed bottom-24 right-4 z-[90] opacity-0 hover:opacity-100 transition-opacity pointer-events-none group">
+    <div className="group pointer-events-none fixed right-4 bottom-24 z-[90] opacity-0 transition-opacity hover:opacity-100">
       <button
-        type="button"
+        className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/50 transition-all hover:border-pandora-cyan/30 hover:bg-black/70"
         onClick={toggleMute}
-        className="pointer-events-auto w-10 h-10 bg-black/50 border border-white/10 rounded-full flex items-center justify-center hover:bg-black/70 hover:border-pandora-cyan/30 transition-all"
         title={isMuted ? "Unmute ambient music" : "Mute ambient music"}
+        type="button"
       >
         {isMuted ? (
-          <VolumeX size={16} className="text-gray-400" />
+          <VolumeX className="text-gray-400" size={16} />
         ) : (
-          <Volume2 size={16} className="text-pandora-cyan" />
+          <Volume2 className="text-pandora-cyan" size={16} />
         )}
       </button>
       {isLoading && (
-        <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-mono text-gray-500 whitespace-nowrap">
+        <div className="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap font-mono text-[9px] text-gray-500">
           Loading...
         </div>
       )}

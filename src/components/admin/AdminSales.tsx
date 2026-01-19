@@ -120,29 +120,29 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <h3 className="font-display font-bold text-white uppercase text-lg">Заказы</h3>
+      <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
+        <h3 className="font-bold font-display text-lg text-white uppercase">Заказы</h3>
         <div className="flex items-center gap-2">
           {pendingOrders.length > 0 && (
-            <div className="text-xs text-yellow-400 font-mono">
+            <div className="font-mono text-xs text-yellow-400">
               ⚠️ {pendingOrders.length} требуют внимания
             </div>
           )}
           <div className="relative w-full md:w-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
+            <Search className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-500" size={14} />
             <input
-              type="text"
-              placeholder="Поиск Order ID или User..."
-              value={orderSearch}
+              className="w-full border border-white/20 bg-[#0e0e0e] py-2 pr-4 pl-9 font-mono text-white text-xs outline-none focus:border-pandora-cyan md:w-64"
               onChange={(e) => setOrderSearch(e.target.value)}
-              className="w-full md:w-64 bg-[#0e0e0e] border border-white/20 pl-9 pr-4 py-2 text-xs font-mono text-white focus:border-pandora-cyan outline-none"
+              placeholder="Поиск Order ID или User..."
+              type="text"
+              value={orderSearch}
             />
           </div>
         </div>
       </div>
 
-      <div className="hidden md:block bg-[#0e0e0e] border border-white/10 rounded-sm overflow-hidden">
-        <table className="w-full text-left text-xs font-mono">
+      <div className="hidden overflow-hidden rounded-sm border border-white/10 bg-[#0e0e0e] md:block">
+        <table className="w-full text-left font-mono text-xs">
           <thead className="bg-white/5 text-gray-400 uppercase">
             <tr>
               <th className="p-4">Order ID</th>
@@ -162,15 +162,15 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
 
               return (
                 <tr
+                  className={`transition-colors hover:bg-white/5 ${isPending ? "bg-yellow-500/5" : ""}`}
                   key={o.id}
-                  className={`hover:bg-white/5 transition-colors ${isPending ? "bg-yellow-500/5" : ""}`}
                 >
                   <td className="p-4 font-bold text-pandora-cyan">{o.id}</td>
                   <td className="p-4 text-gray-400">{o.user}</td>
                   <td className="p-4 font-bold text-white">{o.product}</td>
                   <td className="p-4">
                     <span
-                      className={`text-[10px] font-mono px-2 py-0.5 rounded ${getSourceChannelStyle(o.source_channel)}`}
+                      className={`rounded px-2 py-0.5 font-mono text-[10px] ${getSourceChannelStyle(o.source_channel)}`}
                     >
                       {getSourceChannelLabel(o.source_channel)}
                     </span>
@@ -183,43 +183,43 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
                     {isPending && (
                       <div className="flex items-center justify-end gap-1">
                         <button
-                          type="button"
+                          className="rounded border border-blue-500/50 bg-blue-500/20 p-1.5 transition-colors hover:bg-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={isChecking || isProcessing}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleCheckPayment(o.id);
                           }}
-                          disabled={isChecking || isProcessing}
-                          className="p-1.5 bg-blue-500/20 border border-blue-500/50 rounded hover:bg-blue-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Проверить оплату"
+                          type="button"
                         >
                           <RefreshCw
-                            size={12}
                             className={`text-blue-400 ${isChecking ? "animate-spin" : ""}`}
+                            size={12}
                           />
                         </button>
                         <button
-                          type="button"
+                          className="rounded border border-green-500/50 bg-green-500/20 p-1.5 transition-colors hover:bg-green-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={isChecking || isProcessing}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleForceStatus(o.id, "paid");
                           }}
-                          disabled={isChecking || isProcessing}
-                          className="p-1.5 bg-green-500/20 border border-green-500/50 rounded hover:bg-green-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Отметить оплаченным"
+                          type="button"
                         >
-                          <CheckCircle size={12} className="text-green-400" />
+                          <CheckCircle className="text-green-400" size={12} />
                         </button>
                         <button
-                          type="button"
+                          className="rounded border border-red-500/50 bg-red-500/20 p-1.5 transition-colors hover:bg-red-500/30 disabled:cursor-not-allowed disabled:opacity-50"
+                          disabled={isChecking || isProcessing}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleForceStatus(o.id, "cancelled");
                           }}
-                          disabled={isChecking || isProcessing}
-                          className="p-1.5 bg-red-500/20 border border-red-500/50 rounded hover:bg-red-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           title="Отменить заказ"
+                          type="button"
                         >
-                          <XCircle size={12} className="text-red-400" />
+                          <XCircle className="text-red-400" size={12} />
                         </button>
                       </div>
                     )}
@@ -232,7 +232,7 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
       </div>
 
       {/* Mobile Orders */}
-      <div className="md:hidden space-y-4">
+      <div className="space-y-4 md:hidden">
         {filteredOrders.map((o) => {
           const isPending = o.status === "PENDING";
           const isChecking = checkingOrderId === o.id;
@@ -240,19 +240,19 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
 
           return (
             <div
+              className={`border bg-[#0e0e0e] ${isPending ? "border-yellow-500/30" : "border-white/10"} space-y-3 p-4`}
               key={o.id}
-              className={`bg-[#0e0e0e] border ${isPending ? "border-yellow-500/30" : "border-white/10"} p-4 space-y-3`}
             >
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between">
                 <span className="font-bold text-pandora-cyan text-sm">{o.id}</span>
                 <span className="text-[10px] text-gray-500">{o.date}</span>
               </div>
-              <div className="text-sm text-white font-bold">{o.product}</div>
-              <div className="flex justify-between items-center text-xs">
+              <div className="font-bold text-sm text-white">{o.product}</div>
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-400">{o.user}</span>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`text-[10px] font-mono px-2 py-0.5 rounded ${getSourceChannelStyle(o.source_channel)}`}
+                    className={`rounded px-2 py-0.5 font-mono text-[10px] ${getSourceChannelStyle(o.source_channel)}`}
                   >
                     {getSourceChannelLabel(o.source_channel, true)}
                   </span>
@@ -260,28 +260,28 @@ const AdminSales: React.FC<AdminSalesProps> = ({ orders, onRefresh }) => {
                 </div>
               </div>
               {isPending && (
-                <div className="flex gap-2 pt-2 border-t border-white/10">
+                <div className="flex gap-2 border-white/10 border-t pt-2">
                   <button
-                    type="button"
-                    onClick={() => handleCheckPayment(o.id)}
+                    className="flex-1 rounded border border-blue-500/50 bg-blue-500/20 px-3 py-1.5 text-blue-400 text-xs transition-colors hover:bg-blue-500/30 disabled:opacity-50"
                     disabled={isChecking || isProcessing}
-                    className="flex-1 px-3 py-1.5 bg-blue-500/20 border border-blue-500/50 rounded text-xs text-blue-400 hover:bg-blue-500/30 transition-colors disabled:opacity-50"
+                    onClick={() => handleCheckPayment(o.id)}
+                    type="button"
                   >
                     {isChecking ? "Проверка..." : "Проверить оплату"}
                   </button>
                   <button
-                    type="button"
-                    onClick={() => handleForceStatus(o.id, "paid")}
+                    className="flex-1 rounded border border-green-500/50 bg-green-500/20 px-3 py-1.5 text-green-400 text-xs transition-colors hover:bg-green-500/30 disabled:opacity-50"
                     disabled={isChecking || isProcessing}
-                    className="flex-1 px-3 py-1.5 bg-green-500/20 border border-green-500/50 rounded text-xs text-green-400 hover:bg-green-500/30 transition-colors disabled:opacity-50"
+                    onClick={() => handleForceStatus(o.id, "paid")}
+                    type="button"
                   >
                     Оплачен
                   </button>
                   <button
-                    type="button"
-                    onClick={() => handleForceStatus(o.id, "cancelled")}
+                    className="flex-1 rounded border border-red-500/50 bg-red-500/20 px-3 py-1.5 text-red-400 text-xs transition-colors hover:bg-red-500/30 disabled:opacity-50"
                     disabled={isChecking || isProcessing}
-                    className="flex-1 px-3 py-1.5 bg-red-500/20 border border-red-500/50 rounded text-xs text-red-400 hover:bg-red-500/30 transition-colors disabled:opacity-50"
+                    onClick={() => handleForceStatus(o.id, "cancelled")}
+                    type="button"
                   >
                     Отменить
                   </button>

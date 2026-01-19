@@ -211,7 +211,7 @@ export const useStudioStore = create<StudioStore>()(
       startGeneration: async (requestOverrides = {}) => {
         const state = get();
 
-        if (!state.prompt.trim() && !requestOverrides.prompt) {
+        if (!(state.prompt.trim() || requestOverrides.prompt)) {
           set({ generationError: "Введите промпт" });
           return null;
         }

@@ -53,12 +53,12 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
 
   return (
     <div className="mb-12">
-      <h3 className="text-xs font-mono text-gray-500 uppercase mb-4 flex items-center gap-2">
+      <h3 className="mb-4 flex items-center gap-2 font-mono text-gray-500 text-xs uppercase">
         <ShieldCheck size={14} /> {t("profile.career.title")}
         <button
-          type="button"
+          className="ml-auto flex items-center gap-1 text-[9px] text-pandora-cyan transition-colors hover:text-white"
           onClick={() => setShowExplainer(true)}
-          className="ml-auto text-pandora-cyan hover:text-white transition-colors flex items-center gap-1 text-[9px]"
+          type="button"
         >
           <HelpCircle size={12} /> {t("profile.career.howItWorks")}
         </button>
@@ -66,54 +66,56 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
 
       {/* Explainer Modal */}
       <ReferralExplainerModal
-        isOpen={showExplainer}
-        onClose={() => setShowExplainer(false)}
-        currentLevel={currentLevel.id}
-        currentTurnover={currentTurnover}
-        progressPercent={progressPercent}
-        thresholds={thresholds}
         commissions={commissions}
         currency={currency as CurrencyCode}
+        currentLevel={currentLevel.id}
+        currentTurnover={currentTurnover}
         exchangeRate={exchangeRate}
+        isOpen={showExplainer}
+        onClose={() => setShowExplainer(false)}
+        progressPercent={progressPercent}
+        thresholds={thresholds}
       />
 
-      <div className="bg-[#080808] border border-white/10 p-6 md:p-8 relative overflow-hidden group hover:border-white/20 transition-all">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
+      <div className="group relative overflow-hidden border border-white/10 bg-[#080808] p-6 transition-all hover:border-white/20 md:p-8">
+        <div className="relative z-10 flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
           {/* Current Status Info */}
-          <div className="w-full md:w-48 shrink-0">
-            <div className="text-[10px] text-gray-500 font-mono uppercase mb-1">
+          <div className="w-full shrink-0 md:w-48">
+            <div className="mb-1 font-mono text-[10px] text-gray-500 uppercase">
               {t("profile.career.currentRank")}
             </div>
             <div
-              className={`text-2xl font-display font-bold ${currentLevel.color} flex items-center gap-2`}
+              className={`font-bold font-display text-2xl ${currentLevel.color} flex items-center gap-2`}
             >
               {currentLevel.label}
               {getLevelIcon(currentLevel.id)}
             </div>
-            <div className="text-[10px] text-gray-600 mt-1 font-mono">
+            <div className="mt-1 font-mono text-[10px] text-gray-600">
               {t("profile.career.turnover")}{" "}
-              <span className="text-white font-bold">{formatPrice(currentTurnover, currency)}</span>{" "}
-              {maxTurnover === Infinity ? "" : `/ ${formatPrice(maxTurnover, currency)}`}
+              <span className="font-bold text-white">{formatPrice(currentTurnover, currency)}</span>{" "}
+              {maxTurnover === Number.POSITIVE_INFINITY
+                ? ""
+                : `/ ${formatPrice(maxTurnover, currency)}`}
             </div>
           </div>
 
           {/* Progress Bar Container */}
-          <div className="flex-1 w-full relative pt-2 pb-6 md:py-0 md:px-8">
+          <div className="relative w-full flex-1 pt-2 pb-6 md:px-8 md:py-0">
             {/* Background Track */}
-            <div className="h-3 w-full bg-black border border-white/10 rounded-sm overflow-hidden relative">
+            <div className="relative h-3 w-full overflow-hidden rounded-sm border border-white/10 bg-black">
               {/* Fill */}
               <motion.div
-                initial={{ width: 0 }}
                 animate={{ width: `${progressPercent}%` }}
+                className="relative h-full overflow-hidden bg-gradient-to-r from-gray-500 via-pandora-cyan to-white shadow-[0_0_15px_#00FFFF]"
+                initial={{ width: 0 }}
                 transition={{ duration: 1.5, ease: "circOut" }}
-                className="h-full bg-gradient-to-r from-gray-500 via-pandora-cyan to-white shadow-[0_0_15px_#00FFFF] relative overflow-hidden"
               >
                 {/* Scanline inside bar */}
-                <div className="absolute inset-0 bg-white/30 w-full h-full -skew-x-12 translate-x-[-150%] animate-[scan_2s_infinite]" />
+                <div className="absolute inset-0 h-full w-full translate-x-[-150%] -skew-x-12 animate-[scan_2s_infinite] bg-white/30" />
               </motion.div>
             </div>
             {/* Markers */}
-            <div className="flex justify-between text-[9px] font-mono text-gray-600 mt-2 absolute w-full bottom-0 md:static">
+            <div className="absolute bottom-0 mt-2 flex w-full justify-between font-mono text-[9px] text-gray-600 md:static">
               <span>{formatPrice(currentLevel.min, currency)}</span>
               {nextLevel ? (
                 <span>
@@ -129,16 +131,16 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
           </div>
 
           {/* Next Reward Preview */}
-          <div className="hidden md:flex flex-col items-end w-40 shrink-0 text-right opacity-80">
+          <div className="hidden w-40 shrink-0 flex-col items-end text-right opacity-80 md:flex">
             {nextLevel ? (
               <>
-                <div className="text-[9px] text-gray-500 font-mono uppercase mb-1">
+                <div className="mb-1 font-mono text-[9px] text-gray-500 uppercase">
                   {t("profile.career.nextUnlock")}
                 </div>
-                <div className={`text-sm font-bold ${nextLevel.color}`}>{nextLevel.label}</div>
+                <div className={`font-bold text-sm ${nextLevel.color}`}>{nextLevel.label}</div>
               </>
             ) : (
-              <div className="text-pandora-cyan font-bold text-sm">
+              <div className="font-bold text-pandora-cyan text-sm">
                 {t("profile.career.maximumClearance")}
               </div>
             )}
@@ -147,45 +149,45 @@ const ProfileCareer: React.FC<ProfileCareerProps> = ({
 
         {/* VIP Partner Application Button */}
         {!isVip && onApplyPartner && (
-          <div className="mt-6 pt-4 border-t border-white/10 relative">
+          <div className="relative mt-6 border-white/10 border-t pt-4">
             {/* Glow effect */}
-            <div className="absolute inset-0 bg-pandora-cyan/5 blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute inset-0 bg-pandora-cyan/5 opacity-0 blur-xl transition-opacity group-hover:opacity-100" />
 
             <button
-              type="button"
+              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden border border-pandora-cyan/30 bg-black/50 py-3.5 font-mono text-pandora-cyan text-xs uppercase tracking-wider transition-all hover:border-pandora-cyan/50 hover:bg-black/70"
               onClick={onApplyPartner}
-              className="relative w-full py-3.5 bg-black/50 hover:bg-black/70 border border-pandora-cyan/30 hover:border-pandora-cyan/50 text-pandora-cyan font-mono text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all group overflow-hidden"
+              type="button"
             >
               {/* Corner accents */}
-              <div className="absolute top-0 left-0 w-3 h-3 border-l-2 border-t-2 border-pandora-cyan/50 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="absolute top-0 right-0 w-3 h-3 border-r-2 border-t-2 border-pandora-cyan/50 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="absolute bottom-0 left-0 w-3 h-3 border-l-2 border-b-2 border-pandora-cyan/50 opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="absolute bottom-0 right-0 w-3 h-3 border-r-2 border-b-2 border-pandora-cyan/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute top-0 left-0 h-3 w-3 border-pandora-cyan/50 border-t-2 border-l-2 opacity-0 transition-opacity group-hover:opacity-100" />
+              <div className="absolute top-0 right-0 h-3 w-3 border-pandora-cyan/50 border-t-2 border-r-2 opacity-0 transition-opacity group-hover:opacity-100" />
+              <div className="absolute bottom-0 left-0 h-3 w-3 border-pandora-cyan/50 border-b-2 border-l-2 opacity-0 transition-opacity group-hover:opacity-100" />
+              <div className="absolute right-0 bottom-0 h-3 w-3 border-pandora-cyan/50 border-r-2 border-b-2 opacity-0 transition-opacity group-hover:opacity-100" />
 
               {/* Scanline effect */}
-              <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,rgba(0,255,255,0.03)_0px,rgba(0,255,255,0.03)_1px,transparent_1px,transparent_2px)] pointer-events-none" />
+              <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(0deg,rgba(0,255,255,0.03)_0px,rgba(0,255,255,0.03)_1px,transparent_1px,transparent_2px)]" />
 
               {/* Content */}
               <span className="relative z-10 flex items-center gap-2">
-                <ShieldCheck size={14} className="group-hover:scale-110 transition-transform" />
-                <span className="group-hover:text-white transition-colors">
+                <ShieldCheck className="transition-transform group-hover:scale-110" size={14} />
+                <span className="transition-colors group-hover:text-white">
                   {t("profile.career.eliteOperatorApply")}
                 </span>
                 <Star
+                  className="text-pandora-cyan transition-transform duration-500 group-hover:rotate-180"
                   size={12}
-                  className="text-pandora-cyan group-hover:rotate-180 transition-transform duration-500"
                 />
               </span>
 
               {/* Hover glow */}
-              <div className="absolute inset-0 bg-pandora-cyan/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+              <div className="absolute inset-0 translate-y-full bg-pandora-cyan/10 transition-transform duration-300 group-hover:translate-y-0" />
             </button>
           </div>
         )}
 
         {isVip && (
-          <div className="mt-6 pt-4 border-t border-white/10 text-center">
-            <div className="inline-flex items-center gap-2 text-pandora-cyan font-mono text-xs uppercase bg-pandora-cyan/10 border border-pandora-cyan/30 px-4 py-2">
+          <div className="mt-6 border-white/10 border-t pt-4 text-center">
+            <div className="inline-flex items-center gap-2 border border-pandora-cyan/30 bg-pandora-cyan/10 px-4 py-2 font-mono text-pandora-cyan text-xs uppercase">
               <ShieldCheck size={14} />
               <span>{t("profile.career.eliteOperatorActive")}</span>
               <Star size={12} />

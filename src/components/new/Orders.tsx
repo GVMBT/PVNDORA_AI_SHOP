@@ -80,9 +80,8 @@ const Orders: React.FC<OrdersProps> = ({
     setRevealedKeys((prev) => {
       if (prev.includes(id)) {
         return prev.filter((k) => k !== id);
-      } else {
-        return [...prev, id];
       }
+      return [...prev, id];
     });
   }, []);
 
@@ -96,7 +95,7 @@ const Orders: React.FC<OrdersProps> = ({
   );
 
   const submitReview = useCallback(async () => {
-    if (!reviewModal.itemId || !reviewModal.orderId) return;
+    if (!(reviewModal.itemId && reviewModal.orderId)) return;
 
     setIsSubmitting(true);
     try {
@@ -170,29 +169,29 @@ const Orders: React.FC<OrdersProps> = ({
   if (ordersState.length === 0) {
     return (
       <motion.div
-        initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
+        className="relative min-h-screen px-4 pt-20 pb-32 text-white md:px-8 md:pt-24 md:pl-28"
         exit={{ opacity: 0 }}
-        className="min-h-screen text-white pt-20 md:pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
+        initial={{ opacity: 0 }}
       >
-        <div className="max-w-6xl mx-auto">
+        <div className="mx-auto max-w-6xl">
           <button
-            type="button"
+            className="mb-8 flex items-center gap-2 font-mono text-[10px] text-gray-500 transition-colors hover:text-pandora-cyan"
             onClick={onBack}
-            className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-8 transition-colors"
+            type="button"
           >
             <ArrowLeft size={12} /> {t("empty.returnToBase").toUpperCase()}
           </button>
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <Package size={64} className="text-gray-700 mb-6" />
-            <h2 className="text-2xl font-bold text-white mb-2">
+            <Package className="mb-6 text-gray-700" size={64} />
+            <h2 className="mb-2 font-bold text-2xl text-white">
               {t("empty.orders").toUpperCase()}
             </h2>
-            <p className="text-gray-500 font-mono text-sm max-w-md">{t("empty.ordersHint")}</p>
+            <p className="max-w-md font-mono text-gray-500 text-sm">{t("empty.ordersHint")}</p>
             <button
-              type="button"
+              className="mt-8 border border-pandora-cyan bg-pandora-cyan/10 px-6 py-3 font-mono text-pandora-cyan text-sm uppercase transition-colors hover:bg-pandora-cyan/20"
               onClick={onBack}
-              className="mt-8 px-6 py-3 bg-pandora-cyan/10 border border-pandora-cyan text-pandora-cyan font-mono text-sm uppercase hover:bg-pandora-cyan/20 transition-colors"
+              type="button"
             >
               {t("empty.browseCatalog")}
             </button>
@@ -204,42 +203,42 @@ const Orders: React.FC<OrdersProps> = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
+      className="relative min-h-screen px-4 pt-20 pb-32 text-white md:px-8 md:pt-24 md:pl-28"
       exit={{ opacity: 0 }}
-      className="min-h-screen text-white pt-20 md:pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
+      initial={{ opacity: 0 }}
     >
-      <div className="max-w-7xl mx-auto relative z-10">
+      <div className="relative z-10 mx-auto max-w-7xl">
         {/* === UNIFIED HEADER (Leaderboard Style) === */}
         <div className="mb-8 md:mb-16">
           <button
-            type="button"
+            className="mb-4 flex items-center gap-2 font-mono text-[10px] text-gray-500 transition-colors hover:text-pandora-cyan"
             onClick={onBack}
-            className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-pandora-cyan mb-4 transition-colors"
+            type="button"
           >
             <ArrowLeft size={12} /> {t("empty.returnToBase").toUpperCase()}
           </button>
-          <h1 className="text-3xl sm:text-4xl md:text-6xl font-display font-black text-white uppercase tracking-tighter leading-[0.9] mb-4">
+          <h1 className="mb-4 font-black font-display text-3xl text-white uppercase leading-[0.9] tracking-tighter sm:text-4xl md:text-6xl">
             {tEn("orders.pageTitle")}
           </h1>
-          <div className="flex items-center gap-2 text-[10px] font-mono text-pandora-cyan tracking-widest uppercase">
+          <div className="flex items-center gap-2 font-mono text-[10px] text-pandora-cyan uppercase tracking-widest">
             <Terminal size={12} />
             <span>{t("orders.subtitle")}</span>
           </div>
         </div>
 
         {/* --- TABS --- */}
-        <div className="flex gap-8 mb-10 pl-2 overflow-x-auto">
+        <div className="mb-10 flex gap-8 overflow-x-auto pl-2">
           {[
             { id: "all", label: t("orders.tabs.all").toUpperCase() },
             { id: "active", label: t("orders.tabs.active").toUpperCase() },
             { id: "log", label: t("orders.tabs.completed").toUpperCase() },
           ].map((tab) => (
             <button
-              type="button"
+              className="relative whitespace-nowrap pb-2 font-bold font-mono text-sm uppercase tracking-wider transition-colors"
               key={tab.id}
               onClick={() => setActiveTab(tab.id as TabId)}
-              className="relative pb-2 text-sm font-mono font-bold tracking-wider uppercase transition-colors whitespace-nowrap"
+              type="button"
             >
               <span
                 className={
@@ -250,8 +249,8 @@ const Orders: React.FC<OrdersProps> = ({
               </span>
               {activeTab === tab.id && (
                 <motion.div
+                  className="absolute bottom-0 left-0 h-0.5 w-full bg-pandora-cyan shadow-[0_0_10px_#00FFFF]"
                   layoutId="activeOrderTab"
-                  className="absolute bottom-0 left-0 w-full h-0.5 bg-pandora-cyan shadow-[0_0_10px_#00FFFF]"
                 />
               )}
             </button>
@@ -262,30 +261,30 @@ const Orders: React.FC<OrdersProps> = ({
         <div className="space-y-8">
           {filteredOrders.map((order) => (
             <OrderCard
-              key={order.id}
-              order={order}
-              revealedKeys={revealedKeys}
               copiedId={copiedId}
-              onToggleReveal={toggleReveal}
+              key={order.id}
               onCopy={handleCopy}
               onOpenReview={openReviewModal}
               onOpenSupport={onOpenSupport}
+              onToggleReveal={toggleReveal}
+              order={order}
+              revealedKeys={revealedKeys}
             />
           ))}
         </div>
 
         {/* Footer */}
         {onOpenSupport && (
-          <div className="mt-16 border-t border-white/10 pt-8 text-center">
+          <div className="mt-16 border-white/10 border-t pt-8 text-center">
             <button
-              type="button"
+              className="group inline-flex cursor-pointer flex-col items-center gap-2 border-0 bg-transparent"
               onClick={() => onOpenSupport()}
-              className="inline-flex flex-col items-center gap-2 group cursor-pointer bg-transparent border-0"
+              type="button"
             >
-              <div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center border border-white/10 group-hover:border-pandora-cyan group-hover:text-pandora-cyan transition-all">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/5 transition-all group-hover:border-pandora-cyan group-hover:text-pandora-cyan">
                 <Box size={18} />
               </div>
-              <span className="text-[10px] font-mono text-gray-500 group-hover:text-white transition-colors">
+              <span className="font-mono text-[10px] text-gray-500 transition-colors group-hover:text-white">
                 {t("orders.initSupport").toUpperCase()}
               </span>
             </button>
@@ -296,16 +295,16 @@ const Orders: React.FC<OrdersProps> = ({
       {/* === REVIEW MODAL === */}
       <OrderReviewModal
         isOpen={reviewModal.isOpen}
+        isSubmitting={isSubmitting}
         itemId={reviewModal.itemId}
         itemName={reviewModal.itemName}
+        onClose={() => setReviewModal({ ...reviewModal, isOpen: false })}
+        onRatingChange={setRating}
+        onSubmit={submitReview}
+        onTextChange={setReviewText}
         orderId={reviewModal.orderId}
         rating={rating}
         reviewText={reviewText}
-        isSubmitting={isSubmitting}
-        onClose={() => setReviewModal({ ...reviewModal, isOpen: false })}
-        onRatingChange={setRating}
-        onTextChange={setReviewText}
-        onSubmit={submitReview}
       />
     </motion.div>
   );

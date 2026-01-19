@@ -76,25 +76,25 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-[#0e0e0e] border border-white/10 p-4 rounded-sm">
-        <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+      <div className="flex flex-col items-center justify-between gap-4 rounded-sm border border-white/10 bg-[#0e0e0e] p-4 md:flex-row">
+        <div className="flex w-full flex-col gap-4 md:w-auto md:flex-row">
           <div className="relative w-full md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
+            <Search className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-500" size={14} />
             <input
-              type="text"
-              value={searchQuery}
+              className="w-full border border-white/20 bg-black py-2 pr-4 pl-9 font-mono text-white text-xs outline-none focus:border-pandora-cyan"
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search SKU..."
-              className="w-full bg-black border border-white/20 pl-9 pr-4 py-2 text-xs font-mono text-white focus:border-pandora-cyan outline-none"
+              type="text"
+              value={searchQuery}
             />
           </div>
 
           {/* Category Filter Button (Mobile Drawer Trigger) */}
-          <div className="relative md:hidden w-full">
+          <div className="relative w-full md:hidden">
             <button
-              type="button"
+              className="flex w-full items-center justify-between gap-2 border border-white/20 bg-black px-4 py-2 font-mono text-white text-xs transition-colors hover:border-pandora-cyan"
               onClick={() => setIsCategoryDrawerOpen(true)}
-              className="w-full flex items-center justify-between gap-2 bg-black border border-white/20 px-4 py-2 text-xs font-mono text-white hover:border-pandora-cyan transition-colors"
+              type="button"
             >
               <div className="flex items-center gap-2">
                 <Filter size={14} />
@@ -105,43 +105,43 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
           </div>
 
           {/* Category Filter Dropdown (Desktop) */}
-          <div ref={categoryDropdownRef} className="hidden md:block relative">
+          <div className="relative hidden md:block" ref={categoryDropdownRef}>
             <button
-              type="button"
+              className="flex min-w-[160px] items-center justify-between gap-2 border border-white/20 bg-black px-4 py-2 font-mono text-white text-xs transition-colors hover:border-pandora-cyan"
               onClick={() => setIsCategoryDrawerOpen(!isCategoryDrawerOpen)}
-              className="flex items-center justify-between gap-2 bg-black border border-white/20 px-4 py-2 text-xs font-mono text-white hover:border-pandora-cyan transition-colors min-w-[160px]"
+              type="button"
             >
               <div className="flex items-center gap-2">
                 <Filter size={14} />
                 <span>{PRODUCT_CATEGORY_LABELS[activeCategory] || activeCategory}</span>
               </div>
               <ChevronDown
-                size={14}
                 className={`transition-transform ${isCategoryDrawerOpen ? "rotate-180" : ""}`}
+                size={14}
               />
             </button>
 
             <AnimatePresence>
               {isCategoryDrawerOpen && (
                 <motion.div
-                  initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
+                  className="absolute top-full right-0 left-0 z-50 mt-2 border border-white/20 bg-[#0a0a0a] shadow-xl"
                   exit={{ opacity: 0, y: -10 }}
-                  className="absolute top-full left-0 right-0 mt-2 bg-[#0a0a0a] border border-white/20 z-50 shadow-xl"
+                  initial={{ opacity: 0, y: -10 }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   {PRODUCT_CATEGORIES.map((cat) => (
                     <button
-                      type="button"
+                      className="flex w-full items-center justify-between px-4 py-2 text-left font-mono text-xs hover:bg-white/10 hover:text-pandora-cyan"
                       key={cat}
                       onClick={() => {
                         setActiveCategory(cat);
                         setIsCategoryDrawerOpen(false);
                       }}
-                      className="w-full text-left px-4 py-2 text-xs font-mono hover:bg-white/10 hover:text-pandora-cyan flex items-center justify-between"
+                      type="button"
                     >
                       <span>{PRODUCT_CATEGORY_LABELS[cat] || cat}</span>
-                      {activeCategory === cat && <Check size={12} className="text-pandora-cyan" />}
+                      {activeCategory === cat && <Check className="text-pandora-cyan" size={12} />}
                     </button>
                   ))}
                 </motion.div>
@@ -151,9 +151,9 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
         </div>
 
         <button
-          type="button"
+          className="flex w-full items-center justify-center gap-2 bg-pandora-cyan px-4 py-2 font-bold text-black text-xs uppercase transition-colors hover:bg-white md:w-auto"
           onClick={onNewProduct}
-          className="w-full md:w-auto flex items-center justify-center gap-2 bg-pandora-cyan text-black px-4 py-2 text-xs font-bold uppercase hover:bg-white transition-colors"
+          type="button"
         >
           <Plus size={14} /> Add Product
         </button>
@@ -164,48 +164,48 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
         {isCategoryDrawerOpen && (
           <>
             <motion.div
-              initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
+              className="fixed inset-0 z-50 bg-black/80 md:hidden"
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/80 z-50 md:hidden"
+              initial={{ opacity: 0 }}
               onClick={() => setIsCategoryDrawerOpen(false)}
             />
             <motion.div
-              initial={{ x: "100%" }}
               animate={{ x: 0 }}
+              className="fixed top-0 right-0 bottom-0 z-50 w-80 border-white/20 border-l bg-[#0a0a0a] shadow-2xl md:hidden"
               exit={{ x: "100%" }}
+              initial={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed right-0 top-0 bottom-0 w-80 bg-[#0a0a0a] border-l border-white/20 z-50 md:hidden shadow-2xl"
             >
-              <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+              <div className="flex items-center justify-between border-white/10 border-b p-4">
+                <h3 className="font-bold text-sm text-white uppercase tracking-wider">
                   Filter by Category
                 </h3>
                 <button
-                  type="button"
-                  onClick={() => setIsCategoryDrawerOpen(false)}
                   className="text-gray-400 hover:text-white"
+                  onClick={() => setIsCategoryDrawerOpen(false)}
+                  type="button"
                 >
                   <X size={20} />
                 </button>
               </div>
-              <div className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-80px)]">
+              <div className="max-h-[calc(100vh-80px)] space-y-1 overflow-y-auto p-4">
                 {PRODUCT_CATEGORIES.map((cat) => (
                   <button
-                    type="button"
+                    className={`flex w-full items-center justify-between rounded-sm px-4 py-3 text-left font-mono text-sm transition-colors ${
+                      activeCategory === cat
+                        ? "border border-pandora-cyan/50 bg-pandora-cyan/20 text-pandora-cyan"
+                        : "text-gray-300 hover:bg-white/10 hover:text-white"
+                    }`}
                     key={cat}
                     onClick={() => {
                       setActiveCategory(cat);
                       setIsCategoryDrawerOpen(false);
                     }}
-                    className={`w-full text-left px-4 py-3 text-sm font-mono rounded-sm transition-colors flex items-center justify-between ${
-                      activeCategory === cat
-                        ? "bg-pandora-cyan/20 text-pandora-cyan border border-pandora-cyan/50"
-                        : "text-gray-300 hover:bg-white/10 hover:text-white"
-                    }`}
+                    type="button"
                   >
                     <span>{PRODUCT_CATEGORY_LABELS[cat] || cat}</span>
-                    {activeCategory === cat && <Check size={16} className="text-pandora-cyan" />}
+                    {activeCategory === cat && <Check className="text-pandora-cyan" size={16} />}
                   </button>
                 ))}
               </div>
@@ -215,8 +215,8 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
       </AnimatePresence>
 
       {/* Desktop Table */}
-      <div className="hidden md:block bg-[#0e0e0e] border border-white/10 rounded-sm overflow-hidden">
-        <table className="w-full text-left text-xs font-mono">
+      <div className="hidden overflow-hidden rounded-sm border border-white/10 bg-[#0e0e0e] md:block">
+        <table className="w-full text-left font-mono text-xs">
           <thead className="bg-white/5 text-gray-400 uppercase">
             <tr>
               <th className="p-4">Name</th>
@@ -229,21 +229,21 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
           <tbody className="divide-y divide-white/5 text-gray-300">
             {filteredProducts.length === 0 ? (
               <tr>
-                <td colSpan={5} className="p-8 text-center text-gray-500">
+                <td className="p-8 text-center text-gray-500" colSpan={5}>
                   No products found
                 </td>
               </tr>
             ) : (
               filteredProducts.map((p) => (
-                <tr key={p.id} className="hover:bg-white/5 transition-colors">
-                  <td className="p-4 font-bold text-white flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-sm overflow-hidden bg-black border border-white/10">
-                      <img src={p.image} alt="" className="w-full h-full object-cover" />
+                <tr className="transition-colors hover:bg-white/5" key={p.id}>
+                  <td className="flex items-center gap-3 p-4 font-bold text-white">
+                    <div className="h-8 w-8 overflow-hidden rounded-sm border border-white/10 bg-black">
+                      <img alt="" className="h-full w-full object-cover" src={p.image} />
                     </div>
                     {p.name}
                   </td>
                   <td className="p-4">
-                    <span className="text-[10px] bg-white/5 px-2 py-1 rounded">
+                    <span className="rounded bg-white/5 px-2 py-1 text-[10px]">
                       {PRODUCT_CATEGORY_LABELS[p.category] || p.category}
                     </span>
                   </td>
@@ -261,23 +261,23 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
-                        type="button"
+                        className="p-1 hover:text-pandora-cyan"
                         onClick={() => onEditProduct(p)}
-                        className="hover:text-pandora-cyan p-1"
                         title="Edit"
+                        type="button"
                       >
                         <Edit size={14} />
                       </button>
                       {onDeleteProduct && (
                         <button
-                          type="button"
+                          className="p-1 text-gray-500 hover:text-red-400"
                           onClick={() => {
                             if (globalThis.confirm(`Delete "${p.name}"?`)) {
                               onDeleteProduct(String(p.id));
                             }
                           }}
-                          className="hover:text-red-400 p-1 text-gray-500"
                           title="Delete"
+                          type="button"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -292,24 +292,24 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
       </div>
 
       {/* Mobile Cards */}
-      <div className="md:hidden space-y-4">
+      <div className="space-y-4 md:hidden">
         {filteredProducts.length === 0 ? (
-          <div className="bg-[#0e0e0e] border border-white/10 p-8 text-center text-gray-500">
+          <div className="border border-white/10 bg-[#0e0e0e] p-8 text-center text-gray-500">
             No products found
           </div>
         ) : (
           filteredProducts.map((p) => (
             <div
+              className="flex items-center justify-between border border-white/10 bg-[#0e0e0e] p-4"
               key={p.id}
-              className="bg-[#0e0e0e] border border-white/10 p-4 flex justify-between items-center"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-sm overflow-hidden bg-black border border-white/10 shrink-0">
-                  <img src={p.image} alt="" className="w-full h-full object-cover" />
+                <div className="h-10 w-10 shrink-0 overflow-hidden rounded-sm border border-white/10 bg-black">
+                  <img alt="" className="h-full w-full object-cover" src={p.image} />
                 </div>
                 <div>
-                  <div className="font-bold text-white mb-1">{p.name}</div>
-                  <div className="text-xs text-gray-500 mb-2">
+                  <div className="mb-1 font-bold text-white">{p.name}</div>
+                  <div className="mb-2 text-gray-500 text-xs">
                     {PRODUCT_CATEGORY_LABELS[p.category] || p.category} • {p.price} ₽
                   </div>
                   <StockIndicator stock={p.stock} />
@@ -317,23 +317,23 @@ const AdminCatalog: React.FC<AdminCatalogProps> = ({
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  type="button"
+                  className="rounded-full border border-white/10 p-2 text-gray-400 hover:border-pandora-cyan hover:text-white"
                   onClick={() => onEditProduct(p)}
-                  className="p-2 border border-white/10 rounded-full text-gray-400 hover:text-white hover:border-pandora-cyan"
                   title="Edit"
+                  type="button"
                 >
                   <Edit size={16} />
                 </button>
                 {onDeleteProduct && (
                   <button
-                    type="button"
+                    className="rounded-full border border-white/10 p-2 text-gray-400 hover:border-red-400 hover:text-red-400"
                     onClick={() => {
                       if (globalThis.confirm(`Delete "${p.name}"?`)) {
                         onDeleteProduct(String(p.id));
                       }
                     }}
-                    className="p-2 border border-white/10 rounded-full text-gray-400 hover:text-red-400 hover:border-red-400"
                     title="Delete"
+                    type="button"
                   >
                     <Trash2 size={16} />
                   </button>

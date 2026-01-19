@@ -50,7 +50,7 @@ interface UseTelegramReturn {
 // =============================================================================
 
 const getDevModeUser = (): TelegramUser => ({
-  id: 123456789,
+  id: 123_456_789,
   is_bot: false,
   first_name: "Test",
   last_name: "User",

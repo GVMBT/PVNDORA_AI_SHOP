@@ -96,7 +96,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
   const handleToggleExpand = onToggleExpand || (() => setInternalExpanded((prev) => !prev));
 
   const handleCheckPayment = async () => {
-    if (!order.payment_id || !order.payment_gateway) {
+    if (!(order.payment_id && order.payment_gateway)) {
       setPaymentCheckResult(t("orders.paymentNotChecked"));
       return;
     }
@@ -133,39 +133,39 @@ const OrderCard: React.FC<OrderCardProps> = ({
   const isPaymentExpired = order.deadline ? new Date(order.deadline) < new Date() : false;
 
   return (
-    <div className="relative group">
+    <div className="group relative">
       {/* Connecting Line */}
-      <div className="absolute -left-3 top-0 bottom-0 w-px bg-white/5 group-hover:bg-white/10 transition-colors" />
+      <div className="absolute top-0 bottom-0 -left-3 w-px bg-white/5 transition-colors group-hover:bg-white/10" />
 
       {/* Order Card */}
-      <div className="bg-[#080808] border border-white/10 hover:border-white/20 transition-all relative overflow-hidden">
+      <div className="relative overflow-hidden border border-white/10 bg-[#080808] transition-all hover:border-white/20">
         {/* Card Header */}
         <button
-          type="button"
-          className="bg-white/5 p-3 flex justify-between items-center border-b border-white/5 cursor-pointer hover:bg-white/10 transition-colors w-full text-left"
+          className="flex w-full cursor-pointer items-center justify-between border-white/5 border-b bg-white/5 p-3 text-left transition-colors hover:bg-white/10"
           onClick={handleToggleExpand}
+          type="button"
         >
-          <div className="flex items-center gap-4 flex-1">
+          <div className="flex flex-1 items-center gap-4">
             <div
-              className="p-1 hover:bg-white/10 rounded transition-colors"
+              className="rounded p-1 transition-colors hover:bg-white/10"
               title={isExpanded ? t("orders.collapseItems") : t("orders.expandItems")}
             >
               {isExpanded ? (
-                <ChevronUp size={16} className="text-gray-400 hover:text-pandora-cyan" />
+                <ChevronUp className="text-gray-400 hover:text-pandora-cyan" size={16} />
               ) : (
-                <ChevronDown size={16} className="text-gray-400 hover:text-pandora-cyan" />
+                <ChevronDown className="text-gray-400 hover:text-pandora-cyan" size={16} />
               )}
             </div>
-            <div className="flex items-center gap-4 flex-1">
-              <span className="font-mono text-xs text-pandora-cyan tracking-wider">
+            <div className="flex flex-1 items-center gap-4">
+              <span className="font-mono text-pandora-cyan text-xs tracking-wider">
                 ID: {order.displayId || order.id}
               </span>
-              <span className="hidden sm:inline text-[10px] font-mono text-gray-600 uppercase">
+              <span className="hidden font-mono text-[10px] text-gray-600 uppercase sm:inline">
                 {"// "}
                 {order.date}
               </span>
               {!isExpanded && (
-                <span className="text-[10px] font-mono text-gray-500">
+                <span className="font-mono text-[10px] text-gray-500">
                   ({order.items.length}{" "}
                   {order.items.length === 1 ? t("orders.itemSingular") : t("orders.itemPlural")})
                 </span>
@@ -174,7 +174,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
           </div>
           <div className="flex items-center gap-3">
             <OrderStatusBadge rawStatus={order.rawStatus} status={order.status} />
-            <span className="font-display font-bold text-white">
+            <span className="font-bold font-display text-white">
               {formatPrice(order.total, order.currency || "USD")}
             </span>
           </div>
@@ -183,10 +183,10 @@ const OrderCard: React.FC<OrderCardProps> = ({
         {/* Status Explanation Banner */}
         {order.statusMessage && order.rawStatus !== "prepaid" && (
           <div
-            className={`px-4 py-2 text-[10px] font-mono border-b ${
+            className={`border-b px-4 py-2 font-mono text-[10px] ${
               order.paymentConfirmed
-                ? "bg-green-500/5 border-green-500/20 text-green-400"
-                : "bg-orange-500/5 border-orange-500/20 text-orange-400"
+                ? "border-green-500/20 bg-green-500/5 text-green-400"
+                : "border-orange-500/20 bg-orange-500/5 text-orange-400"
             }`}
           >
             <div className="flex items-center gap-2">
@@ -200,27 +200,27 @@ const OrderCard: React.FC<OrderCardProps> = ({
 
         {/* Payment Button - ONLY for unpaid orders */}
         {order.rawStatus === "pending" && order.payment_url && (
-          <div className="p-4 bg-orange-500/10 border-b border-orange-500/20">
+          <div className="border-orange-500/20 border-b bg-orange-500/10 p-4">
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <div className="text-[10px] font-mono text-orange-400">
+                <div className="font-mono text-[10px] text-orange-400">
                   <span className="flex items-center gap-2">
                     <AlertTriangle size={12} />
                     {t("orders.paymentRequired")}
                   </span>
                 </div>
                 <button
-                  type="button"
+                  className={`px-4 py-2 font-bold font-mono text-xs uppercase transition-colors ${
+                    isPaymentExpired
+                      ? "cursor-not-allowed border border-white/10 bg-gray-700/50 text-gray-400"
+                      : "bg-pandora-cyan text-black hover:bg-pandora-cyan/80"
+                  }`}
                   disabled={isPaymentExpired}
                   onClick={() => {
                     if (isPaymentExpired || !order.payment_url) return;
                     globalThis.location.href = order.payment_url;
                   }}
-                  className={`px-4 py-2 font-mono text-xs font-bold uppercase transition-colors ${
-                    isPaymentExpired
-                      ? "bg-gray-700/50 text-gray-400 cursor-not-allowed border border-white/10"
-                      : "bg-pandora-cyan text-black hover:bg-pandora-cyan/80"
-                  }`}
+                  type="button"
                 >
                   {isPaymentExpired ? t("orders.paymentExpired") : t("orders.payNow")}
                 </button>
@@ -228,11 +228,11 @@ const OrderCard: React.FC<OrderCardProps> = ({
 
               {/* Payment Status Info */}
               {(order.payment_id || order.payment_gateway) && (
-                <div className="text-[10px] font-mono text-gray-400 space-y-1 border-t border-white/5 pt-2">
+                <div className="space-y-1 border-white/5 border-t pt-2 font-mono text-[10px] text-gray-400">
                   {order.payment_id && (
                     <div className="flex items-center justify-between">
                       <span>{t("orders.invoiceId")}:</span>
-                      <span className="text-pandora-cyan font-mono">
+                      <span className="font-mono text-pandora-cyan">
                         {order.payment_id.substring(0, 12)}...
                       </span>
                     </div>
@@ -256,14 +256,14 @@ const OrderCard: React.FC<OrderCardProps> = ({
               {order.payment_id && order.payment_gateway === "crystalpay" && (
                 <div className="flex flex-col gap-2">
                   <button
-                    type="button"
-                    onClick={handleCheckPayment}
+                    className="flex items-center justify-center gap-2 border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-[10px] text-gray-300 uppercase transition-colors hover:bg-white/10 disabled:opacity-50"
                     disabled={isCheckingPayment}
-                    className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] font-mono text-gray-300 uppercase flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                    onClick={handleCheckPayment}
+                    type="button"
                   >
                     {isCheckingPayment ? (
                       <>
-                        <RefreshCw size={10} className="animate-spin" />
+                        <RefreshCw className="animate-spin" size={10} />
                         {t("orders.checkingPayment")}
                       </>
                     ) : (
@@ -274,7 +274,7 @@ const OrderCard: React.FC<OrderCardProps> = ({
                     )}
                   </button>
                   {paymentCheckResult && (
-                    <div className="text-[9px] font-mono text-gray-400 px-2 py-1 bg-black/20 rounded">
+                    <div className="rounded bg-black/20 px-2 py-1 font-mono text-[9px] text-gray-400">
                       {paymentCheckResult}
                     </div>
                   )}
@@ -288,17 +288,17 @@ const OrderCard: React.FC<OrderCardProps> = ({
 
         {/* Waiting for Stock Banner - for prepaid orders */}
         {order.rawStatus === "prepaid" && (
-          <div className="p-4 bg-purple-500/10 border-b border-purple-500/20">
-            <div className="text-[11px] font-mono text-purple-400">
-              <div className="flex items-center gap-2 mb-2">
-                <Check size={12} className="text-green-400" />
+          <div className="border-purple-500/20 border-b bg-purple-500/10 p-4">
+            <div className="font-mono text-[11px] text-purple-400">
+              <div className="mb-2 flex items-center gap-2">
+                <Check className="text-green-400" size={12} />
                 <span className="text-green-400">{t("orders.paymentConfirmed")}</span>
               </div>
-              <div className="flex items-center gap-2 text-purple-300 mb-2">
+              <div className="mb-2 flex items-center gap-2 text-purple-300">
                 <Package size={12} />
                 {t("orders.waitingStockDesc")}
               </div>
-              <div className="flex items-center gap-2 text-gray-500 text-[10px]">
+              <div className="flex items-center gap-2 text-[10px] text-gray-500">
                 <Shield size={10} />
                 {t("orders.autoRefund")}
               </div>
@@ -308,13 +308,13 @@ const OrderCard: React.FC<OrderCardProps> = ({
 
         {/* Warranty Info Banner - shows if any item has active warranty */}
         {order.rawStatus === "delivered" && order.items.some((item) => item.canRequestRefund) && (
-          <div className="p-4 bg-green-500/5 border-b border-green-500/20">
-            <div className="text-[11px] font-mono text-green-400">
+          <div className="border-green-500/20 border-b bg-green-500/5 p-4">
+            <div className="font-mono text-[11px] text-green-400">
               <div className="flex items-center gap-2">
                 <Shield size={12} />
                 {t("orders.warrantyActive")}
               </div>
-              <div className="text-[10px] text-gray-500 mt-1">{t("orders.reportIssueHint")}</div>
+              <div className="mt-1 text-[10px] text-gray-500">{t("orders.reportIssueHint")}</div>
             </div>
           </div>
         )}
@@ -323,21 +323,18 @@ const OrderCard: React.FC<OrderCardProps> = ({
         <AnimatePresence initial={false}>
           {isExpanded && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
               className="overflow-hidden"
+              exit={{ height: 0, opacity: 0 }}
+              initial={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
             >
-              <div className="p-5 space-y-6">
+              <div className="space-y-6 p-5">
                 {order.items.map((item) => (
                   <OrderItem
-                    key={item.id}
-                    item={item}
-                    orderId={order.id}
-                    revealedKeys={revealedKeys}
                     copiedId={copiedId}
-                    onToggleReveal={onToggleReveal}
+                    item={item}
+                    key={item.id}
                     onCopy={onCopy}
                     onOpenReview={onOpenReview}
                     onOpenSupport={
@@ -353,6 +350,9 @@ const OrderCard: React.FC<OrderCardProps> = ({
                           }
                         : undefined
                     }
+                    onToggleReveal={onToggleReveal}
+                    orderId={order.id}
+                    revealedKeys={revealedKeys}
                   />
                 ))}
               </div>
@@ -361,8 +361,8 @@ const OrderCard: React.FC<OrderCardProps> = ({
         </AnimatePresence>
 
         {/* Decorative Corner Overlays */}
-        <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-pandora-cyan opacity-50" />
-        <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-pandora-cyan opacity-50" />
+        <div className="absolute top-0 right-0 h-2 w-2 border-pandora-cyan border-t border-r opacity-50" />
+        <div className="absolute bottom-0 left-0 h-2 w-2 border-pandora-cyan border-b border-l opacity-50" />
       </div>
     </div>
   );

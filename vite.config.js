@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import { visualizer } from 'rollup-plugin-visualizer'
+import react from "@vitejs/plugin-react";
+import { visualizer } from "rollup-plugin-visualizer";
+import { defineConfig } from "vite";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -8,30 +8,30 @@ export default defineConfig({
     react(),
     visualizer({
       open: false,
-      filename: 'dist/stats.html',
+      filename: "dist/stats.html",
       gzipSize: true,
       brotliSize: true,
     }),
   ],
   server: {
     proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8000',
+      "/api": {
+        target: "http://127.0.0.1:8000",
         changeOrigin: true,
       },
     },
   },
   build: {
-    target: 'es2020',
-    minify: 'esbuild',
+    target: "es2020",
+    minify: "esbuild",
     sourcemap: true, // Enable source maps for debugging production errors
     chunkSizeWarningLimit: 2000,
     rollupOptions: {
       output: {
         manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'framer-motion': ['framer-motion'],
-          'lucide-icons': ['lucide-react'],
+          "react-vendor": ["react", "react-dom"],
+          "framer-motion": ["framer-motion"],
+          "lucide-icons": ["lucide-react"],
         },
       },
     },
@@ -39,4 +39,4 @@ export default defineConfig({
   // esbuild: {
   //   drop: ['console', 'debugger'] // Temporarily disabled for debugging
   // }
-})
+});

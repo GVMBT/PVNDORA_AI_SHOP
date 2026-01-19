@@ -59,7 +59,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
   const [creating, setCreating] = useState(false);
 
   const handleCreate = async () => {
-    if (!newCode.trim() || !onCreatePromo) return;
+    if (!(newCode.trim() && onCreatePromo)) return;
 
     setCreating(true);
     try {
@@ -99,15 +99,15 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
   return (
     <div className="p-4 md:p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <Tag size={20} className="text-pandora-cyan" />
+      <div className="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <h2 className="flex items-center gap-2 font-bold text-white text-xl">
+          <Tag className="text-pandora-cyan" size={20} />
           ПРОМОКОДЫ
         </h2>
         <button
-          type="button"
+          className="flex items-center gap-2 bg-pandora-cyan px-4 py-2 font-bold text-black text-sm transition-colors hover:bg-white"
           onClick={() => setIsCreating(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-pandora-cyan text-black font-bold text-sm hover:bg-white transition-colors"
+          type="button"
         >
           <Plus size={16} /> НОВЫЙ КОД
         </button>
@@ -118,26 +118,26 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
         {isCreating && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
             <button
-              type="button"
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-default"
+              aria-label="Close modal"
+              className="absolute inset-0 cursor-default bg-black/80 backdrop-blur-sm"
               onClick={() => !creating && setIsCreating(false)}
               onKeyDown={(e) => {
                 if (e.key === "Escape" && !creating) setIsCreating(false);
               }}
-              aria-label="Close modal"
+              type="button"
             />
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
+              className="relative w-full max-w-md border border-pandora-cyan/30 bg-[#080808] p-6 shadow-2xl"
               exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-md bg-[#080808] border border-pandora-cyan/30 p-6 shadow-2xl"
+              initial={{ scale: 0.9, opacity: 0 }}
             >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-white">Новый промокод</h3>
+              <div className="mb-6 flex items-center justify-between">
+                <h3 className="font-bold text-lg text-white">Новый промокод</h3>
                 <button
-                  type="button"
-                  onClick={() => !creating && setIsCreating(false)}
                   className="text-gray-500 hover:text-white"
+                  onClick={() => !creating && setIsCreating(false)}
+                  type="button"
                 >
                   <X size={20} />
                 </button>
@@ -147,54 +147,54 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                 {/* Code */}
                 <div>
                   <label
+                    className="mb-1 block font-mono text-[10px] text-gray-500 uppercase"
                     htmlFor="promo-code"
-                    className="text-[10px] text-gray-500 font-mono uppercase block mb-1"
                   >
                     Код *
                   </label>
                   <input
+                    className="w-full border border-white/20 bg-black px-3 py-2.5 font-mono text-white focus:border-pandora-cyan focus:outline-none"
                     id="promo-code"
-                    type="text"
-                    value={newCode}
                     onChange={(e) => setNewCode(e.target.value.toUpperCase())}
                     placeholder="SUMMER25"
-                    className="w-full bg-black border border-white/20 px-3 py-2.5 text-white font-mono focus:border-pandora-cyan focus:outline-none"
+                    type="text"
+                    value={newCode}
                   />
                 </div>
 
                 {/* Discount */}
                 <div>
                   <label
+                    className="mb-1 block font-mono text-[10px] text-gray-500 uppercase"
                     htmlFor="promo-discount"
-                    className="text-[10px] text-gray-500 font-mono uppercase block mb-1"
                   >
                     Скидка (%)
                   </label>
                   <input
+                    className="w-full border border-white/20 bg-black px-3 py-2.5 font-mono text-white focus:border-pandora-cyan focus:outline-none"
                     id="promo-discount"
+                    max={100}
+                    min={1}
+                    onChange={(e) => setNewDiscount(Number.parseInt(e.target.value, 10) || 0)}
                     type="number"
                     value={newDiscount}
-                    onChange={(e) => setNewDiscount(Number.parseInt(e.target.value, 10) || 0)}
-                    min={1}
-                    max={100}
-                    className="w-full bg-black border border-white/20 px-3 py-2.5 text-white font-mono focus:border-pandora-cyan focus:outline-none"
                   />
                 </div>
 
                 {/* Product */}
                 <div>
                   <label
+                    className="mb-1 block flex items-center gap-1 font-mono text-[10px] text-gray-500 uppercase"
                     htmlFor="promo-product"
-                    className="text-[10px] text-gray-500 font-mono uppercase block mb-1 flex items-center gap-1"
                   >
                     <Package size={12} />
                     Товар (опционально)
                   </label>
                   <select
+                    className="w-full border border-white/20 bg-black px-3 py-2.5 font-mono text-white focus:border-pandora-cyan focus:outline-none"
                     id="promo-product"
-                    value={newProductId || ""}
                     onChange={(e) => setNewProductId(e.target.value || null)}
-                    className="w-full bg-black border border-white/20 px-3 py-2.5 text-white font-mono focus:border-pandora-cyan focus:outline-none"
+                    value={newProductId || ""}
                   >
                     <option value="">Вся корзина</option>
                     {products.map((product) => (
@@ -203,7 +203,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                       </option>
                     ))}
                   </select>
-                  <p className="text-[9px] text-gray-600 mt-1">
+                  <p className="mt-1 text-[9px] text-gray-600">
                     Оставьте пустым для скидки на всю корзину
                   </p>
                 </div>
@@ -211,56 +211,56 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                 {/* Usage Limit */}
                 <div>
                   <label
+                    className="mb-1 block font-mono text-[10px] text-gray-500 uppercase"
                     htmlFor="promo-limit"
-                    className="text-[10px] text-gray-500 font-mono uppercase block mb-1"
                   >
                     Лимит использований
                   </label>
                   <input
+                    className="w-full border border-white/20 bg-black px-3 py-2.5 font-mono text-white placeholder:text-gray-600 focus:border-pandora-cyan focus:outline-none"
                     id="promo-limit"
-                    type="number"
-                    value={newLimit || ""}
+                    min={1}
                     onChange={(e) =>
                       setNewLimit(e.target.value ? Number.parseInt(e.target.value, 10) : undefined)
                     }
                     placeholder="Без ограничений"
-                    min={1}
-                    className="w-full bg-black border border-white/20 px-3 py-2.5 text-white font-mono focus:border-pandora-cyan focus:outline-none placeholder:text-gray-600"
+                    type="number"
+                    value={newLimit || ""}
                   />
                 </div>
 
                 {/* Expiry */}
                 <div>
                   <label
+                    className="mb-1 block font-mono text-[10px] text-gray-500 uppercase"
                     htmlFor="promo-expiry"
-                    className="text-[10px] text-gray-500 font-mono uppercase block mb-1"
                   >
                     Срок действия
                   </label>
                   <input
+                    className="w-full border border-white/20 bg-black px-3 py-2.5 font-mono text-white focus:border-pandora-cyan focus:outline-none"
                     id="promo-expiry"
+                    onChange={(e) => setNewExpiry(e.target.value)}
                     type="date"
                     value={newExpiry}
-                    onChange={(e) => setNewExpiry(e.target.value)}
-                    className="w-full bg-black border border-white/20 px-3 py-2.5 text-white font-mono focus:border-pandora-cyan focus:outline-none"
                   />
                 </div>
 
                 {/* Actions */}
                 <div className="flex gap-3 pt-4">
                   <button
-                    type="button"
-                    onClick={handleCreate}
+                    className="flex flex-1 items-center justify-center gap-2 bg-green-500 py-2.5 font-bold text-black text-sm transition-colors hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={!newCode.trim() || creating}
-                    className="flex-1 py-2.5 bg-green-500 text-black font-bold text-sm hover:bg-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    onClick={handleCreate}
+                    type="button"
                   >
                     <Check size={16} /> Создать
                   </button>
                   <button
-                    type="button"
-                    onClick={() => setIsCreating(false)}
+                    className="flex flex-1 items-center justify-center gap-2 bg-white/10 py-2.5 font-bold text-sm text-white transition-colors hover:bg-white/20"
                     disabled={creating}
-                    className="flex-1 py-2.5 bg-white/10 text-white font-bold text-sm hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
+                    onClick={() => setIsCreating(false)}
+                    type="button"
                   >
                     <X size={16} /> Отмена
                   </button>
@@ -272,9 +272,9 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
       </AnimatePresence>
 
       {/* Promo Codes List */}
-      <div className="bg-black/50 border border-white/10 overflow-hidden">
+      <div className="overflow-hidden border border-white/10 bg-black/50">
         {/* Desktop Table Header */}
-        <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-3 bg-white/5 text-[10px] font-mono text-gray-500 uppercase border-b border-white/10">
+        <div className="hidden grid-cols-12 gap-2 border-white/10 border-b bg-white/5 px-4 py-3 font-mono text-[10px] text-gray-500 uppercase md:grid">
           <div className="col-span-2">Код</div>
           <div className="col-span-2">Скидка</div>
           <div className="col-span-2">Товар</div>
@@ -286,7 +286,7 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
 
         {/* Rows */}
         {promoCodes.length === 0 ? (
-          <div className="text-center py-12 text-gray-600 font-mono text-sm">Нет промокодов</div>
+          <div className="py-12 text-center font-mono text-gray-600 text-sm">Нет промокодов</div>
         ) : (
           promoCodes.map((promo) => {
             const product = promo.product_id
@@ -296,20 +296,20 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
             return (
               <div key={promo.id}>
                 {/* Desktop Row */}
-                <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors items-center">
+                <div className="hidden grid-cols-12 items-center gap-2 border-white/5 border-b px-4 py-3 transition-colors hover:bg-white/5 md:grid">
                   <div className="col-span-2">
-                    <span className="font-mono font-bold text-pandora-cyan">{promo.code}</span>
+                    <span className="font-bold font-mono text-pandora-cyan">{promo.code}</span>
                   </div>
                   <div className="col-span-2 flex items-center gap-1">
-                    <Percent size={12} className="text-green-400" />
-                    <span className="text-white font-bold">{promo.discount_percent}%</span>
+                    <Percent className="text-green-400" size={12} />
+                    <span className="font-bold text-white">{promo.discount_percent}%</span>
                   </div>
                   <div className="col-span-2 flex items-center gap-1">
                     {promo.product_id ? (
                       <>
-                        <Package size={12} className="text-yellow-400" />
+                        <Package className="text-yellow-400" size={12} />
                         <span
-                          className="text-yellow-400 text-xs truncate"
+                          className="truncate text-xs text-yellow-400"
                           title={product?.name || promo.product_id}
                         >
                           {product?.name || "Товар"}
@@ -317,37 +317,37 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                       </>
                     ) : (
                       <>
-                        <ShoppingCart size={12} className="text-gray-400" />
+                        <ShoppingCart className="text-gray-400" size={12} />
                         <span className="text-gray-400 text-xs">Вся корзина</span>
                       </>
                     )}
                   </div>
                   <div className="col-span-2 flex items-center gap-1">
-                    <Users size={12} className="text-gray-400" />
+                    <Users className="text-gray-400" size={12} />
                     <span className="text-gray-300">
                       {promo.usage_count} / {promo.usage_limit || "∞"}
                     </span>
                   </div>
                   <div className="col-span-2 flex items-center gap-1 text-sm">
-                    <Calendar size={12} className="text-gray-400" />
+                    <Calendar className="text-gray-400" size={12} />
                     <span className="text-gray-400">{formatDate(promo.expires_at)}</span>
                   </div>
                   <div className="col-span-1">
                     <button
-                      type="button"
-                      onClick={() => onToggleActive?.(promo.id, !promo.is_active)}
                       className={`flex items-center gap-1 text-sm ${
                         promo.is_active ? "text-green-400" : "text-red-400"
                       }`}
+                      onClick={() => onToggleActive?.(promo.id, !promo.is_active)}
+                      type="button"
                     >
                       {promo.is_active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
                     </button>
                   </div>
                   <div className="col-span-1 flex justify-end gap-2">
                     <button
-                      type="button"
+                      className="p-1.5 text-gray-500 transition-colors hover:text-red-400"
                       onClick={() => handleDelete(promo.id)}
-                      className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
+                      type="button"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -355,27 +355,27 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                 </div>
 
                 {/* Mobile Card */}
-                <div className="md:hidden border-b border-white/5 p-4 hover:bg-white/5">
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="font-mono font-bold text-pandora-cyan text-lg">
+                <div className="border-white/5 border-b p-4 hover:bg-white/5 md:hidden">
+                  <div className="mb-3 flex items-start justify-between">
+                    <span className="font-bold font-mono text-lg text-pandora-cyan">
                       {promo.code}
                     </span>
                     <button
-                      type="button"
-                      onClick={() => onToggleActive?.(promo.id, !promo.is_active)}
                       className={promo.is_active ? "text-green-400" : "text-red-400"}
+                      onClick={() => onToggleActive?.(promo.id, !promo.is_active)}
+                      type="button"
                     >
                       {promo.is_active ? <ToggleRight size={24} /> : <ToggleLeft size={24} />}
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div className="mb-3 grid grid-cols-2 gap-3">
                     <div className="flex items-center gap-2">
-                      <Percent size={14} className="text-green-400" />
-                      <span className="text-white font-bold">{promo.discount_percent}%</span>
+                      <Percent className="text-green-400" size={14} />
+                      <span className="font-bold text-white">{promo.discount_percent}%</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Users size={14} className="text-gray-400" />
+                      <Users className="text-gray-400" size={14} />
                       <span className="text-gray-300">
                         {promo.usage_count} / {promo.usage_limit || "∞"}
                       </span>
@@ -383,28 +383,28 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
                     <div className="flex items-center gap-2">
                       {promo.product_id ? (
                         <>
-                          <Package size={14} className="text-yellow-400" />
-                          <span className="text-yellow-400 text-xs truncate">
+                          <Package className="text-yellow-400" size={14} />
+                          <span className="truncate text-xs text-yellow-400">
                             {product?.name || "Товар"}
                           </span>
                         </>
                       ) : (
                         <>
-                          <ShoppingCart size={14} className="text-gray-400" />
+                          <ShoppingCart className="text-gray-400" size={14} />
                           <span className="text-gray-400 text-xs">Вся корзина</span>
                         </>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Calendar size={14} className="text-gray-400" />
+                      <Calendar className="text-gray-400" size={14} />
                       <span className="text-gray-400 text-xs">{formatDate(promo.expires_at)}</span>
                     </div>
                   </div>
 
                   <button
-                    type="button"
+                    className="w-full border border-red-400/30 py-2 font-bold text-red-400 text-xs uppercase transition-colors hover:bg-red-400/10"
                     onClick={() => handleDelete(promo.id)}
-                    className="w-full py-2 text-xs font-bold uppercase text-red-400 border border-red-400/30 hover:bg-red-400/10 transition-colors"
+                    type="button"
                   >
                     Удалить
                   </button>

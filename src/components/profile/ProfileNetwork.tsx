@@ -17,12 +17,12 @@ type NetworkLine = 1 | 2 | 3;
 // Helper functions to avoid nested ternaries
 const getNodeAvatarContent = (node: NetworkNodeData) => {
   if (node.photoUrl) {
-    return <img src={node.photoUrl} alt={node.handle} className="w-full h-full object-cover" />;
+    return <img alt={node.handle} className="h-full w-full object-cover" src={node.photoUrl} />;
   }
   if (node.status === "VIP") {
-    return <Crown size={14} className="text-yellow-500" />;
+    return <Crown className="text-yellow-500" size={14} />;
   }
-  return <User size={14} className="text-gray-400" />;
+  return <User className="text-gray-400" size={14} />;
 };
 
 const getRankBadgeClasses = (rank?: string): string => {
@@ -57,22 +57,22 @@ const ProfileNetwork: React.FC<ProfileNetworkProps> = ({
 
   return (
     <div className="border border-white/10 bg-[#050505] shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-      <div className="bg-[#0a0a0a] border-b border-white/10 p-2 px-4 flex items-center justify-between gap-6 overflow-x-auto">
+      <div className="flex items-center justify-between gap-6 overflow-x-auto border-white/10 border-b bg-[#0a0a0a] p-2 px-4">
         {/* Title - left side */}
-        <div className="text-[10px] font-mono font-bold uppercase flex items-center gap-2 whitespace-nowrap text-pandora-cyan text-sm tracking-widest">
+        <div className="flex items-center gap-2 whitespace-nowrap font-bold font-mono text-[10px] text-pandora-cyan text-sm uppercase tracking-widest">
           <GitBranch size={14} /> {t("profile.network.scanner")}
         </div>
 
         {/* Network Level Filter - right side */}
-        <div className="flex items-center bg-[#050505] border border-white/10 rounded-sm overflow-hidden">
+        <div className="flex items-center overflow-hidden rounded-sm border border-white/10 bg-[#050505]">
           {[1, 2, 3].map((line) => (
             <button
-              type="button"
-              key={line}
-              onClick={() => onLineChange(line as NetworkLine)}
-              className={`px-4 py-1.5 text-[9px] font-mono font-bold border-r border-white/10 last:border-0 hover:bg-white/5 transition-colors uppercase whitespace-nowrap ${
+              className={`whitespace-nowrap border-white/10 border-r px-4 py-1.5 font-bold font-mono text-[9px] uppercase transition-colors last:border-0 hover:bg-white/5 ${
                 networkLine === line ? "bg-pandora-cyan/20 text-pandora-cyan" : "text-gray-500"
               }`}
+              key={line}
+              onClick={() => onLineChange(line as NetworkLine)}
+              type="button"
             >
               {t("profile.network.lineLabel").replace("{line}", line.toString())}
             </button>
@@ -83,12 +83,12 @@ const ProfileNetwork: React.FC<ProfileNetworkProps> = ({
       <div className="p-0 font-mono text-xs">
         <div className="relative min-h-[300px]">
           {/* Vertical Connection Line */}
-          <div className="absolute top-0 bottom-0 left-6 w-px bg-gradient-to-b from-pandora-cyan/30 via-white/5 to-transparent z-0" />
+          <div className="absolute top-0 bottom-0 left-6 z-0 w-px bg-gradient-to-b from-pandora-cyan/30 via-white/5 to-transparent" />
 
           {displayedNodes.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-600">
-              <Network size={24} className="mb-2 opacity-20" />
-              <span className="uppercase tracking-widest text-[10px]">
+              <Network className="mb-2 opacity-20" size={24} />
+              <span className="text-[10px] uppercase tracking-widest">
                 {t("profile.network.noData").replace("{line}", networkLine.toString())}
               </span>
             </div>
@@ -98,46 +98,43 @@ const ProfileNetwork: React.FC<ProfileNetworkProps> = ({
 
               return (
                 <div
+                  className="group relative border-white/5 border-b py-4 pr-4 pl-12 transition-colors hover:bg-white/[0.02]"
                   key={node.id}
-                  className="relative pl-12 pr-4 py-4 border-b border-white/5 hover:bg-white/[0.02] transition-colors group"
                 >
                   {/* Node Connector Dot */}
-                  <div className="absolute left-[21px] top-8 w-1.5 h-1.5 rounded-full bg-[#050505] border border-pandora-cyan z-10 box-content" />
+                  <div className="absolute top-8 left-[21px] z-10 box-content h-1.5 w-1.5 rounded-full border border-pandora-cyan bg-[#050505]" />
                   {/* Horizontal Connector Line */}
-                  <div className="absolute left-6 top-9 w-6 h-px bg-white/10 group-hover:bg-pandora-cyan/50 transition-colors" />
+                  <div className="absolute top-9 left-6 h-px w-6 bg-white/10 transition-colors group-hover:bg-pandora-cyan/50" />
 
                   <button
-                    type="button"
-                    onClick={() => onNodeClick(node.id)}
-                    className={`
-                      bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 hover:shadow-[0_0_15px_rgba(0,255,255,0.1)] 
-                      transition-all duration-300 rounded-sm p-4 relative overflow-hidden cursor-pointer text-left w-full
-                      ${node.status === "VIP" ? "border-l-2 border-l-yellow-500" : ""}
+                    className={`relative w-full cursor-pointer overflow-hidden rounded-sm border border-white/10 bg-[#0a0a0a] p-4 text-left transition-all duration-300 hover:border-pandora-cyan/50 hover:shadow-[0_0_15px_rgba(0,255,255,0.1)] ${node.status === "VIP" ? "border-l-2 border-l-yellow-500" : ""}
                     `}
+                    onClick={() => onNodeClick(node.id)}
+                    type="button"
                   >
-                    <div className="flex justify-between items-center">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-white/5 flex items-center justify-center rounded-sm overflow-hidden">
+                        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-sm bg-white/5">
                           {getNodeAvatarContent(node)}
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
                             {node.handle.startsWith("@") ? (
                               <a
+                                className="font-bold text-sm text-white transition-colors hover:text-pandora-cyan"
                                 href={`https://t.me/${node.handle.slice(1)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="font-bold text-white text-sm hover:text-pandora-cyan transition-colors"
                                 onClick={(e) => e.stopPropagation()}
+                                rel="noopener noreferrer"
+                                target="_blank"
                               >
                                 {node.handle}
                               </a>
                             ) : (
-                              <span className="font-bold text-white text-sm">{node.handle}</span>
+                              <span className="font-bold text-sm text-white">{node.handle}</span>
                             )}
                             {node.rank && (
                               <span
-                                className={`text-[8px] px-1 rounded-sm border ${getRankBadgeClasses(node.rank)}`}
+                                className={`rounded-sm border px-1 text-[8px] ${getRankBadgeClasses(node.rank)}`}
                               >
                                 {node.rank}
                               </span>
@@ -155,7 +152,7 @@ const ProfileNetwork: React.FC<ProfileNetworkProps> = ({
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-xs font-bold text-pandora-cyan">
+                        <div className="font-bold text-pandora-cyan text-xs">
                           +{formatPrice(profitValue, currency)}
                         </div>
                         <div className="text-[9px] text-gray-500 uppercase tracking-tighter">

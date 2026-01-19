@@ -46,56 +46,56 @@ const PartnerModal: React.FC<PartnerModalProps> = ({ partner, onClose, onSave })
     <AnimatePresence>
       <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
         <button
-          type="button"
-          className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-default"
-          onClick={onClose}
           aria-label="Close modal"
+          className="absolute inset-0 cursor-default bg-black/80 backdrop-blur-sm"
+          onClick={onClose}
+          type="button"
         />
         <motion.div
-          initial={{ scale: 0.9 }}
           animate={{ scale: 1 }}
-          className="relative w-full max-w-lg bg-[#080808] border border-white/20 p-6 shadow-2xl"
+          className="relative w-full max-w-lg border border-white/20 bg-[#080808] p-6 shadow-2xl"
+          initial={{ scale: 0.9 }}
         >
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-display font-bold text-white">MANAGE PARTNER</h3>
-            <button type="button" onClick={onClose}>
-              <X size={20} className="text-gray-500" />
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="font-bold font-display text-white text-xl">MANAGE PARTNER</h3>
+            <button onClick={onClose} type="button">
+              <X className="text-gray-500" size={20} />
             </button>
           </div>
           <div className="space-y-6">
-            <div className="flex items-center gap-4 bg-white/5 p-4 rounded-sm">
-              <div className="w-12 h-12 bg-black border border-white/10 flex items-center justify-center rounded-full">
+            <div className="flex items-center gap-4 rounded-sm bg-white/5 p-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-black">
                 <User size={24} />
               </div>
               <div>
-                <div className="font-bold text-white text-lg">
+                <div className="font-bold text-lg text-white">
                   {editingPartner.handle || editingPartner.username}
                 </div>
-                <div className="text-xs text-gray-500">ID: #{editingPartner.id}</div>
+                <div className="text-gray-500 text-xs">ID: #{editingPartner.id}</div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-black p-3 border border-white/10">
-                <span className="text-[9px] text-gray-500 block mb-2">PARTNER LEVEL</span>
+              <div className="border border-white/10 bg-black p-3">
+                <span className="mb-2 block text-[9px] text-gray-500">PARTNER LEVEL</span>
                 <button
-                  type="button"
-                  className="flex items-center gap-2 cursor-pointer"
+                  className="flex cursor-pointer items-center gap-2"
                   onClick={togglePartnerVip}
+                  type="button"
                 >
                   <div
-                    className={`w-4 h-4 border border-white/30 flex items-center justify-center ${
+                    className={`flex h-4 w-4 items-center justify-center border border-white/30 ${
                       editingPartner.level === "ARCHITECT"
-                        ? "bg-pandora-cyan border-pandora-cyan"
+                        ? "border-pandora-cyan bg-pandora-cyan"
                         : ""
                     }`}
                   >
                     {editingPartner.level === "ARCHITECT" && (
-                      <CheckCircle size={10} className="text-black" />
+                      <CheckCircle className="text-black" size={10} />
                     )}
                   </div>
                   <span
-                    className={`text-xs font-bold ${
+                    className={`font-bold text-xs ${
                       editingPartner.level === "ARCHITECT" ? "text-pandora-cyan" : "text-gray-400"
                     }`}
                   >
@@ -103,25 +103,25 @@ const PartnerModal: React.FC<PartnerModalProps> = ({ partner, onClose, onSave })
                   </span>
                 </button>
               </div>
-              <div className="bg-black p-3 border border-white/10">
-                <span className="text-[9px] text-gray-500 block mb-2">REWARD TYPE</span>
+              <div className="border border-white/10 bg-black p-3">
+                <span className="mb-2 block text-[9px] text-gray-500">REWARD TYPE</span>
                 <button
-                  type="button"
-                  className="flex items-center gap-2 cursor-pointer"
+                  className="flex cursor-pointer items-center gap-2"
                   onClick={toggleRewardType}
+                  type="button"
                 >
                   <div
-                    className={`w-8 h-4 rounded-full relative transition-colors ${
+                    className={`relative h-4 w-8 rounded-full transition-colors ${
                       editingPartner.rewardType === "commission" ? "bg-green-500" : "bg-purple-500"
                     }`}
                   >
                     <div
-                      className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${
+                      className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${
                         editingPartner.rewardType === "commission" ? "left-0.5" : "left-4.5"
                       }`}
                     />
                   </div>
-                  <span className="text-xs font-bold text-white">
+                  <span className="font-bold text-white text-xs">
                     {editingPartner.rewardType === "commission" ? "CASH" : "DISCOUNT"}
                   </span>
                 </button>
@@ -129,9 +129,9 @@ const PartnerModal: React.FC<PartnerModalProps> = ({ partner, onClose, onSave })
             </div>
 
             <button
-              type="button"
+              className="w-full bg-pandora-cyan py-3 font-bold text-black text-xs uppercase tracking-widest"
               onClick={handleSave}
-              className="w-full bg-pandora-cyan text-black font-bold py-3 uppercase tracking-widest text-xs"
+              type="button"
             >
               SAVE SETTINGS
             </button>

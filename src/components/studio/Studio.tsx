@@ -10,24 +10,24 @@ const StudioPage: React.FC<StudioPageProps> = ({ isAdmin = false, ...props }) =>
   // Simple admin check - in real app this would come from auth context
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center font-mono">
+      <div className="flex min-h-screen items-center justify-center bg-black font-mono text-white">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-pandora-cyan mb-4">STUDIO ACCESS RESTRICTED</h1>
-          <p className="text-gray-400 mb-8">
+          <h1 className="mb-4 font-bold text-2xl text-pandora-cyan">STUDIO ACCESS RESTRICTED</h1>
+          <p className="mb-8 text-gray-400">
             Studio is currently in beta and only accessible to administrators.
           </p>
-          <div className="border border-pandora-cyan/30 rounded-lg p-8 max-w-md">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              <span className="text-sm text-gray-300">Status: BETA ACCESS ONLY</span>
+          <div className="max-w-md rounded-lg border border-pandora-cyan/30 p-8">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+              <span className="text-gray-300 text-sm">Status: BETA ACCESS ONLY</span>
             </div>
-            <div className="text-xs text-gray-500 space-y-1">
+            <div className="space-y-1 text-gray-500 text-xs">
               <p>• Full access will be available when the beta phase is complete</p>
               <p>• Administrators can test all generation features</p>
               <p>• Regular users will get access soon</p>
             </div>
           </div>
-          <div className="text-xs text-gray-600 mt-8">
+          <div className="mt-8 text-gray-600 text-xs">
             <p>Need access? Contact your system administrator</p>
           </div>
         </div>

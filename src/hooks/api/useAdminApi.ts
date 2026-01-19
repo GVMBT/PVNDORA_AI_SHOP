@@ -215,7 +215,7 @@ export function useAdminProductsTyped() {
   );
 
   const getStock = useCallback(
-    async (productId?: string, availableOnly: boolean = true): Promise<StockItem[]> => {
+    async (productId?: string, availableOnly = true): Promise<StockItem[]> => {
       try {
         let url = "/stock";
         const params = new URLSearchParams();

@@ -60,19 +60,19 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
     switch (role) {
       case "ADMIN":
         return (
-          <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30">
+          <span className="border border-red-500/30 bg-red-500/20 px-2 py-0.5 text-[10px] text-red-400">
             ADMIN
           </span>
         );
       case "VIP":
         return (
-          <span className="text-[10px] px-2 py-0.5 bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">
+          <span className="border border-yellow-500/30 bg-yellow-500/20 px-2 py-0.5 text-[10px] text-yellow-400">
             VIP
           </span>
         );
       default:
         return (
-          <span className="text-[10px] px-2 py-0.5 bg-white/5 text-gray-400 border border-white/10">
+          <span className="border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-gray-400">
             USER
           </span>
         );
@@ -108,7 +108,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
 
   // Update balance
   const handleUpdateBalance = async () => {
-    if (!balanceModal || !balanceAmount) return;
+    if (!(balanceModal && balanceAmount)) return;
     const amount = Number.parseFloat(balanceAmount);
     if (Number.isNaN(amount)) return;
 
@@ -133,28 +133,28 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
   return (
     <div className="space-y-6">
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4 bg-[#0e0e0e] border border-white/10 p-4 rounded-sm">
+      <div className="flex flex-col gap-4 rounded-sm border border-white/10 bg-[#0e0e0e] p-4 md:flex-row">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={14} />
+          <Search className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-500" size={14} />
           <input
-            type="text"
-            value={searchQuery}
+            className="w-full border border-white/20 bg-black py-2 pr-4 pl-9 font-mono text-white text-xs outline-none focus:border-pandora-cyan"
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Поиск по имени или ID..."
-            className="w-full bg-black border border-white/20 pl-9 pr-4 py-2 text-xs font-mono text-white focus:border-pandora-cyan outline-none"
+            type="text"
+            value={searchQuery}
           />
         </div>
         <div className="flex gap-2">
           {(["ALL", "USER", "VIP", "ADMIN"] as const).map((role) => (
             <button
-              type="button"
+              className={`border px-3 py-2 font-bold text-[10px] uppercase transition-colors ${
+                roleFilter === role
+                  ? "border-pandora-cyan bg-pandora-cyan text-black"
+                  : "border-white/20 bg-transparent text-gray-400 hover:border-white/40"
+              }`}
               key={role}
               onClick={() => setRoleFilter(role)}
-              className={`px-3 py-2 text-[10px] font-bold uppercase border transition-colors ${
-                roleFilter === role
-                  ? "bg-pandora-cyan text-black border-pandora-cyan"
-                  : "bg-transparent text-gray-400 border-white/20 hover:border-white/40"
-              }`}
+              type="button"
             >
               {role === "ALL" ? "Все" : role}
             </button>
@@ -163,32 +163,32 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-[#0e0e0e] border border-white/10 p-4">
-          <div className="text-[10px] text-gray-500 uppercase mb-1">Всего</div>
-          <div className="text-2xl font-bold text-white">{users.length}</div>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="border border-white/10 bg-[#0e0e0e] p-4">
+          <div className="mb-1 text-[10px] text-gray-500 uppercase">Всего</div>
+          <div className="font-bold text-2xl text-white">{users.length}</div>
         </div>
-        <div className="bg-[#0e0e0e] border border-white/10 p-4">
-          <div className="text-[10px] text-gray-500 uppercase mb-1">VIP</div>
-          <div className="text-2xl font-bold text-yellow-400">
+        <div className="border border-white/10 bg-[#0e0e0e] p-4">
+          <div className="mb-1 text-[10px] text-gray-500 uppercase">VIP</div>
+          <div className="font-bold text-2xl text-yellow-400">
             {users.filter((u) => u.role === "VIP").length}
           </div>
         </div>
-        <div className="bg-[#0e0e0e] border border-white/10 p-4">
-          <div className="text-[10px] text-gray-500 uppercase mb-1">Заблокировано</div>
-          <div className="text-2xl font-bold text-red-400">
+        <div className="border border-white/10 bg-[#0e0e0e] p-4">
+          <div className="mb-1 text-[10px] text-gray-500 uppercase">Заблокировано</div>
+          <div className="font-bold text-2xl text-red-400">
             {users.filter((u) => u.isBanned).length}
           </div>
         </div>
-        <div className="bg-[#0e0e0e] border border-white/10 p-4">
-          <div className="text-[10px] text-gray-500 uppercase mb-1">Активных сегодня</div>
-          <div className="text-2xl font-bold text-green-400">—</div>
+        <div className="border border-white/10 bg-[#0e0e0e] p-4">
+          <div className="mb-1 text-[10px] text-gray-500 uppercase">Активных сегодня</div>
+          <div className="font-bold text-2xl text-green-400">—</div>
         </div>
       </div>
 
       {/* Users Table - Desktop */}
-      <div className="hidden md:block bg-[#0e0e0e] border border-white/10 rounded-sm overflow-hidden">
-        <table className="w-full text-left text-xs font-mono">
+      <div className="hidden overflow-hidden rounded-sm border border-white/10 bg-[#0e0e0e] md:block">
+        <table className="w-full text-left font-mono text-xs">
           <thead className="bg-white/5 text-gray-400 uppercase">
             <tr>
               <th className="p-4">Пользователь</th>
@@ -203,25 +203,25 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
           <tbody className="divide-y divide-white/5 text-gray-300">
             {filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-gray-500">
+                <td className="p-8 text-center text-gray-500" colSpan={7}>
                   Пользователи не найдены
                 </td>
               </tr>
             ) : (
               filteredUsers.map((u) => (
                 <tr
+                  className={`transition-colors hover:bg-white/5 ${u.isBanned ? "opacity-50" : ""}`}
                   key={u.id}
-                  className={`hover:bg-white/5 transition-colors ${u.isBanned ? "opacity-50" : ""}`}
                 >
                   <td className="p-4">
                     <a
+                      className="inline-flex items-center gap-1 font-bold text-white transition-colors hover:text-pandora-cyan"
                       href={`https://t.me/${u.username}`}
-                      target="_blank"
                       rel="noopener noreferrer"
-                      className="font-bold text-white hover:text-pandora-cyan transition-colors inline-flex items-center gap-1"
+                      target="_blank"
                     >
                       @{u.username}
-                      <ExternalLink size={10} className="opacity-50" />
+                      <ExternalLink className="opacity-50" size={10} />
                     </a>
                     <div className="text-[10px] text-gray-600">ID: {u.id}</div>
                   </td>
@@ -231,11 +231,11 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
                   <td className="p-4">{formatCurrency(u.spent)}</td>
                   <td className="p-4">
                     {u.isBanned ? (
-                      <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30">
+                      <span className="border border-red-500/30 bg-red-500/20 px-2 py-0.5 text-[10px] text-red-400">
                         BLOCKED
                       </span>
                     ) : (
-                      <span className="text-[10px] px-2 py-0.5 bg-green-500/20 text-green-400 border border-green-500/30">
+                      <span className="border border-green-500/30 bg-green-500/20 px-2 py-0.5 text-[10px] text-green-400">
                         ACTIVE
                       </span>
                     )}
@@ -243,34 +243,34 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
-                        type="button"
+                        className="border border-white/10 p-1.5 transition-colors hover:border-pandora-cyan hover:text-pandora-cyan"
                         onClick={() => setBalanceModal(u)}
-                        className="p-1.5 border border-white/10 hover:border-pandora-cyan hover:text-pandora-cyan transition-colors"
                         title="Изменить баланс"
+                        type="button"
                       >
                         <DollarSign size={14} />
                       </button>
                       <button
-                        type="button"
-                        onClick={() => setSelectedUser(u)}
-                        className={`p-1.5 border transition-colors ${
+                        className={`border p-1.5 transition-colors ${
                           u.role === "VIP"
                             ? "border-yellow-500/30 text-yellow-400 hover:border-yellow-500"
                             : "border-white/10 text-gray-400 hover:border-yellow-500 hover:text-yellow-400"
                         }`}
+                        onClick={() => setSelectedUser(u)}
                         title={u.role === "VIP" ? "Отозвать VIP" : "Назначить VIP"}
+                        type="button"
                       >
                         <Crown size={14} />
                       </button>
                       <button
-                        type="button"
-                        onClick={() => onBanUser?.(u.id, !u.isBanned)}
-                        className={`p-1.5 border transition-colors ${
+                        className={`border p-1.5 transition-colors ${
                           u.isBanned
                             ? "border-green-500/30 text-green-400 hover:border-green-500"
                             : "border-red-500/30 text-red-400 hover:border-red-500"
                         }`}
+                        onClick={() => onBanUser?.(u.id, !u.isBanned)}
                         title={u.isBanned ? "Разблокировать" : "Заблокировать"}
+                        type="button"
                       >
                         <Ban size={14} />
                       </button>
@@ -284,24 +284,24 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
       </div>
 
       {/* Users Cards - Mobile */}
-      <div className="md:hidden space-y-4">
+      <div className="space-y-4 md:hidden">
         {filteredUsers.length === 0 ? (
-          <div className="bg-[#0e0e0e] border border-white/10 p-8 text-center text-gray-500">
+          <div className="border border-white/10 bg-[#0e0e0e] p-8 text-center text-gray-500">
             Пользователи не найдены
           </div>
         ) : (
           filteredUsers.map((u) => (
             <div
+              className={`border border-white/10 bg-[#0e0e0e] p-4 ${u.isBanned ? "opacity-50" : ""}`}
               key={u.id}
-              className={`bg-[#0e0e0e] border border-white/10 p-4 ${u.isBanned ? "opacity-50" : ""}`}
             >
-              <div className="flex justify-between items-start mb-3">
+              <div className="mb-3 flex items-start justify-between">
                 <div>
                   <a
+                    className="font-bold text-white transition-colors hover:text-pandora-cyan"
                     href={`https://t.me/${u.username}`}
-                    target="_blank"
                     rel="noopener noreferrer"
-                    className="font-bold text-white hover:text-pandora-cyan transition-colors"
+                    target="_blank"
                   >
                     @{u.username}
                   </a>
@@ -310,57 +310,57 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
                 <div className="flex flex-col items-end gap-1">
                   {getRoleBadge(u.role)}
                   {u.isBanned && (
-                    <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30">
+                    <span className="border border-red-500/30 bg-red-500/20 px-2 py-0.5 text-[10px] text-red-400">
                       BLOCKED
                     </span>
                   )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-center mb-3">
+              <div className="mb-3 grid grid-cols-3 gap-2 text-center">
                 <div>
                   <div className="text-[10px] text-gray-500">Баланс</div>
-                  <div className="text-sm font-bold text-pandora-cyan">
+                  <div className="font-bold text-pandora-cyan text-sm">
                     {formatCurrency(u.balance)}
                   </div>
                 </div>
                 <div>
                   <div className="text-[10px] text-gray-500">Заказы</div>
-                  <div className="text-sm font-bold text-white">{u.purchases}</div>
+                  <div className="font-bold text-sm text-white">{u.purchases}</div>
                 </div>
                 <div>
                   <div className="text-[10px] text-gray-500">Потрачено</div>
-                  <div className="text-sm font-bold text-white">{formatCurrency(u.spent)}</div>
+                  <div className="font-bold text-sm text-white">{formatCurrency(u.spent)}</div>
                 </div>
               </div>
 
               <div className="flex gap-2">
                 <button
-                  type="button"
+                  className="flex flex-1 items-center justify-center gap-2 bg-white/5 py-2 font-bold text-[10px] uppercase transition-colors hover:bg-pandora-cyan hover:text-black"
                   onClick={() => setBalanceModal(u)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2 text-[10px] bg-white/5 hover:bg-pandora-cyan hover:text-black transition-colors uppercase font-bold"
+                  type="button"
                 >
                   <DollarSign size={12} /> Баланс
                 </button>
                 <button
-                  type="button"
-                  onClick={() => setSelectedUser(u)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] uppercase font-bold ${
+                  className={`flex flex-1 items-center justify-center gap-2 py-2 font-bold text-[10px] uppercase ${
                     u.role === "VIP"
                       ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500 hover:text-black"
                       : "bg-white/5 hover:bg-yellow-500 hover:text-black"
                   } transition-colors`}
+                  onClick={() => setSelectedUser(u)}
+                  type="button"
                 >
                   <Crown size={12} /> VIP
                 </button>
                 <button
-                  type="button"
-                  onClick={() => onBanUser?.(u.id, !u.isBanned)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2 text-[10px] uppercase font-bold transition-colors ${
+                  className={`flex flex-1 items-center justify-center gap-2 py-2 font-bold text-[10px] uppercase transition-colors ${
                     u.isBanned
                       ? "bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-black"
                       : "bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-black"
                   }`}
+                  onClick={() => onBanUser?.(u.id, !u.isBanned)}
+                  type="button"
                 >
                   <Ban size={12} /> {u.isBanned ? "Разбан" : "Бан"}
                 </button>
@@ -375,40 +375,40 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
         {selectedUser && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
             <button
-              type="button"
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-default"
+              aria-label="Close modal"
+              className="absolute inset-0 cursor-default bg-black/80 backdrop-blur-sm"
               onClick={() => !processing && setSelectedUser(null)}
               onKeyDown={(e) => {
                 if (e.key === "Escape" && !processing) setSelectedUser(null);
               }}
-              aria-label="Close modal"
+              type="button"
             />
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
+              className="relative w-full max-w-sm border border-white/20 bg-[#080808] p-6 shadow-2xl"
               exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-sm bg-[#080808] border border-white/20 p-6 shadow-2xl"
+              initial={{ scale: 0.9, opacity: 0 }}
             >
-              <div className="flex justify-between items-start mb-6">
+              <div className="mb-6 flex items-start justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Crown size={18} className="text-yellow-500" />
+                  <h3 className="flex items-center gap-2 font-bold text-lg text-white">
+                    <Crown className="text-yellow-500" size={18} />
                     VIP Статус
                   </h3>
-                  <p className="text-xs text-gray-500 mt-1">@{selectedUser.username}</p>
+                  <p className="mt-1 text-gray-500 text-xs">@{selectedUser.username}</p>
                 </div>
                 <button
-                  type="button"
-                  onClick={() => !processing && setSelectedUser(null)}
                   className="text-gray-500 hover:text-white"
+                  onClick={() => !processing && setSelectedUser(null)}
+                  type="button"
                 >
                   <X size={20} />
                 </button>
               </div>
 
               {/* Current Status */}
-              <div className="bg-white/5 p-4 border border-white/10 mb-6">
-                <div className="text-[10px] text-gray-500 uppercase mb-2">Текущий статус</div>
+              <div className="mb-6 border border-white/10 bg-white/5 p-4">
+                <div className="mb-2 text-[10px] text-gray-500 uppercase">Текущий статус</div>
                 <div className="flex items-center gap-3">
                   {getRoleBadge(selectedUser.role)}
                   {selectedUser.role === "VIP" && (
@@ -418,11 +418,11 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
               </div>
 
               {/* Info about VIP */}
-              <div className="text-xs text-gray-500 mb-6 p-3 bg-black/50 border border-white/10">
+              <div className="mb-6 border border-white/10 bg-black/50 p-3 text-gray-500 text-xs">
                 {selectedUser.role === "VIP" ? (
                   <>
                     <p className="mb-2">VIP пользователь имеет:</p>
-                    <ul className="list-disc list-inside space-y-1 text-gray-400">
+                    <ul className="list-inside list-disc space-y-1 text-gray-400">
                       <li>Статус ARCHITECT</li>
                       <li>Все реферальные уровни открыты</li>
                       <li>Максимальные комиссии</li>
@@ -438,14 +438,14 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
 
               {/* Toggle Button */}
               <button
-                type="button"
-                onClick={handleToggleVIP}
-                disabled={processing}
-                className={`w-full py-3 font-bold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
+                className={`flex w-full items-center justify-center gap-2 py-3 font-bold text-sm transition-colors disabled:opacity-50 ${
                   selectedUser.role === "VIP"
                     ? "bg-red-500 text-white hover:bg-red-400"
                     : "bg-yellow-500 text-black hover:bg-yellow-400"
                 }`}
+                disabled={processing}
+                onClick={handleToggleVIP}
+                type="button"
               >
                 {selectedUser.role === "VIP" ? (
                   <>
@@ -469,41 +469,41 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
         {balanceModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
             <button
-              type="button"
-              className="absolute inset-0 bg-black/80 backdrop-blur-sm cursor-default"
+              aria-label="Close modal"
+              className="absolute inset-0 cursor-default bg-black/80 backdrop-blur-sm"
               onClick={() => !processing && setBalanceModal(null)}
               onKeyDown={(e) => {
                 if (e.key === "Escape" && !processing) setBalanceModal(null);
               }}
-              aria-label="Close modal"
+              type="button"
             />
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
+              className="relative w-full max-w-sm border border-white/20 bg-[#080808] p-6 shadow-2xl"
               exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-sm bg-[#080808] border border-white/20 p-6 shadow-2xl"
+              initial={{ scale: 0.9, opacity: 0 }}
             >
-              <div className="flex justify-between items-start mb-6">
+              <div className="mb-6 flex items-start justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <DollarSign size={18} className="text-pandora-cyan" />
+                  <h3 className="flex items-center gap-2 font-bold text-lg text-white">
+                    <DollarSign className="text-pandora-cyan" size={18} />
                     Изменить баланс
                   </h3>
-                  <p className="text-xs text-gray-500 mt-1">@{balanceModal.username}</p>
+                  <p className="mt-1 text-gray-500 text-xs">@{balanceModal.username}</p>
                 </div>
                 <button
-                  type="button"
-                  onClick={() => !processing && setBalanceModal(null)}
                   className="text-gray-500 hover:text-white"
+                  onClick={() => !processing && setBalanceModal(null)}
+                  type="button"
                 >
                   <X size={20} />
                 </button>
               </div>
 
               {/* Current Balance */}
-              <div className="bg-white/5 p-3 border border-white/10 mb-4">
-                <div className="text-[10px] text-gray-500 uppercase mb-1">Текущий баланс</div>
-                <div className="text-xl font-bold text-pandora-cyan">
+              <div className="mb-4 border border-white/10 bg-white/5 p-3">
+                <div className="mb-1 text-[10px] text-gray-500 uppercase">Текущий баланс</div>
+                <div className="font-bold text-pandora-cyan text-xl">
                   {formatCurrency(balanceModal.balance)}
                 </div>
               </div>
@@ -511,21 +511,21 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
               {/* Amount Input */}
               <div className="mb-4">
                 <label
+                  className="mb-1 block text-[10px] text-gray-500 uppercase"
                   htmlFor="balance-amount"
-                  className="text-[10px] text-gray-500 uppercase mb-1 block"
                 >
                   Сумма (+ или -)
                 </label>
                 <input
+                  className="w-full border border-white/20 bg-black p-2.5 text-sm text-white outline-none focus:border-pandora-cyan"
                   id="balance-amount"
-                  type="number"
-                  value={balanceAmount}
                   onChange={(e) => setBalanceAmount(e.target.value)}
                   placeholder="10.00 или -5.00"
                   step="0.01"
-                  className="w-full bg-black border border-white/20 p-2.5 text-white text-sm focus:border-pandora-cyan outline-none"
+                  type="number"
+                  value={balanceAmount}
                 />
-                <p className="text-[9px] text-gray-600 mt-1">
+                <p className="mt-1 text-[9px] text-gray-600">
                   Положительное число для пополнения, отрицательное для списания
                 </p>
               </div>
@@ -533,19 +533,19 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
               {/* Actions */}
               <div className="flex gap-3">
                 <button
-                  type="button"
-                  onClick={handleUpdateBalance}
+                  className="flex flex-1 items-center justify-center gap-2 bg-pandora-cyan py-2.5 font-bold text-black text-sm transition-colors hover:bg-white disabled:opacity-50"
                   disabled={processing || !balanceAmount}
-                  className="flex-1 py-2.5 bg-pandora-cyan text-black font-bold text-sm hover:bg-white transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  onClick={handleUpdateBalance}
+                  type="button"
                 >
                   <Check size={16} />
                   Применить
                 </button>
                 <button
-                  type="button"
-                  onClick={() => setBalanceModal(null)}
+                  className="flex flex-1 items-center justify-center gap-2 bg-white/10 py-2.5 font-bold text-sm text-white transition-colors hover:bg-white/20"
                   disabled={processing}
-                  className="flex-1 py-2.5 bg-white/10 text-white font-bold text-sm hover:bg-white/20 transition-colors flex items-center justify-center gap-2"
+                  onClick={() => setBalanceModal(null)}
+                  type="button"
                 >
                   <X size={16} />
                   Отмена

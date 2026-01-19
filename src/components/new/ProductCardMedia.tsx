@@ -58,7 +58,7 @@ class ParticleSystem {
     this.parallaxY = y * 20;
   }
 
-  init(particleCount: number = 30) {
+  init(particleCount = 30) {
     const width = this.canvas.offsetWidth;
     const height = this.canvas.offsetHeight;
 
@@ -209,7 +209,7 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
 
   // Initialize particle system
   useEffect(() => {
-    if (!useParticles || !canvasRef.current || !isInView) return;
+    if (!(useParticles && canvasRef.current && isInView)) return;
 
     try {
       const system = new ParticleSystem(canvasRef.current);
@@ -239,7 +239,7 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
 
   // Handle video loading
   useEffect(() => {
-    if (!video || !videoRef.current || !isInView || videoError) return;
+    if (!(video && videoRef.current && isInView) || videoError) return;
 
     const videoEl = videoRef.current;
 
@@ -274,33 +274,33 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
   const shouldShowParticles = useParticles && isInView;
 
   return (
-    <div ref={containerRef} className={`relative w-full h-full overflow-hidden ${className}`}>
+    <div className={`relative h-full w-full overflow-hidden ${className}`} ref={containerRef}>
       {/* Base Image (always present as fallback) */}
       <img
-        src={image}
         alt={alt}
-        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
           shouldShowVideo
             ? "opacity-0"
             : "opacity-60 grayscale group-hover:opacity-100 group-hover:grayscale-0"
         }`}
-        loading="lazy"
         decoding="async"
+        loading="lazy"
+        src={image}
       />
 
       {/* Video Background (if available and loaded) */}
       {video && (
         <video
-          ref={videoRef}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
             shouldShowVideo
               ? "opacity-60 grayscale group-hover:opacity-100 group-hover:grayscale-0"
               : "opacity-0"
           }`}
-          muted
           loop
+          muted
           playsInline
           preload="metadata"
+          ref={videoRef}
           style={{ transform: "scale(1.05)" }} // Slight zoom to prevent edges
         >
           <source src={video} type="video/webm" />
@@ -311,8 +311,8 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
       {/* Canvas Particle System */}
       {shouldShowParticles && (
         <canvas
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-0 transition-opacity duration-300 group-hover:opacity-100"
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           style={{ mixBlendMode: "screen" }}
         />
       )}

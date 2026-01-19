@@ -16,20 +16,20 @@ interface ProductManifestProps {
 const ProductManifest: React.FC<ProductManifestProps> = ({ description, instructions }) => {
   return (
     <motion.div
-      key="manifest"
-      initial={{ opacity: 0, y: 5 }}
       animate={{ opacity: 1, y: 0 }}
+      className="space-y-4 font-mono text-gray-400 text-xs leading-relaxed"
       exit={{ opacity: 0, y: -5 }}
-      className="space-y-4 font-mono text-xs leading-relaxed text-gray-400"
+      initial={{ opacity: 0, y: 5 }}
+      key="manifest"
     >
-      <div className="p-4 bg-white/[0.02] border-l-2 border-pandora-cyan">
-        <h4 className="text-white font-bold mb-2 uppercase text-[10px] tracking-wider">
+      <div className="border-pandora-cyan border-l-2 bg-white/[0.02] p-4">
+        <h4 className="mb-2 font-bold text-[10px] text-white uppercase tracking-wider">
           Module Description
         </h4>
         <p>{description}</p>
       </div>
-      <div className="p-4 bg-white/[0.02] border-l-2 border-white/20">
-        <h4 className="text-white font-bold mb-2 uppercase text-[10px] tracking-wider">
+      <div className="border-white/20 border-l-2 bg-white/[0.02] p-4">
+        <h4 className="mb-2 font-bold text-[10px] text-white uppercase tracking-wider">
           Deployment Instructions
         </h4>
         <p className="whitespace-pre-wrap">
