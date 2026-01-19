@@ -67,8 +67,10 @@ async def emit_order_status_change(
             "status": status,
             "items_delivered": items_delivered,
         }
-        await redis.xadd(stream_key, "*", {"data": json.dumps(payload)})
-        logger.debug(f"Emitted order.status.changed for order {order_id}")
+        entry_id = await redis.xadd(stream_key, "*", {"data": json.dumps(payload)})
+        logger.info(
+            f"Emitted order.status.changed: order={order_id}, user={user_id}, status={status}, stream={stream_key}, entry_id={entry_id}"
+        )
     except Exception as e:
         logger.warning(f"Failed to emit order.status.changed: {e}", exc_info=True)
 

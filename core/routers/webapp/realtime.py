@@ -23,6 +23,12 @@ router = APIRouter(tags=["realtime"])
 # so we use asyncio.sleep() for polling instead
 POLL_INTERVAL_SECS = 1.0  # 1 second
 
+# Maximum number of events to read per stream per poll
+MAX_EVENTS_PER_POLL = 10
+
+# Maximum number of events to send on initial connection (to avoid overwhelming client)
+MAX_INITIAL_EVENTS = 20
+
 # Redis Stream key prefixes (constants to avoid duplication)
 STREAM_PREFIX_PROFILE = "stream:realtime:profile:"
 STREAM_PREFIX_ORDERS = "stream:realtime:orders:"
@@ -72,6 +78,10 @@ async def _stream_events_generator(
     if last_ids is None:
         last_ids = dict.fromkeys(stream_keys, "$")  # Start from latest
 
+    # Track if this is the first poll (initial connection)
+    is_first_poll = True
+    initial_events_sent = 0
+
     while True:
         try:
             # Read from all streams (non-blocking, upstash REST doesn't support block)
@@ -79,17 +89,54 @@ async def _stream_events_generator(
             has_events = False
             for stream_key in stream_keys:
                 last_id = last_ids.get(stream_key, "$")
-                # Use xrange to get entries after last_id (or from beginning if $)
-                if last_id == "$":
-                    # For $, we skip initial read and wait for new entries
-                    # Set to "0" to start reading from next poll
-                    last_ids[stream_key] = "0"
+                
+                # On first poll, read only recent events to avoid overwhelming client
+                if is_first_poll and last_id == "$":
+                    # Read all events (limited by MAX_INITIAL_EVENTS * 2 to get enough for last N)
+                    # Then take only the last MAX_INITIAL_EVENTS to send newest events
+                    try:
+                        # Read more than needed to ensure we get the latest
+                        all_entries = await redis.xrange(
+                            stream_key, start="-", end="+", count=MAX_INITIAL_EVENTS * 2
+                        )
+                        if all_entries:
+                            # Take only the last MAX_INITIAL_EVENTS (newest events)
+                            entries = all_entries[-MAX_INITIAL_EVENTS:]
+                            has_events = True
+                            for entry_id, fields in entries:
+                                last_ids[stream_key] = entry_id
+                                data = fields.get("data", "{}")
+                                if isinstance(data, str):
+                                    try:
+                                        parsed = json.loads(data)
+                                        yield f"data: {json.dumps(parsed)}\n\n"
+                                        initial_events_sent += 1
+                                    except json.JSONDecodeError:
+                                        logger.warning(f"Invalid JSON in stream {stream_key}: {data}")
+                                else:
+                                    yield f"data: {json.dumps(data)}\n\n"
+                                    initial_events_sent += 1
+                        else:
+                            # No events, set to "0" to start reading new events
+                            last_ids[stream_key] = "0"
+                    except Exception as stream_err:
+                        logger.warning(f"Error reading initial events from {stream_key}: {stream_err}")
+                        last_ids[stream_key] = "0"
+                    continue
+
+                # For subsequent polls, read new events after last_id
+                if last_id == "$" or last_id == "0":
+                    # Skip if no last_id yet (will be set on next poll)
+                    if last_id == "$":
+                        last_ids[stream_key] = "0"
                     continue
 
                 try:
                     # Read entries after last_id using xrange
-                    # Format: XRANGE stream_key (last_id +inf COUNT 10
-                    entries = await redis.xrange(stream_key, start=f"({last_id}", end="+", count=10)
+                    # Format: XRANGE stream_key (last_id +inf COUNT MAX_EVENTS_PER_POLL
+                    entries = await redis.xrange(
+                        stream_key, start=f"({last_id}", end="+", count=MAX_EVENTS_PER_POLL
+                    )
                     if entries:
                         has_events = True
                         for entry_id, fields in entries:
@@ -105,6 +152,12 @@ async def _stream_events_generator(
                                 yield f"data: {json.dumps(data)}\n\n"
                 except Exception as stream_err:
                     logger.warning(f"Error reading stream {stream_key}: {stream_err}")
+
+            # Mark first poll as complete
+            if is_first_poll:
+                is_first_poll = False
+                if initial_events_sent > 0:
+                    logger.debug(f"Sent {initial_events_sent} initial events on connection")
 
             # Send keep-alive if no new entries
             if not has_events:
@@ -178,12 +231,26 @@ async def realtime_stream(
     Supports multiple stream subscriptions based on user_id.
 
     Query params:
-        - user_id: User UUID (for user-specific streams)
+        - user_id: User UUID (for user-specific streams) - optional, can be auto-detected from auth
         - channels: Comma-separated list of channels (profile, orders, admin, leaderboard)
     """
     # Get query parameters
     user_id = request.query_params.get("user_id")
     channels_param = request.query_params.get("channels", "profile,orders,leaderboard")
+
+    # Auto-detect user_id from authentication if not provided in query
+    if not user_id and user:
+        try:
+            from core.services.database import get_database_async
+
+            # Get user_id from database using telegram_id
+            db = await get_database_async()
+            db_user = await db.get_user_by_telegram_id(user.id)
+            if db_user:
+                user_id = str(db_user.id)
+                logger.debug(f"Auto-detected user_id from auth: {user_id}")
+        except Exception as e:
+            logger.debug(f"Could not auto-detect user_id from auth: {e}")
 
     # Determine stream keys based on channels
     stream_keys = _determine_stream_keys(channels_param, user_id)
