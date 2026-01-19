@@ -1,5 +1,5 @@
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useProfileTyped } from "../../hooks/useApiTyped";
 import StudioContainer from "./StudioContainer";
 
@@ -18,21 +18,34 @@ const StudioPage: React.FC<StudioPageProps> = ({ onNavigateHome, onTopUp }) => {
   const { profile, getProfile } = useProfileTyped();
   const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const getProfileRef = useRef(getProfile);
 
+  // Keep ref updated
   useEffect(() => {
+    getProfileRef.current = getProfile;
+  }, [getProfile]);
+
+  // Load profile only once on mount to avoid infinite loop
+  useEffect(() => {
+    let cancelled = false;
     const loadProfile = async () => {
       try {
-        const fetchedProfile = await getProfile();
-        if (fetchedProfile) {
+        const fetchedProfile = await getProfileRef.current();
+        if (!cancelled && fetchedProfile) {
           // Check if user is admin
           setIsAdmin(fetchedProfile.role === "ADMIN");
         }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
     };
     loadProfile();
-  }, [getProfile]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Loading state
   if (isLoading) {

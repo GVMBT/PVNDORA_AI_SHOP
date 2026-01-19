@@ -112,6 +112,12 @@ export const DecryptText = ({
 }) => {
   const [display, setDisplay] = useState("");
   useEffect(() => {
+    // Safety check: ensure text is a valid string
+    if (!text || typeof text !== "string") {
+      setDisplay("");
+      return;
+    }
+
     let i = 0;
     const interval = setInterval(() => {
       setDisplay(

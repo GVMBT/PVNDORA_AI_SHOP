@@ -50,8 +50,23 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
   const [history, setHistory] = useState<GenerationTask[]>([]);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
 
+  // Refs for cleanup timers
+  const activeTimersRef = useRef<{ interval?: NodeJS.Timeout; timeout?: NodeJS.Timeout }>({});
+
   const activeModel = MODELS.find((m) => m.id === activeModelId) || MODELS[0];
   const activeTask = history.find((t) => t.id === activeTaskId) || null;
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (activeTimersRef.current.interval) {
+        clearInterval(activeTimersRef.current.interval);
+      }
+      if (activeTimersRef.current.timeout) {
+        clearTimeout(activeTimersRef.current.timeout);
+      }
+    };
+  }, []);
 
   // -- VEO 3.1 LOGIC ENFORCER --
   useEffect(() => {
@@ -157,18 +172,33 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
     setHistory((prev) => [newTask, ...prev]);
     setActiveTaskId(newId);
 
+    // Clear any existing timers
+    if (activeTimersRef.current.interval) {
+      clearInterval(activeTimersRef.current.interval);
+    }
+    if (activeTimersRef.current.timeout) {
+      clearTimeout(activeTimersRef.current.timeout);
+    }
+
     // Simulate progress logs
     let logIndex = 0;
     const logInterval = setInterval(() => {
       if (logIndex < GENERATION_LOGS.length) {
         setGenerationLogs((prev) => [...prev, GENERATION_LOGS[logIndex]]);
         logIndex++;
+      } else {
+        clearInterval(logInterval);
+        activeTimersRef.current.interval = undefined;
       }
     }, 500);
+    activeTimersRef.current.interval = logInterval;
 
     // Mock API completion
-    setTimeout(() => {
-      clearInterval(logInterval);
+    const completionTimeout = setTimeout(() => {
+      if (activeTimersRef.current.interval) {
+        clearInterval(activeTimersRef.current.interval);
+        activeTimersRef.current.interval = undefined;
+      }
       setHistory((prev) =>
         prev.map((t) => {
           if (t.id === newId)
@@ -185,7 +215,9 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
       );
       setIsGenerating(false);
       AudioEngine.success();
+      activeTimersRef.current.timeout = undefined;
     }, 5000);
+    activeTimersRef.current.timeout = completionTimeout;
   };
 
   return (

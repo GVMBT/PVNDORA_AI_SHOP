@@ -58,17 +58,19 @@ export const Viewport: React.FC<ViewportProps> = ({
 
                   {/* Terminal Logs */}
                   <div className="font-mono text-[10px] text-pandora-cyan/80 w-64 space-y-1 h-32 overflow-hidden flex flex-col justify-end">
-                    {generationLogs.map((log, i) => (
-                      <motion.div
-                        key={`log-${i}-${log.slice(0, 20)}`}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="truncate"
-                      >
-                        <span className="text-gray-600 mr-2">{`>`}</span>
-                        {log}
-                      </motion.div>
-                    ))}
+                    {generationLogs
+                      .filter((log): log is string => typeof log === "string" && log.length > 0)
+                      .map((log, i) => (
+                        <motion.div
+                          key={`log-${i}-${log.slice(0, 20)}`}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="truncate"
+                        >
+                          <span className="text-gray-600 mr-2">{`>`}</span>
+                          {log}
+                        </motion.div>
+                      ))}
                   </div>
 
                   <div className="flex gap-4 text-[9px] text-gray-500 uppercase font-mono border-t border-white/10 pt-4 mt-4 w-64 justify-center">
@@ -181,7 +183,7 @@ export const Viewport: React.FC<ViewportProps> = ({
                 <motion.div
                   animate={{ scale: [1, 1.1, 1] }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  className={`text-5xl md:text-6xl ${activeModel.color} opacity-90 drop-shadow-[0_0_30px_currentColor]`}
+                  className={`text-5xl md:text-6xl ${activeModel?.color || "text-pandora-cyan"} opacity-90 drop-shadow-[0_0_30px_currentColor]`}
                 >
                   {activeDomain === "video" ? (
                     <Film />
@@ -195,14 +197,16 @@ export const Viewport: React.FC<ViewportProps> = ({
             </div>
 
             {/* Model name with decrypt effect */}
-            <motion.h2
-              className="text-3xl md:text-5xl font-bold text-white tracking-tight mb-4"
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              <DecryptText text={activeModel.name} />
-            </motion.h2>
+            {activeModel?.name && (
+              <motion.h2
+                className="text-3xl md:text-5xl font-bold text-white tracking-tight mb-4"
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <DecryptText text={activeModel.name} />
+              </motion.h2>
+            )}
 
             {/* Status indicator - enhanced */}
             <motion.div
