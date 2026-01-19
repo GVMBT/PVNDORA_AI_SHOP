@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "../../hooks/useLocale";
+import { useStudioInit } from "../../hooks/useStudioRealtime";
 import { AudioEngine } from "../../lib/AudioEngine";
-import { generateId } from "../../utils/id";
+import {
+  selectActiveGeneration,
+  selectActiveModel,
+  useStudioStore,
+} from "../../stores/studioStore";
 import { CommandDeck } from "./CommandDeck";
 import { HistorySidebar } from "./HistorySidebar";
 import { TopHUD } from "./TopHUD";
@@ -22,7 +27,26 @@ import { DataStream, HexGrid, Scanline } from "./VisualComponents";
 const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, onTopUp }) => {
   const { t } = useLocale();
 
-  // State
+  // Initialize Studio store and realtime
+  useStudioInit();
+
+  // Store state
+  const {
+    generations,
+    models,
+    activeModelId: storeActiveModelId,
+    prompt: storePrompt,
+    generationStatus,
+    startGeneration,
+    setPrompt: setStorePrompt,
+    setActiveModel: setStoreActiveModel,
+    setConfig,
+  } = useStudioStore();
+
+  const storeActiveGeneration = useStudioStore(selectActiveGeneration);
+  const storeActiveModel = useStudioStore(selectActiveModel);
+
+  // Local UI State
   const [activeDomain, setActiveDomain] = useState<DomainType>("video");
   const [activeModelId, setActiveModelId] = useState<string>("veo-3.1");
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -141,7 +165,7 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
     }
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (userBalance < estimatedCost) return alert(t("modal.errors.insufficientFunds"));
 
     if (veoMode === "text" && !prompt.trim()) return alert("Enter a prompt");
@@ -154,33 +178,7 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
     setIsGenerating(true);
     setGenerationLogs([]);
 
-    const newId = generateId("task");
-    const newTask: GenerationTask = {
-      id: newId,
-      domain: activeDomain,
-      modelId: activeModelId,
-      prompt: prompt,
-      status: "processing",
-      timestamp: Date.now(),
-      cost: estimatedCost,
-      outputs: [],
-      veoConfig: activeModel.isVeo
-        ? { mode: veoMode, resolution: veoResolution, duration: veoDuration, aspect: aspectRatio }
-        : undefined,
-    };
-
-    setHistory((prev) => [newTask, ...prev]);
-    setActiveTaskId(newId);
-
-    // Clear any existing timers
-    if (activeTimersRef.current.interval) {
-      clearInterval(activeTimersRef.current.interval);
-    }
-    if (activeTimersRef.current.timeout) {
-      clearTimeout(activeTimersRef.current.timeout);
-    }
-
-    // Simulate progress logs
+    // Start log simulation for visual feedback
     let logIndex = 0;
     const logInterval = setInterval(() => {
       if (logIndex < GENERATION_LOGS.length) {
@@ -193,31 +191,56 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
     }, 500);
     activeTimersRef.current.interval = logInterval;
 
-    // Mock API completion
-    const completionTimeout = setTimeout(() => {
+    try {
+      // Call real API
+      const generationId = await startGeneration({
+        model_id: activeModelId,
+        prompt: prompt,
+        config: {
+          resolution: veoResolution,
+          aspect_ratio: aspectRatio,
+          duration_seconds: parseInt(veoDuration.replace("s", ""), 10),
+          custom_params: {
+            mode: veoMode,
+          },
+        },
+      });
+
+      if (generationId) {
+        // Also update local history for immediate UI feedback
+        const newTask: GenerationTask = {
+          id: generationId,
+          domain: activeDomain,
+          modelId: activeModelId,
+          prompt: prompt,
+          status: "processing",
+          timestamp: Date.now(),
+          cost: estimatedCost,
+          outputs: [],
+          veoConfig: activeModel.isVeo
+            ? { mode: veoMode, resolution: veoResolution, duration: veoDuration, aspect: aspectRatio }
+            : undefined,
+        };
+        setHistory((prev) => [newTask, ...prev]);
+        setActiveTaskId(generationId);
+        setPrompt(""); // Clear prompt after success
+        AudioEngine.success();
+      } else {
+        AudioEngine.error();
+        alert("Ошибка генерации. Попробуйте позже.");
+      }
+    } catch (error) {
+      console.error("Generation error:", error);
+      AudioEngine.error();
+      alert(error instanceof Error ? error.message : "Неизвестная ошибка");
+    } finally {
+      // Stop log simulation
       if (activeTimersRef.current.interval) {
         clearInterval(activeTimersRef.current.interval);
         activeTimersRef.current.interval = undefined;
       }
-      setHistory((prev) =>
-        prev.map((t) => {
-          if (t.id === newId)
-            return {
-              ...t,
-              status: "completed",
-              outputs:
-                activeDomain === "video"
-                  ? ["https://cdn.pixabay.com/video/2024/05/04/210543_large.mp4"]
-                  : ["https://images.unsplash.com/photo-1620641788427-b11e696f1d7f"],
-            };
-          return t;
-        })
-      );
       setIsGenerating(false);
-      AudioEngine.success();
-      activeTimersRef.current.timeout = undefined;
-    }, 5000);
-    activeTimersRef.current.timeout = completionTimeout;
+    }
   };
 
   return (
