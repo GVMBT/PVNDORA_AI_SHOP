@@ -104,7 +104,9 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
       }, notification.duration);
     }
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
     };
   }, [notification.id, notification.duration, onRemove, isHovered]);
 

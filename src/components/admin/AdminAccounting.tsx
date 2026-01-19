@@ -200,7 +200,9 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
       setShowDatePicker(true);
     } else {
       setShowDatePicker(false);
-      if (onRefresh) onRefresh(p, undefined, undefined);
+      if (onRefresh) {
+        onRefresh(p, undefined, undefined);
+      }
     }
   };
 
@@ -299,7 +301,9 @@ const AdminAccounting: React.FC<AdminAccountingProps> = ({
               <button
                 className="text-pandora-cyan text-xs hover:underline"
                 onClick={() => {
-                  if (onRefresh) onRefresh("custom", customFrom, customTo);
+                  if (onRefresh) {
+                    onRefresh("custom", customFrom, customTo);
+                  }
                 }}
                 type="button"
               >

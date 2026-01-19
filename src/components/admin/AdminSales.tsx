@@ -31,14 +31,22 @@ interface ForceStatusResponse {
 
 // Helper functions to avoid nested ternaries
 const getSourceChannelStyle = (channel: string): string => {
-  if (channel === "discount") return "bg-yellow-500/20 text-yellow-400";
-  if (channel === "webapp") return "bg-blue-500/20 text-blue-400";
+  if (channel === "discount") {
+    return "bg-yellow-500/20 text-yellow-400";
+  }
+  if (channel === "webapp") {
+    return "bg-blue-500/20 text-blue-400";
+  }
   return "bg-pandora-cyan/20 text-pandora-cyan";
 };
 
 const getSourceChannelLabel = (channel: string, short = false): string => {
-  if (channel === "discount") return short ? "DSC" : "DISCOUNT";
-  if (channel === "webapp") return short ? "WEB" : "WEBAPP";
+  if (channel === "discount") {
+    return short ? "DSC" : "DISCOUNT";
+  }
+  if (channel === "webapp") {
+    return short ? "WEB" : "WEBAPP";
+  }
   return short ? "PVN" : "PVNDORA";
 };
 

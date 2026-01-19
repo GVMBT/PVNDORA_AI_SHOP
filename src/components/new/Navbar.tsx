@@ -41,7 +41,9 @@ const startTypewriterInterval = (
   setDisplayedText: React.Dispatch<React.SetStateAction<string>>
 ): NodeJS.Timeout => {
   let index = 0;
-  if (text.length > 0) setDisplayedText(text[0]);
+  if (text.length > 0) {
+    setDisplayedText(text[0]);
+  }
 
   return setInterval(() => {
     index++;
@@ -68,7 +70,9 @@ const Typewriter: React.FC<{ text: string; delay?: number; speed?: number }> = (
 
     return () => {
       clearTimeout(startTimeout);
-      if (intervalId) clearInterval(intervalId);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
   }, [text, delay, speed]);
 
@@ -77,8 +81,12 @@ const Typewriter: React.FC<{ text: string; delay?: number; speed?: number }> = (
 
 // Helper: Handle click with haptic feedback (extracted to reduce cognitive complexity)
 const createClickHandler = (onHaptic?: () => void) => (callback?: () => void) => {
-  if (onHaptic) onHaptic();
-  if (callback) callback();
+  if (onHaptic) {
+    onHaptic();
+  }
+  if (callback) {
+    callback();
+  }
 };
 
 const NavbarComponent: React.FC<NavbarProps> = ({
@@ -539,7 +547,9 @@ const NavbarComponent: React.FC<NavbarProps> = ({
                 <button
                   className="mt-2 flex cursor-pointer items-center gap-2 font-mono text-red-400 text-xs uppercase transition-colors hover:text-red-300"
                   onClick={() => {
-                    if (onHaptic) onHaptic();
+                    if (onHaptic) {
+                      onHaptic();
+                    }
                     if (onLogout) {
                       onLogout();
                     } else {
@@ -641,85 +651,95 @@ const NavItem: React.FC<NavItemProps> = ({
   onClick,
   isExpanded,
   delay = 0,
-}) => (
-  <motion.button
-    animate={{
-      paddingLeft: isExpanded ? 12 : 0,
-      paddingRight: isExpanded ? 16 : 0,
-      justifyContent: isExpanded ? "flex-start" : "center",
-    }}
-    className={`group/item relative flex h-12 w-full items-center justify-center md:h-14 md:justify-start ${active ? "bg-white/5" : onClick ? "hover:bg-white/5" : ""}
+}) => {
+  // Determine background class (avoid nested ternary)
+  let bgClass = "";
+  if (active) {
+    bgClass = "bg-white/5";
+  } else if (onClick) {
+    bgClass = "hover:bg-white/5";
+  }
+
+  return (
+    <motion.button
+      animate={{
+        paddingLeft: isExpanded ? 12 : 0,
+        paddingRight: isExpanded ? 16 : 0,
+        justifyContent: isExpanded ? "flex-start" : "center",
+      }}
+      className={`group/item relative flex h-12 w-full items-center justify-center md:h-14 md:justify-start ${bgClass}
             ${onClick ? "cursor-pointer" : "cursor-not-allowed opacity-50"}
         `}
-    disabled={!onClick}
-    onClick={onClick}
-    style={{ willChange: "padding-left, padding-right" }}
-    title={isExpanded ? undefined : label}
-    transition={{ type: "spring", stiffness: 400, damping: 35 }}
-    type="button"
-  >
-    {/* Active Indicator (Left Line) */}
-    <motion.div
-      animate={{ opacity: active ? 1 : 0 }}
-      className="absolute top-1/2 left-0 h-8 w-1 -translate-y-1/2 rounded-r-sm bg-pandora-cyan"
-      transition={{ duration: 0.2 }}
-    />
-
-    {/* Icon Container (Standard Rounded Square) */}
-    <motion.div
-      animate={{ width: isExpanded ? 80 : "100%" }}
-      className="relative z-10 flex shrink-0 items-center justify-center"
-      style={{ willChange: "width" }}
+      disabled={!onClick}
+      onClick={onClick}
+      style={{ willChange: "padding-left, padding-right" }}
+      title={isExpanded ? undefined : label}
       transition={{ type: "spring", stiffness: 400, damping: 35 }}
+      type="button"
     >
-      <div
-        className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors duration-200 ${active ? "bg-pandora-cyan/20 text-pandora-cyan shadow-[0_0_10px_rgba(0,255,255,0.3)]" : "bg-white/5 text-gray-500 group-hover/item:bg-white/10 group-hover/item:text-white"}
-                `}
+      {/* Active Indicator (Left Line) */}
+      <motion.div
+        animate={{ opacity: active ? 1 : 0 }}
+        className="absolute top-1/2 left-0 h-8 w-1 -translate-y-1/2 rounded-r-sm bg-pandora-cyan"
+        transition={{ duration: 0.2 }}
+      />
+
+      {/* Icon Container (Standard Rounded Square) */}
+      <motion.div
+        animate={{ width: isExpanded ? 80 : "100%" }}
+        className="relative z-10 flex shrink-0 items-center justify-center"
+        style={{ willChange: "width" }}
+        transition={{ type: "spring", stiffness: 400, damping: 35 }}
       >
-        {icon}
-      </div>
-    </motion.div>
-
-    {/* Text Content */}
-    <AnimatePresence mode="wait">
-      {isExpanded && (
-        <motion.div
-          animate={{ opacity: 1, x: 0, width: "auto" }}
-          className="flex flex-1 items-center justify-between overflow-hidden whitespace-nowrap pr-4 pl-1"
-          exit={{ opacity: 0, x: -10, width: 0 }}
-          initial={{ opacity: 0, x: -10, width: 0 }}
-          key="nav-text"
-          style={{ willChange: "width, opacity" }}
-          transition={{
-            delay: delay * 0.1,
-            duration: 0.25,
-            ease: "easeOut",
-          }}
+        <div
+          className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors duration-200 ${active ? "bg-pandora-cyan/20 text-pandora-cyan shadow-[0_0_10px_rgba(0,255,255,0.3)]" : "bg-white/5 text-gray-500 group-hover/item:bg-white/10 group-hover/item:text-white"}
+                `}
         >
-          <div className="text-left">
-            <div
-              className={`font-bold text-sm tracking-wide ${active ? "text-white" : "text-gray-400 group-hover/item:text-white"}`}
-            >
-              <Typewriter delay={delay * 1000} speed={25} text={label} />
-            </div>
-            {subLabel && (
-              <div className="font-mono text-[10px] text-gray-600 transition-colors duration-200 group-hover/item:text-pandora-cyan">
-                <Typewriter delay={delay * 1000 + 100} speed={15} text={subLabel} />
+          {icon}
+        </div>
+      </motion.div>
+
+      {/* Text Content */}
+      <AnimatePresence mode="wait">
+        {isExpanded && (
+          <motion.div
+            animate={{ opacity: 1, x: 0, width: "auto" }}
+            className="flex flex-1 items-center justify-between overflow-hidden whitespace-nowrap pr-4 pl-1"
+            exit={{ opacity: 0, x: -10, width: 0 }}
+            initial={{ opacity: 0, x: -10, width: 0 }}
+            key="nav-text"
+            style={{ willChange: "width, opacity" }}
+            transition={{
+              delay: delay * 0.1,
+              duration: 0.25,
+              ease: "easeOut",
+            }}
+          >
+            <div className="text-left">
+              <div
+                className={`font-bold text-sm tracking-wide ${active ? "text-white" : "text-gray-400 group-hover/item:text-white"}`}
+              >
+                <Typewriter delay={delay * 1000} speed={25} text={label} />
               </div>
-            )}
-          </div>
+              {subLabel && (
+                <div className="font-mono text-[10px] text-gray-600 transition-colors duration-200 group-hover/item:text-pandora-cyan">
+                  <Typewriter delay={delay * 1000 + 100} speed={15} text={subLabel} />
+                </div>
+              )}
+            </div>
 
-          {active && <ChevronRight className="animate-pulse text-pandora-cyan" size={14} />}
-        </motion.div>
+            {active && <ChevronRight className="animate-pulse text-pandora-cyan" size={14} />}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Hover Glitch Effect Background (Scanline) */}
+      {active && (
+        <div className="absolute right-0 bottom-0 left-20 h-[1px] bg-gradient-to-r from-pandora-cyan/50 to-transparent" />
       )}
-    </AnimatePresence>
-
-    {/* Hover Glitch Effect Background (Scanline) */}
-    {active && (
-      <div className="absolute right-0 bottom-0 left-20 h-[1px] bg-gradient-to-r from-pandora-cyan/50 to-transparent" />
-    )}
-  </motion.button>
-);
+    </motion.button>
+  );
+};
 
 interface MobileNavItemProps {
   icon: React.ReactNode;

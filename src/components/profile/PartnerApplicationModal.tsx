@@ -22,8 +22,12 @@ import { useCallback, useEffect, useState } from "react";
 
 // Helper to get status icon (avoid nested ternary)
 const getStatusIcon = (status: string) => {
-  if (status === "pending") return <Loader2 className="h-10 w-10 animate-spin" />;
-  if (status === "approved") return <CheckCircle className="h-10 w-10" />;
+  if (status === "pending") {
+    return <Loader2 className="h-10 w-10 animate-spin" />;
+  }
+  if (status === "approved") {
+    return <CheckCircle className="h-10 w-10" />;
+  }
   return <AlertCircle className="h-10 w-10" />;
 };
 

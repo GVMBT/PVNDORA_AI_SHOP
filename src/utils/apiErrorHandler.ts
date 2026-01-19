@@ -7,6 +7,10 @@
 
 import { logger } from "./logger";
 
+// Regex patterns (moved to top level for performance)
+const HTTP_STATUS_REGEX = /HTTP (\d+)/;
+const CRYSTALPAY_ERROR_PREFIX_REGEX = /^CrystalPay API error:\s*/i;
+
 export interface ApiError {
   message: string;
   status?: number;
@@ -20,8 +24,7 @@ export interface ApiError {
 export function parseApiError(error: unknown, endpoint?: string): ApiError {
   if (error instanceof Error) {
     // Check for HTTP status codes in message
-    const statusRegex = /HTTP (\d+)/;
-    const statusMatch = statusRegex.exec(error.message);
+    const statusMatch = HTTP_STATUS_REGEX.exec(error.message);
     const status = statusMatch ? Number.parseInt(statusMatch[1], 10) : undefined;
 
     // Determine if error is retryable
@@ -31,7 +34,7 @@ export function parseApiError(error: unknown, endpoint?: string): ApiError {
     let message = error.message;
 
     // Remove technical prefixes
-    message = message.replace(/^CrystalPay API error:\s*/i, "");
+    message = message.replace(CRYSTALPAY_ERROR_PREFIX_REGEX, "");
 
     // Handle specific status codes
     if (status === 429) {
@@ -80,7 +83,9 @@ export function isRetryableError(error: ApiError): boolean {
  * Get retry delay in milliseconds based on error
  */
 export function getRetryDelay(error: ApiError, attempt: number): number {
-  if (!isRetryableError(error)) return 0;
+  if (!isRetryableError(error)) {
+    return 0;
+  }
 
   // Exponential backoff: 1s, 2s, 4s, 8s, max 30s
   const baseDelay = 1000;

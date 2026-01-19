@@ -128,7 +128,9 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ isOpen, expense, onClose, o
     return `${amount.toFixed(2)} ${symbol}`;
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   const selectedCategoryInfo = EXPENSE_CATEGORIES.find((c) => c.value === editingExpense.category);
 

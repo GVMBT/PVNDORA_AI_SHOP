@@ -30,7 +30,9 @@ import type { ProfileDataProp } from "./types";
 // Format balance for display (remove excessive decimals)
 function formatBalance(balance: string | number, currency: string): string {
   const num = typeof balance === "string" ? Number.parseFloat(balance) : balance;
-  if (Number.isNaN(num)) return "0";
+  if (Number.isNaN(num)) {
+    return "0";
+  }
 
   // Integer currencies (no decimals)
   const integerCurrencies = ["RUB", "UAH", "TRY", "INR"];
@@ -82,11 +84,15 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
 
   const handleLanguageChange = useCallback(
     async (lang: "ru" | "en") => {
-      if (onHaptic) onHaptic("light");
+      if (onHaptic) {
+        onHaptic("light");
+      }
       if (onUpdatePreferences) {
         try {
           await onUpdatePreferences(undefined, lang);
-          if (onHaptic) onHaptic("light");
+          if (onHaptic) {
+            onHaptic("light");
+          }
           // No reload needed - context will update automatically
         } catch (err) {
           // Error handled by logger - rethrow to allow parent to handle
@@ -148,7 +154,9 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
                         <button
                           className="ml-3 rounded p-1.5 text-yellow-400 transition-colors hover:bg-yellow-500/20 hover:text-yellow-300"
                           onClick={async () => {
-                            if (onHaptic) onHaptic("light");
+                            if (onHaptic) {
+                              onHaptic("light");
+                            }
                             try {
                               await onCancelWithdrawal(w.id);
                             } catch (err) {
@@ -172,8 +180,12 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
             <button
               className="flex items-center justify-center gap-2 rounded-sm border border-white/10 bg-white/5 py-3 font-bold text-white text-xs uppercase tracking-wider transition-colors hover:border-pandora-cyan hover:text-pandora-cyan"
               onClick={() => {
-                if (onHaptic) onHaptic("light");
-                if (onTopUp) onTopUp();
+                if (onHaptic) {
+                  onHaptic("light");
+                }
+                if (onTopUp) {
+                  onTopUp();
+                }
               }}
               type="button"
             >
@@ -182,8 +194,12 @@ const ProfileStats: React.FC<ProfileStatsProps> = ({
             <button
               className="flex items-center justify-center gap-2 rounded-sm bg-pandora-cyan py-3 font-bold text-black text-xs uppercase tracking-wider shadow-[0_0_15px_rgba(0,255,255,0.2)] transition-colors hover:bg-white"
               onClick={() => {
-                if (onHaptic) onHaptic("medium");
-                if (onWithdraw) onWithdraw();
+                if (onHaptic) {
+                  onHaptic("medium");
+                }
+                if (onWithdraw) {
+                  onWithdraw();
+                }
               }}
               type="button"
             >

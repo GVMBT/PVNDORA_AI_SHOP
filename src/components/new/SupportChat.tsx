@@ -50,8 +50,12 @@ const SupportChat: React.FC<SupportChatProps> = ({
   }, [isOpen]);
 
   const handleSend = () => {
-    if (!inputValue.trim()) return;
-    if (onHaptic) onHaptic();
+    if (!inputValue.trim()) {
+      return;
+    }
+    if (onHaptic) {
+      onHaptic();
+    }
 
     const userMsg: Message = {
       id: Date.now(),
@@ -78,11 +82,15 @@ const SupportChat: React.FC<SupportChatProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleSend();
+    if (e.key === "Enter") {
+      handleSend();
+    }
   };
 
   const toggleChat = () => {
-    if (onHaptic) onHaptic();
+    if (onHaptic) {
+      onHaptic();
+    }
     onToggle(!isOpen);
   };
 

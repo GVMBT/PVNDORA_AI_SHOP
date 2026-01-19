@@ -98,7 +98,9 @@ function canCancelOrder(rawStatus: RawOrderStatus): boolean {
  */
 function canRequestRefund(rawStatus: RawOrderStatus, warrantyUntil?: string | null): boolean {
   // Only delivered orders can request refund (for warranty issues)
-  if (rawStatus !== "delivered") return false;
+  if (rawStatus !== "delivered") {
+    return false;
+  }
 
   // Check if still within warranty period
   if (warrantyUntil) {
@@ -193,7 +195,9 @@ function calculateItemWarrantyUntil(
   deliveredAt: string | null | undefined,
   warrantyDays = 7
 ): string | null {
-  if (!deliveredAt) return null;
+  if (!deliveredAt) {
+    return null;
+  }
 
   try {
     const delivered = new Date(deliveredAt);
@@ -213,8 +217,12 @@ function canItemRequestRefund(
   _deliveredAt: string | null | undefined,
   warrantyUntil: string | null | undefined
 ): boolean {
-  if (itemStatus !== "delivered") return false;
-  if (!warrantyUntil) return false;
+  if (itemStatus !== "delivered") {
+    return false;
+  }
+  if (!warrantyUntil) {
+    return false;
+  }
 
   try {
     const warrantyEnd = new Date(warrantyUntil);

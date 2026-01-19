@@ -13,7 +13,9 @@ export const sessionStorage = {
    * Get item from sessionStorage
    */
   get: (key: string): string | null => {
-    if (globalThis.window === undefined) return null;
+    if (globalThis.window === undefined) {
+      return null;
+    }
     try {
       return globalThis.sessionStorage.getItem(key);
     } catch (err) {
@@ -26,7 +28,9 @@ export const sessionStorage = {
    * Set item in sessionStorage
    */
   set: (key: string, value: string): boolean => {
-    if (globalThis.window === undefined) return false;
+    if (globalThis.window === undefined) {
+      return false;
+    }
     try {
       globalThis.sessionStorage.setItem(key, value);
       return true;
@@ -40,7 +44,9 @@ export const sessionStorage = {
    * Remove item from sessionStorage
    */
   remove: (key: string): boolean => {
-    if (globalThis.window === undefined) return false;
+    if (globalThis.window === undefined) {
+      return false;
+    }
     try {
       globalThis.sessionStorage.removeItem(key);
       return true;
@@ -54,7 +60,9 @@ export const sessionStorage = {
    * Clear all sessionStorage
    */
   clear: (): boolean => {
-    if (globalThis.window === undefined) return false;
+    if (globalThis.window === undefined) {
+      return false;
+    }
     try {
       globalThis.sessionStorage.clear();
       return true;
@@ -73,7 +81,9 @@ export const localStorage = {
    * Get item from localStorage
    */
   get: (key: string): string | null => {
-    if (globalThis.window === undefined) return null;
+    if (globalThis.window === undefined) {
+      return null;
+    }
     try {
       return globalThis.localStorage.getItem(key);
     } catch (err) {
@@ -86,7 +96,9 @@ export const localStorage = {
    * Set item in localStorage
    */
   set: (key: string, value: string): boolean => {
-    if (globalThis.window === undefined) return false;
+    if (globalThis.window === undefined) {
+      return false;
+    }
     try {
       globalThis.localStorage.setItem(key, value);
       return true;
@@ -100,7 +112,9 @@ export const localStorage = {
    * Remove item from localStorage
    */
   remove: (key: string): boolean => {
-    if (globalThis.window === undefined) return false;
+    if (globalThis.window === undefined) {
+      return false;
+    }
     try {
       globalThis.localStorage.removeItem(key);
       return true;
@@ -114,7 +128,9 @@ export const localStorage = {
    * Clear all localStorage
    */
   clear: (): boolean => {
-    if (globalThis.window === undefined) return false;
+    if (globalThis.window === undefined) {
+      return false;
+    }
     try {
       globalThis.localStorage.clear();
       return true;

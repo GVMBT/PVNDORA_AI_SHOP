@@ -77,7 +77,9 @@ export function convertCartDataToLegacyCart(cartData: CartData | null): LegacyCa
  * @returns Subtotal amount or 0 if cart is empty
  */
 export function getCartSubtotal(cartData: CartData | null): number {
-  if (!cartData) return 0;
+  if (!cartData) {
+    return 0;
+  }
   return cartData.originalTotal || cartData.total || 0;
 }
 
@@ -88,6 +90,8 @@ export function getCartSubtotal(cartData: CartData | null): number {
  * @returns Total amount after discounts or 0 if cart is empty
  */
 export function getCartTotal(cartData: CartData | null): number {
-  if (!cartData) return 0;
+  if (!cartData) {
+    return 0;
+  }
   return cartData.total || 0;
 }

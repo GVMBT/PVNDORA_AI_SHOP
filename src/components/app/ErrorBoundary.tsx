@@ -24,7 +24,9 @@ interface State {
 
 // Check if error is a chunk loading error (stale cache after deploy)
 function isChunkLoadError(error: Error | null): boolean {
-  if (!error) return false;
+  if (!error) {
+    return false;
+  }
   const message = error.message.toLowerCase();
   return (
     message.includes("failed to fetch dynamically imported module") ||

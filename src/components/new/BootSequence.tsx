@@ -59,7 +59,9 @@ const runAllTasks = async (
   isCancelled: () => boolean
 ): Promise<boolean> => {
   for (let i = 0; i < tasks.length; i++) {
-    if (isCancelled()) return false;
+    if (isCancelled()) {
+      return false;
+    }
 
     const shouldContinue = await executeTask(
       tasks[i],
@@ -69,7 +71,9 @@ const runAllTasks = async (
       setPhase
     );
 
-    if (!shouldContinue) return false;
+    if (!shouldContinue) {
+      return false;
+    }
     setProgress(((i + 1) / tasks.length) * 100);
     await delay(80);
   }

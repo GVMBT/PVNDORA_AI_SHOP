@@ -124,8 +124,9 @@ const LoginPage = ({
     }
 
     return () => {
-      delete (globalThis as typeof globalThis & { onTelegramAuth?: typeof handleTelegramAuth })
-        .onTelegramAuth;
+      (
+        globalThis as typeof globalThis & { onTelegramAuth?: typeof handleTelegramAuth }
+      ).onTelegramAuth = undefined;
       if (container && script.parentNode === container) {
         script.remove();
       }

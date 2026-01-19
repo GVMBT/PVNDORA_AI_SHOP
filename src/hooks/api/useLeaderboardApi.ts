@@ -85,8 +85,10 @@ export function useLeaderboardTyped() {
     [get, contextCurrency]
   );
 
-  const loadMore = useCallback(async () => {
-    if (!hasMore || loading) return;
+  const loadMore = useCallback(() => {
+    if (!hasMore || loading) {
+      return Promise.resolve();
+    }
     return getLeaderboard(PAGINATION.LEADERBOARD_LIMIT, currentOffset, true);
   }, [getLeaderboard, hasMore, loading, currentOffset]);
 

@@ -26,7 +26,9 @@ const AdminSupport: React.FC<AdminSupportProps> = ({ tickets, onRefresh }) => {
 
   const handleResolve = useCallback(
     async (approve: boolean) => {
-      if (!selectedTicketId) return;
+      if (!selectedTicketId) {
+        return;
+      }
 
       setProcessing(true);
       try {

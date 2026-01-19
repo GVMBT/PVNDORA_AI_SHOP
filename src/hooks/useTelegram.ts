@@ -76,10 +76,18 @@ const applyMainButtonConfig = (
   btn: NonNullable<WebApp["MainButton"]>,
   config: MainButtonConfig
 ): void => {
-  if (config.text) btn.setText(config.text);
-  if (config.color) btn.setParams({ color: config.color });
-  if (config.textColor) btn.setParams({ text_color: config.textColor });
-  if (config.onClick) btn.onClick(config.onClick);
+  if (config.text) {
+    btn.setText(config.text);
+  }
+  if (config.color) {
+    btn.setParams({ color: config.color });
+  }
+  if (config.textColor) {
+    btn.setParams({ text_color: config.textColor });
+  }
+  if (config.onClick) {
+    btn.onClick(config.onClick);
+  }
 
   if (config.isVisible !== undefined) {
     config.isVisible ? btn.show() : btn.hide();
@@ -93,7 +101,9 @@ const applyBackButtonConfig = (
   btn: NonNullable<WebApp["BackButton"]>,
   config: BackButtonConfig
 ): void => {
-  if (config.onClick) btn.onClick(config.onClick);
+  if (config.onClick) {
+    btn.onClick(config.onClick);
+  }
   if (config.isVisible !== undefined) {
     config.isVisible ? btn.show() : btn.hide();
   }
@@ -167,7 +177,9 @@ export function useTelegram(): UseTelegramReturn {
     (type: HapticType = "impact", style: HapticStyle = "medium"): void => {
       const tg = (globalThis as typeof globalThis & { Telegram?: { WebApp?: WebApp } }).Telegram
         ?.WebApp;
-      if (!tg) return;
+      if (!tg) {
+        return;
+      }
 
       // Check Telegram WebApp version - HapticFeedback not supported in 6.0+
       const version = tg.version || "";
@@ -177,7 +189,9 @@ export function useTelegram(): UseTelegramReturn {
       }
 
       const haptic = tg.HapticFeedback;
-      if (!haptic) return;
+      if (!haptic) {
+        return;
+      }
 
       try {
         if (type === "impact") {

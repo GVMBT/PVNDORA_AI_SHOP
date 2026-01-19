@@ -119,10 +119,16 @@ const Catalog: React.FC<CatalogProps> = ({
 
   // Helper to derive availability from product data - wrapped in useCallback for stable reference
   const getProductAvailability = useCallback((product: ProductData): ProductAvailability => {
-    if (product.status) return product.status;
+    if (product.status) {
+      return product.status;
+    }
     // Fallback logic for products without status
-    if (product.stock > 0) return "available";
-    if (product.can_fulfill_on_demand || product.fulfillment > 0) return "on_demand";
+    if (product.stock > 0) {
+      return "available";
+    }
+    if (product.can_fulfill_on_demand || product.fulfillment > 0) {
+      return "on_demand";
+    }
     return "discontinued";
   }, []);
 
@@ -140,20 +146,31 @@ const Catalog: React.FC<CatalogProps> = ({
       // Availability filter
       const availability = getProductAvailability(product);
       let matchesAvailability = activeAvailability === "All";
-      if (activeAvailability === "Available") matchesAvailability = availability === "available";
-      if (activeAvailability === "On Demand") matchesAvailability = availability === "on_demand";
-      if (activeAvailability === "Discontinued")
+      if (activeAvailability === "Available") {
+        matchesAvailability = availability === "available";
+      }
+      if (activeAvailability === "On Demand") {
+        matchesAvailability = availability === "on_demand";
+      }
+      if (activeAvailability === "Discontinued") {
         matchesAvailability = availability === "discontinued" || availability === "coming_soon";
+      }
 
       return matchesSearch && matchesCategory && matchesAvailability;
     });
 
     // Sorting Logic
     result = result.sort((a, b) => {
-      if (sortBy === "price_asc") return a.price - b.price;
-      if (sortBy === "price_desc") return b.price - a.price;
+      if (sortBy === "price_asc") {
+        return a.price - b.price;
+      }
+      if (sortBy === "price_desc") {
+        return b.price - a.price;
+      }
       // Default: Popular (Items with popular:true come first)
-      if (a.popular === b.popular) return 0;
+      if (a.popular === b.popular) {
+        return 0;
+      }
       return a.popular ? -1 : 1;
     });
 
@@ -168,18 +185,28 @@ const Catalog: React.FC<CatalogProps> = ({
   ]);
 
   const handleCategoryChange = (cat: string) => {
-    if (onHaptic) onHaptic("light");
+    if (onHaptic) {
+      onHaptic("light");
+    }
     setActiveCategory(cat);
   };
 
   const handleProductClick = (product: ProductData) => {
-    if (onHaptic) onHaptic("medium");
-    if (onSelectProduct) onSelectProduct(product);
+    if (onHaptic) {
+      onHaptic("medium");
+    }
+    if (onSelectProduct) {
+      onSelectProduct(product);
+    }
   };
 
   const handleAddToCart = (product: ProductData, quantity = 1) => {
-    if (onHaptic) onHaptic("medium");
-    if (onAddToCart) onAddToCart(product, quantity);
+    if (onHaptic) {
+      onHaptic("medium");
+    }
+    if (onAddToCart) {
+      onAddToCart(product, quantity);
+    }
   };
 
   return (
@@ -231,7 +258,9 @@ const Catalog: React.FC<CatalogProps> = ({
                   e.preventDefault();
                   e.stopPropagation();
                   justToggledRef.current = true;
-                  if (onHaptic) onHaptic("light");
+                  if (onHaptic) {
+                    onHaptic("light");
+                  }
                   setIsAvailabilityOpen((prev) => !prev);
                   setIsSortOpen(false);
                 }}
@@ -291,7 +320,9 @@ const Catalog: React.FC<CatalogProps> = ({
                           e.preventDefault();
                           e.stopPropagation();
                           justToggledRef.current = true;
-                          if (onHaptic) onHaptic("light");
+                          if (onHaptic) {
+                            onHaptic("light");
+                          }
                           setActiveAvailability(option.value as AvailabilityFilter);
                           setIsAvailabilityOpen(false);
                         }}
@@ -316,7 +347,9 @@ const Catalog: React.FC<CatalogProps> = ({
                   e.preventDefault();
                   e.stopPropagation();
                   justToggledRef.current = true;
-                  if (onHaptic) onHaptic("light");
+                  if (onHaptic) {
+                    onHaptic("light");
+                  }
                   setIsSortOpen((prev) => !prev);
                   setIsAvailabilityOpen(false);
                 }}
@@ -357,7 +390,9 @@ const Catalog: React.FC<CatalogProps> = ({
                           e.preventDefault();
                           e.stopPropagation();
                           justToggledRef.current = true;
-                          if (onHaptic) onHaptic("light");
+                          if (onHaptic) {
+                            onHaptic("light");
+                          }
                           setSortBy(option.value as SortOption);
                           setIsSortOpen(false);
                         }}
@@ -379,7 +414,9 @@ const Catalog: React.FC<CatalogProps> = ({
               <button
                 className={`rounded-sm p-1.5 transition-all sm:p-2 ${viewMode === "grid" ? "bg-white/10 text-pandora-cyan" : "text-gray-600 hover:text-white"}`}
                 onClick={() => {
-                  if (onHaptic) onHaptic("light");
+                  if (onHaptic) {
+                    onHaptic("light");
+                  }
                   setViewMode("grid");
                 }}
                 type="button"
@@ -389,7 +426,9 @@ const Catalog: React.FC<CatalogProps> = ({
               <button
                 className={`rounded-sm p-1.5 transition-all sm:p-2 ${viewMode === "list" ? "bg-white/10 text-pandora-cyan" : "text-gray-600 hover:text-white"}`}
                 onClick={() => {
-                  if (onHaptic) onHaptic("light");
+                  if (onHaptic) {
+                    onHaptic("light");
+                  }
                   setViewMode("list");
                 }}
                 type="button"

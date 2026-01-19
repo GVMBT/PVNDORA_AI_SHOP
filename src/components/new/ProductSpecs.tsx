@@ -12,14 +12,22 @@ import { memo, useState } from "react";
 
 // Helper for Russian pluralization (avoid nested ternaries)
 const getRuDaysPlural = (num: number): string => {
-  if (num === 1) return "день";
-  if (num >= 2 && num <= 4) return "дня";
+  if (num === 1) {
+    return "день";
+  }
+  if (num >= 2 && num <= 4) {
+    return "дня";
+  }
   return "дней";
 };
 
 const getRuHoursPlural = (num: number): string => {
-  if (num === 1) return "час";
-  if (num >= 2 && num <= 4) return "часа";
+  if (num === 1) {
+    return "час";
+  }
+  if (num >= 2 && num <= 4) {
+    return "часа";
+  }
   return "часов";
 };
 
@@ -93,6 +101,9 @@ const humanLabels: Record<string, { label: string; tooltip: string }> = {
   NODE_STATUS: { label: "Статус", tooltip: "Текущий статус товара" },
 };
 
+// Regex for parsing allocation queue (moved to top level for performance)
+const ALLOCATION_QUEUE_REGEX = /~?(\d+)H?/;
+
 const humanValues: Record<string, string> = {
   DIRECT_ACCESS: "Моментально",
   ON_DEMAND: "По запросу",
@@ -112,7 +123,9 @@ const humanValues: Record<string, string> = {
 
 const getHumanValue = (value: string): string => {
   // Check exact match first
-  if (humanValues[value]) return humanValues[value];
+  if (humanValues[value]) {
+    return humanValues[value];
+  }
 
   // Handle dynamic values like "3 DAYS" or "24 HOURS"
   if (value.includes("DAYS")) {
@@ -128,8 +141,7 @@ const getHumanValue = (value: string): string => {
     }
   }
   if (value.includes("ALLOCATION_QUEUE")) {
-    const regex = /~?(\d+)H?/;
-    const match = regex.exec(value);
+    const match = ALLOCATION_QUEUE_REGEX.exec(value);
     if (match) {
       const hours = Number.parseInt(match[1], 10);
       return `~${hours} ч`;

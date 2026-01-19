@@ -13,8 +13,12 @@ import type { NetworkNodeData } from "./types";
 
 // Helper for status color (avoid nested ternary)
 const getStatusColor = (status: string): string => {
-  if (status === "VIP") return "text-yellow-500";
-  if (status === "SLEEP") return "text-red-500";
+  if (status === "VIP") {
+    return "text-yellow-500";
+  }
+  if (status === "SLEEP") {
+    return "text-red-500";
+  }
   return "text-green-500";
 };
 
@@ -24,7 +28,9 @@ interface ReferralDossierProps {
 }
 
 const ReferralDossier: React.FC<ReferralDossierProps> = ({ referral, onClose }) => {
-  if (!referral) return null;
+  if (!referral) {
+    return null;
+  }
 
   const activityData = referral.activityData || [20, 35, 45, 30, 55, 40, 50];
 

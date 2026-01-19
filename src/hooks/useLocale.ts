@@ -59,7 +59,9 @@ export function useLocale(): UseLocaleReturn {
       };
 
       const replaceParams = (text: string, paramsObj: Record<string, string | number>): string => {
-        if (Object.keys(paramsObj).length === 0) return text;
+        if (Object.keys(paramsObj).length === 0) {
+          return text;
+        }
         return text.replaceAll(/\{(\w+)\}/g, (_: string, paramKey: string) =>
           String(paramsObj[paramKey] ?? `{${paramKey}}`)
         );
@@ -107,15 +109,21 @@ export function useLocale(): UseLocaleReturn {
       return value;
     };
     const replaceParams = (text: string, paramsObj: Record<string, string | number>): string => {
-      if (Object.keys(paramsObj).length === 0) return text;
+      if (Object.keys(paramsObj).length === 0) {
+        return text;
+      }
       return text.replaceAll(/\{(\w+)\}/g, (_: string, paramKey: string) =>
         String(paramsObj[paramKey] ?? `{${paramKey}}`)
       );
     };
     const keys = key.split(".");
     const value = resolveLocaleValue(locales.en, keys);
-    if (value === undefined) return key;
-    if (typeof value === "string") return replaceParams(value, params);
+    if (value === undefined) {
+      return key;
+    }
+    if (typeof value === "string") {
+      return replaceParams(value, params);
+    }
     return key;
   }, []);
 

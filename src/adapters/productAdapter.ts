@@ -18,14 +18,22 @@ import type {
  */
 function deriveAvailability(apiProduct: APIProduct): ProductAvailability {
   // Check API status first
-  if (apiProduct.status === "discontinued") return "discontinued";
-  if (apiProduct.status === "coming_soon") return "coming_soon";
+  if (apiProduct.status === "discontinued") {
+    return "discontinued";
+  }
+  if (apiProduct.status === "coming_soon") {
+    return "coming_soon";
+  }
 
   // Then check stock
-  if (apiProduct.available_count > 0) return "available";
+  if (apiProduct.available_count > 0) {
+    return "available";
+  }
 
   // Out of stock but can fulfill on demand
-  if (apiProduct.can_fulfill_on_demand) return "on_demand";
+  if (apiProduct.can_fulfill_on_demand) {
+    return "on_demand";
+  }
 
   // Default to discontinued if nothing else matches
   return "discontinued";
@@ -126,9 +134,15 @@ function formatTimeAgo(dateString: string): string {
   const diffMs = now.getTime() - date.getTime();
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
 
-  if (diffHours < 1) return "just now";
-  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffHours < 1) {
+    return "just now";
+  }
+  if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  }
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 7) {
+    return `${diffDays}d ago`;
+  }
   return date.toLocaleDateString();
 }

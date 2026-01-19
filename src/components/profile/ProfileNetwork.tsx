@@ -26,8 +26,12 @@ const getNodeAvatarContent = (node: NetworkNodeData) => {
 };
 
 const getRankBadgeClasses = (rank?: string): string => {
-  if (rank === "ARCHITECT") return "border-yellow-500 text-yellow-500";
-  if (rank === "OPERATOR") return "border-purple-500 text-purple-500";
+  if (rank === "ARCHITECT") {
+    return "border-yellow-500 text-yellow-500";
+  }
+  if (rank === "OPERATOR") {
+    return "border-purple-500 text-purple-500";
+  }
   return "border-gray-500 text-gray-500";
 };
 

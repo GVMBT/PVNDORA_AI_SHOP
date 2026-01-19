@@ -20,7 +20,9 @@ export function useProductsTyped() {
   const getProducts = useCallback(
     async (category?: string): Promise<CatalogProduct[]> => {
       const params = new URLSearchParams();
-      if (category) params.append("category", category);
+      if (category) {
+        params.append("category", category);
+      }
       params.append("language_code", locale);
       params.append("currency", currency); // Pass currency explicitly
 

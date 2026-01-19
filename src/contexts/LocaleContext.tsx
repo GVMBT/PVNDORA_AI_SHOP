@@ -54,7 +54,9 @@ interface LocaleProviderProps {
  * Only supports RU/EN - Russian-speaking users get RU, others get EN
  */
 function getDefaultLocale(): LocaleCode {
-  if (globalThis.window === undefined) return "ru";
+  if (globalThis.window === undefined) {
+    return "ru";
+  }
 
   const tgLang = (
     globalThis as typeof globalThis & {

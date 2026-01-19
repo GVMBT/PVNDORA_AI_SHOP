@@ -61,7 +61,9 @@ import {
  */
 function usePaymentRedirect() {
   return useState<string | null>(() => {
-    if (globalThis.window === undefined) return null;
+    if (globalThis.window === undefined) {
+      return null;
+    }
 
     // Check sessionStorage first (preserved after URL cleanup)
     const storedId = sessionStorage.get("payment_redirect_id");
@@ -73,8 +75,12 @@ function usePaymentRedirect() {
       const urlParams = new URLSearchParams(globalThis.location.search);
       const orderId = urlParams.get("order_id");
       const topupId = urlParams.get("topup_id");
-      if (orderId) return orderId;
-      if (topupId) return `topup_${topupId}`;
+      if (orderId) {
+        return orderId;
+      }
+      if (topupId) {
+        return `topup_${topupId}`;
+      }
     }
 
     // Try to get start_param from Telegram WebApp
@@ -142,7 +148,9 @@ function NewAppInner() {
   // This handles the case when user returns from payment redirect
   useEffect(() => {
     // Only run if: booted + auth unknown + not already checking
-    if (!isBooted || isAuthenticated !== null || isAuthChecking) return;
+    if (!isBooted || isAuthenticated !== null || isAuthChecking) {
+      return;
+    }
 
     const checkAuth = async () => {
       setIsAuthChecking(true);
@@ -370,7 +378,9 @@ function NewAppInner() {
 
   // Handle startapp parameters (checkout, pay_product_id, etc.)
   useEffect(() => {
-    if (!(isBooted && isAuthenticated)) return;
+    if (!(isBooted && isAuthenticated)) {
+      return;
+    }
 
     // Get startapp from various sources
     const urlParams = new URLSearchParams(globalThis.location.search);
@@ -382,7 +392,9 @@ function NewAppInner() {
       urlParams.get("tgWebAppStartParam") ||
       hashParams.get("tgWebAppStartParam");
 
-    if (!startapp) return;
+    if (!startapp) {
+      return;
+    }
 
     // Handle checkout
     if (startapp === "checkout" || startapp === "cart") {
@@ -420,10 +432,18 @@ function NewAppInner() {
 
   // Computed values
   const getActiveTab = () => {
-    if (currentView === "profile") return "profile";
-    if (currentView === "orders") return "orders";
-    if (currentView === "leaderboard") return "leaderboard";
-    if (currentView === "studio") return "studio";
+    if (currentView === "profile") {
+      return "profile";
+    }
+    if (currentView === "orders") {
+      return "orders";
+    }
+    if (currentView === "leaderboard") {
+      return "leaderboard";
+    }
+    if (currentView === "studio") {
+      return "studio";
+    }
     return "catalog";
   };
 
@@ -570,7 +590,9 @@ function NewAppInner() {
           onHaptic={() => handleFeedback("light")}
           onToggle={(val) => {
             setIsSupportWidgetOpen(val);
-            if (!val) setSupportContext(null);
+            if (!val) {
+              setSupportContext(null);
+            }
           }}
           raiseOnMobile={currentView === "leaderboard"}
         />

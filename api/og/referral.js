@@ -30,7 +30,9 @@ const translations = {
 
 function pickLocale(lang) {
   const normalized = lang?.toLowerCase?.() || "";
-  if (normalized.startsWith("ru")) return "ru";
+  if (normalized.startsWith("ru")) {
+    return "ru";
+  }
   return "en";
 }
 

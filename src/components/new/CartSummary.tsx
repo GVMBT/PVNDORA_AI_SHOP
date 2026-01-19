@@ -45,7 +45,9 @@ const CartSummary: React.FC<CartSummaryProps> = ({
   const [promoError, setPromoError] = useState<string | null>(null);
 
   const handleApplyPromo = async () => {
-    if (!(promoInput.trim() && onApplyPromo)) return;
+    if (!(promoInput.trim() && onApplyPromo)) {
+      return;
+    }
 
     setPromoLoading(true);
     setPromoError(null);

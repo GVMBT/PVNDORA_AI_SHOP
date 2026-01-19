@@ -65,7 +65,9 @@ class Logger {
   }
 
   private log(level: LogLevel, message: string, ...args: unknown[]): void {
-    if (!this.shouldLog(level)) return;
+    if (!this.shouldLog(level)) {
+      return;
+    }
 
     const formattedMessage = this.formatMessage(level, message, ...args);
     const formattedArgs = this.formatArgs(args);
@@ -83,6 +85,9 @@ class Logger {
           break;
         case "error":
           console.error(formattedMessage, ...formattedArgs);
+          break;
+        default:
+          console.log(formattedMessage, ...formattedArgs);
           break;
       }
     }

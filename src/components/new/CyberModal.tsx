@@ -23,15 +23,25 @@ import { getCurrencySymbol } from "../../utils/currency";
 
 // Helper functions for button styling (avoid nested ternaries)
 const getButtonClassName = (type: string, icon?: string): string => {
-  if (type === "withdraw") return "bg-purple-500 hover:bg-purple-400 text-white";
-  if (type === "alert" && icon === "warning") return "bg-orange-500 hover:bg-orange-400 text-white";
+  if (type === "withdraw") {
+    return "bg-purple-500 hover:bg-purple-400 text-white";
+  }
+  if (type === "alert" && icon === "warning") {
+    return "bg-orange-500 hover:bg-orange-400 text-white";
+  }
   return "bg-pandora-cyan hover:bg-white text-black";
 };
 
 const getButtonText = (type: string, t: (key: string) => string): string => {
-  if (type === "topup") return t("modal.topUp.button");
-  if (type === "withdraw") return t("modal.withdraw.button");
-  if (type === "alert") return t("modal.ok");
+  if (type === "topup") {
+    return t("modal.topUp.button");
+  }
+  if (type === "withdraw") {
+    return t("modal.withdraw.button");
+  }
+  if (type === "alert") {
+    return t("modal.ok");
+  }
   return t("modal.confirm");
 };
 
@@ -251,7 +261,7 @@ const Modal: React.FC<{
     return undefined;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     // Validate for topup/withdraw
     if (state.type === "topup" || state.type === "withdraw") {
       const amount = Number.parseFloat(inputValue);

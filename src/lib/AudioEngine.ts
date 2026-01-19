@@ -51,7 +51,9 @@ class AudioEngineClass {
    * Initialize AudioContext (must be called after user interaction)
    */
   init(): void {
-    if (this.ctx) return;
+    if (this.ctx) {
+      return;
+    }
 
     try {
       const AudioContextClass =
@@ -106,7 +108,9 @@ class AudioEngineClass {
    * Preload critical sounds for instant playback
    */
   private async preloadSounds(): Promise<void> {
-    if (!this.ctx) return;
+    if (!this.ctx) {
+      return;
+    }
 
     // Only preload sounds that have file mappings
     const criticalSounds = ["click", "uiShort", "uiLong"];
@@ -121,7 +125,9 @@ class AudioEngineClass {
    * Load and cache a sound file
    */
   private async loadSound(key: string): Promise<AudioBuffer | null> {
-    if (!this.ctx) return null;
+    if (!this.ctx) {
+      return null;
+    }
 
     // Return cached if available
     const cached = this.soundCache.get(key);
@@ -173,7 +179,9 @@ class AudioEngineClass {
    * Play a sound file from cache or load it
    */
   private async playSoundFile(key: string, volume = 1): Promise<void> {
-    if (!(this.ctx && this.masterGain && this.enabled)) return;
+    if (!(this.ctx && this.masterGain && this.enabled)) {
+      return;
+    }
 
     const buffer = await this.loadSound(key);
     if (!buffer) {
@@ -199,7 +207,9 @@ class AudioEngineClass {
    * Check if sound should be throttled (prevents CPU overload from rapid sounds)
    */
   private shouldThrottle(soundKey?: string): boolean {
-    if (!soundKey) return false;
+    if (!soundKey) {
+      return false;
+    }
     const now = Date.now();
     const lastTime = this.lastSoundTime.get(soundKey) || 0;
     if (now - lastTime < this.THROTTLE_MS) {
@@ -213,9 +223,13 @@ class AudioEngineClass {
    * Play a single tone (procedural fallback)
    */
   private playTone(config: ToneConfig, soundKey?: string): void {
-    if (!(this.ctx && this.masterGain && this.enabled)) return;
+    if (!(this.ctx && this.masterGain && this.enabled)) {
+      return;
+    }
     // Throttle frequent sounds to prevent CPU overload
-    if (this.shouldThrottle(soundKey)) return;
+    if (this.shouldThrottle(soundKey)) {
+      return;
+    }
 
     const { freq, type, duration, volume = 0.05, delay = 0 } = config;
     const now = this.ctx.currentTime + delay;
@@ -241,7 +255,9 @@ class AudioEngineClass {
    * Play white noise burst (procedural)
    */
   private playNoise(duration: number, volume = 0.02, delay = 0): void {
-    if (!(this.ctx && this.masterGain && this.enabled)) return;
+    if (!(this.ctx && this.masterGain && this.enabled)) {
+      return;
+    }
 
     const now = this.ctx.currentTime + delay;
     const bufferSize = Math.floor(this.ctx.sampleRate * duration);
@@ -280,7 +296,9 @@ class AudioEngineClass {
     type: OscillatorType = "sine",
     volume = 0.03
   ): void {
-    if (!(this.ctx && this.masterGain && this.enabled)) return;
+    if (!(this.ctx && this.masterGain && this.enabled)) {
+      return;
+    }
 
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();

@@ -76,7 +76,9 @@ export function useCheckoutFlow({
   }, [cartData]);
 
   const loadProduct = useCallback(async () => {
-    if (!productId) return;
+    if (!productId) {
+      return;
+    }
     try {
       const data = await getProduct(productId);
       if (data) {
@@ -111,7 +113,9 @@ export function useCheckoutFlow({
 
   const calculateTotal = useCallback(() => {
     if (isCartMode) {
-      if (!cartData?.items || cartData.items.length === 0) return 0;
+      if (!cartData?.items || cartData.items.length === 0) {
+        return 0;
+      }
 
       let total = cartData.total || 0;
 
@@ -124,14 +128,16 @@ export function useCheckoutFlow({
       return total;
     }
 
-    if (!product) return 0;
+    if (!product) {
+      return 0;
+    }
 
     const price = product.final_price || product.price;
     let total = price * quantity;
 
     if (promoResult?.is_valid) {
       if (promoResult.discount_percent) {
-        total = total * (1 - promoResult.discount_percent / 100);
+        total *= 1 - promoResult.discount_percent / 100;
       } else if (promoResult.discount_amount) {
         total = Math.max(0, total - promoResult.discount_amount);
       }
@@ -141,7 +147,9 @@ export function useCheckoutFlow({
   }, [isCartMode, cartData, promoResult, product, quantity]);
 
   const handlePromoCheck = useCallback(async () => {
-    if (!promoCode.trim()) return;
+    if (!promoCode.trim()) {
+      return;
+    }
 
     try {
       if (isCartMode) {

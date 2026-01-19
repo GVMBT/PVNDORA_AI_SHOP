@@ -27,27 +27,45 @@ import { randomFloat } from "../../utils/random";
 type StatusState = "success" | "failed" | "pending";
 
 const getStatusState = (isSuccess: boolean, isFailed: boolean): StatusState => {
-  if (isSuccess) return "success";
-  if (isFailed) return "failed";
+  if (isSuccess) {
+    return "success";
+  }
+  if (isFailed) {
+    return "failed";
+  }
   return "pending";
 };
 
 const getProgressBarColor = (state: StatusState): string => {
-  if (state === "success") return "bg-green-500";
-  if (state === "failed") return "bg-red-500";
+  if (state === "success") {
+    return "bg-green-500";
+  }
+  if (state === "failed") {
+    return "bg-red-500";
+  }
   return "bg-purple-500";
 };
 
 const getProgressGlowColor = (state: StatusState): string => {
-  if (state === "success") return "#22c55e";
-  if (state === "failed") return "#ef4444";
+  if (state === "success") {
+    return "#22c55e";
+  }
+  if (state === "failed") {
+    return "#ef4444";
+  }
   return "#a855f7";
 };
 
 const getLogTypeColor = (type: string): string => {
-  if (type === "success") return "text-green-500";
-  if (type === "error") return "text-red-500";
-  if (type === "warning") return "text-orange-500";
+  if (type === "success") {
+    return "text-green-500";
+  }
+  if (type === "error") {
+    return "text-red-500";
+  }
+  if (type === "warning") {
+    return "text-orange-500";
+  }
   return "text-gray-400";
 };
 
@@ -111,13 +129,27 @@ export function PaymentResult({
   // Helper to map backend status to PaymentStatus (reduces cognitive complexity)
   const mapBackendStatus = useCallback((backendStatus: string): PaymentStatus => {
     const status = backendStatus.toLowerCase();
-    if (["delivered", "completed", "ready"].includes(status)) return "delivered";
-    if (["paid", "processing"].includes(status)) return "paid";
-    if (status === "prepaid") return "prepaid";
-    if (status === "partial") return "partial";
-    if (["pending", "awaiting_payment"].includes(status)) return "pending";
-    if (["expired", "cancelled"].includes(status)) return "expired";
-    if (["failed", "refunded"].includes(status)) return "failed";
+    if (["delivered", "completed", "ready"].includes(status)) {
+      return "delivered";
+    }
+    if (["paid", "processing"].includes(status)) {
+      return "paid";
+    }
+    if (status === "prepaid") {
+      return "prepaid";
+    }
+    if (status === "partial") {
+      return "partial";
+    }
+    if (["pending", "awaiting_payment"].includes(status)) {
+      return "pending";
+    }
+    if (["expired", "cancelled"].includes(status)) {
+      return "expired";
+    }
+    if (["failed", "refunded"].includes(status)) {
+      return "failed";
+    }
     return "unknown";
   }, []);
 
@@ -156,7 +188,9 @@ export function PaymentResult({
         return { status: newStatus, data };
       } catch (error: unknown) {
         const notFoundResult = handle404Error(error);
-        if (notFoundResult) return notFoundResult;
+        if (notFoundResult) {
+          return notFoundResult;
+        }
         throw error;
       }
     } catch (error: unknown) {
@@ -182,8 +216,12 @@ export function PaymentResult({
   // Polling effect with exponential backoff
   // Only run polling in Telegram Mini App (browser shows simple static page)
   useEffect(() => {
-    if (isComplete) return;
-    if (!isTelegramMiniApp) return; // No polling in browser
+    if (isComplete) {
+      return;
+    }
+    if (!isTelegramMiniApp) {
+      return; // No polling in browser
+    }
 
     addLog(
       isTopUp ? t("paymentResult.logs.initTopup") : t("paymentResult.logs.initPayment"),
@@ -215,7 +253,9 @@ export function PaymentResult({
       const is404 =
         ("httpStatus" in result && result.httpStatus === 404) ||
         result.error?.message === "ORDER_NOT_FOUND";
-      if (!is404) return false;
+      if (!is404) {
+        return false;
+      }
 
       consecutive404sRef.current += 1;
       const new404Count = consecutive404sRef.current;
@@ -301,7 +341,9 @@ export function PaymentResult({
     };
 
     const poll = async () => {
-      if (shouldStop || isComplete) return;
+      if (shouldStop || isComplete) {
+        return;
+      }
 
       currentAttempt++;
       setPollCount(currentAttempt);
@@ -364,7 +406,9 @@ export function PaymentResult({
     progressInterval = setInterval(() => {
       if (!(shouldStop || isComplete)) {
         setProgress((prev) => {
-          if (prev >= 90) return prev; // Cap at 90% until complete
+          if (prev >= 90) {
+            return prev; // Cap at 90% until complete
+          }
           return prev + randomFloat(0.5, 5);
         });
       }

@@ -59,7 +59,9 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
   const [creating, setCreating] = useState(false);
 
   const handleCreate = async () => {
-    if (!(newCode.trim() && onCreatePromo)) return;
+    if (!(newCode.trim() && onCreatePromo)) {
+      return;
+    }
 
     setCreating(true);
     try {
@@ -85,14 +87,18 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
   };
 
   const handleDelete = async (id: string) => {
-    if (!onDeletePromo) return;
+    if (!onDeletePromo) {
+      return;
+    }
     if (confirm("Удалить этот промокод?")) {
       await onDeletePromo(id);
     }
   };
 
   const formatDate = (dateStr: string | null | undefined) => {
-    if (!dateStr) return "Бессрочно";
+    if (!dateStr) {
+      return "Бессрочно";
+    }
     return new Date(dateStr).toLocaleDateString("ru-RU");
   };
 
@@ -122,7 +128,9 @@ const AdminPromo: React.FC<AdminPromoProps> = ({
               className="absolute inset-0 cursor-default bg-black/80 backdrop-blur-sm"
               onClick={() => !creating && setIsCreating(false)}
               onKeyDown={(e) => {
-                if (e.key === "Escape" && !creating) setIsCreating(false);
+                if (e.key === "Escape" && !creating) {
+                  setIsCreating(false);
+                }
               }}
               type="button"
             />

@@ -97,7 +97,9 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
   // Load stock callback (defined before useEffect that uses it)
   const loadStock = useCallback(async () => {
-    if (!editingProduct.id || typeof editingProduct.id !== "string") return;
+    if (!editingProduct.id || typeof editingProduct.id !== "string") {
+      return;
+    }
     setLoadingStock(true);
     try {
       const stock = await getStock(editingProduct.id, false); // Get all stock (not just available)
@@ -147,7 +149,9 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
   };
 
   const handleDeleteStock = async (stockItemId: string) => {
-    if (!confirm("Удалить эту позицию из стока?")) return;
+    if (!confirm("Удалить эту позицию из стока?")) {
+      return;
+    }
 
     try {
       const success = await deleteStockItem(stockItemId);
@@ -217,8 +221,12 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
 
   // Helper to render stock content (avoid nested ternary)
   const renderStockContent = () => {
-    if (loadingStock) return <p className="text-gray-500 text-xs">Загрузка...</p>;
-    if (stockItems.length === 0) return <p className="text-gray-500 text-xs">Сток пуст</p>;
+    if (loadingStock) {
+      return <p className="text-gray-500 text-xs">Загрузка...</p>;
+    }
+    if (stockItems.length === 0) {
+      return <p className="text-gray-500 text-xs">Сток пуст</p>;
+    }
     return (
       <div className="max-h-48 space-y-2 overflow-y-auto">
         {stockItems.map((item) => (
@@ -250,7 +258,9 @@ const ProductModal: React.FC<ProductModalProps> = ({ isOpen, product, onClose, o
     );
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <AnimatePresence>

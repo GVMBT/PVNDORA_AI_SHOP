@@ -217,7 +217,9 @@ const OrderCard: React.FC<OrderCardProps> = ({
                   }`}
                   disabled={isPaymentExpired}
                   onClick={() => {
-                    if (isPaymentExpired || !order.payment_url) return;
+                    if (isPaymentExpired || !order.payment_url) {
+                      return;
+                    }
                     globalThis.location.href = order.payment_url;
                   }}
                   type="button"
@@ -341,7 +343,9 @@ const OrderCard: React.FC<OrderCardProps> = ({
                       onOpenSupport
                         ? (context) => {
                             // Fill in orderTotal from order if not provided
-                            if (!onOpenSupport) return; // Double check
+                            if (!onOpenSupport) {
+                              return; // Double check
+                            }
                             const finalContext = {
                               ...context,
                               orderTotal: context.orderTotal || order.total,

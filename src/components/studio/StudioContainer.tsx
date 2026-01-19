@@ -77,23 +77,34 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
 
   // -- VEO 3.1 LOGIC ENFORCER --
   useEffect(() => {
-    if (!activeModel.isVeo) return;
+    if (!activeModel.isVeo) {
+      return;
+    }
 
-    if (veoMode === "reference" && aspectRatio !== "16:9") setAspectRatio("16:9");
+    if (veoMode === "reference" && aspectRatio !== "16:9") {
+      setAspectRatio("16:9");
+    }
     if (
       (veoResolution === "1080p" || veoResolution === "4k" || veoMode === "reference") &&
       veoDuration !== "8s"
-    )
+    ) {
       setVeoDuration("8s");
-    if (veoMode === "extend" && veoResolution !== "720p") setVeoResolution("720p");
+    }
+    if (veoMode === "extend" && veoResolution !== "720p") {
+      setVeoResolution("720p");
+    }
   }, [veoMode, veoResolution, aspectRatio, activeModel, veoDuration]);
 
   const handleDomainSwitch = (domain: DomainType) => {
-    if (domain === activeDomain) return;
+    if (domain === activeDomain) {
+      return;
+    }
     AudioEngine.click();
     setActiveDomain(domain);
     const defaultModel = MODELS.find((m) => m.domain === domain);
-    if (defaultModel) setActiveModelId(defaultModel.id);
+    if (defaultModel) {
+      setActiveModelId(defaultModel.id);
+    }
 
     setStartFrame(null);
     setEndFrame(null);
@@ -105,10 +116,18 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
   const estimatedCost = useMemo(() => {
     let cost = activeModel.costMultiplier * 10;
     if (activeModel.isVeo) {
-      if (veoResolution === "4k") cost *= 2.5;
-      if (veoResolution === "1080p") cost *= 1.5;
-      if (veoDuration === "8s") cost *= 1.2;
-      if (veoMode !== "text") cost *= 1.2;
+      if (veoResolution === "4k") {
+        cost *= 2.5;
+      }
+      if (veoResolution === "1080p") {
+        cost *= 1.5;
+      }
+      if (veoDuration === "8s") {
+        cost *= 1.2;
+      }
+      if (veoMode !== "text") {
+        cost *= 1.2;
+      }
     }
     return Math.round(cost);
   }, [activeModel, veoResolution, veoDuration, veoMode]);
@@ -124,12 +143,21 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
       const reader = new FileReader();
       reader.onload = (e) => {
         const res = e.target?.result as string;
-        if (uploadTarget === "start") setStartFrame(res);
-        if (uploadTarget === "end") setEndFrame(res);
-        if (uploadTarget === "video") setVideoInput(res);
+        if (uploadTarget === "start") {
+          setStartFrame(res);
+        }
+        if (uploadTarget === "end") {
+          setEndFrame(res);
+        }
+        if (uploadTarget === "video") {
+          setVideoInput(res);
+        }
         if (uploadTarget === "ref") {
-          if (refImages.length < 3) setRefImages((prev) => [...prev, res]);
-          else alert("Maximum 3 reference images allowed");
+          if (refImages.length < 3) {
+            setRefImages((prev) => [...prev, res]);
+          } else {
+            alert("Maximum 3 reference images allowed");
+          }
         }
         AudioEngine.success();
       };
@@ -147,13 +175,22 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
   };
 
   const handleGenerate = async () => {
-    if (userBalance < estimatedCost) return alert(t("modal.errors.insufficientFunds"));
+    if (userBalance < estimatedCost) {
+      return alert(t("modal.errors.insufficientFunds"));
+    }
 
-    if (veoMode === "text" && !prompt.trim()) return alert("Enter a prompt");
-    if (veoMode === "image" && !startFrame) return alert("Upload start frame");
-    if (veoMode === "cinematic" && !(startFrame && endFrame))
+    if (veoMode === "text" && !prompt.trim()) {
+      return alert("Enter a prompt");
+    }
+    if (veoMode === "image" && !startFrame) {
+      return alert("Upload start frame");
+    }
+    if (veoMode === "cinematic" && !(startFrame && endFrame)) {
       return alert("Upload start and end frames");
-    if (veoMode === "extend" && !videoInput) return alert("Upload video to extend");
+    }
+    if (veoMode === "extend" && !videoInput) {
+      return alert("Upload video to extend");
+    }
 
     AudioEngine.boot();
     setIsGenerating(true);

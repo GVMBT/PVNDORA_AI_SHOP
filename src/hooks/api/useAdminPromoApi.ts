@@ -13,7 +13,7 @@ import { logger } from "../../utils/logger";
 /**
  * Admin API request helper - uses /api/admin prefix
  */
-async function adminRequest<T>(
+function adminRequest<T>(
   endpoint: string,
   options: { method?: string; body?: string } = {}
 ): Promise<T> {

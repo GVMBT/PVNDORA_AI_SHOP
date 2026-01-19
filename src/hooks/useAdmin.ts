@@ -244,9 +244,15 @@ export function useAdmin() {
         limit: limit.toString(),
         offset: offset.toString(),
       });
-      if (search) params.append("search", search);
-      if (filterBanned !== null) params.append("filter_banned", filterBanned.toString());
-      if (filterPartner !== null) params.append("filter_partner", filterPartner.toString());
+      if (search) {
+        params.append("search", search);
+      }
+      if (filterBanned !== null) {
+        params.append("filter_banned", filterBanned.toString());
+      }
+      if (filterPartner !== null) {
+        params.append("filter_partner", filterPartner.toString());
+      }
       return adminRequest(`/users/crm?${params.toString()}`);
     },
     [adminRequest]

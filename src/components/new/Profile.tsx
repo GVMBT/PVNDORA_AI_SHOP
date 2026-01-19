@@ -81,7 +81,9 @@ const Profile: React.FC<ProfileProps> = ({
 
   // All callbacks must be defined before any conditional returns
   const handleCopy = useCallback(async () => {
-    if (onHaptic) onHaptic("light");
+    if (onHaptic) {
+      onHaptic("light");
+    }
     if (onCopyLink) {
       onCopyLink();
     } else if (propProfile?.referralLink) {
@@ -90,7 +92,9 @@ const Profile: React.FC<ProfileProps> = ({
   }, [onHaptic, onCopyLink, propProfile?.referralLink, copyToClipboard]);
 
   const handleShare = useCallback(async () => {
-    if (onHaptic) onHaptic("medium");
+    if (onHaptic) {
+      onHaptic("medium");
+    }
 
     // Use prop handler if provided
     if (onShareProp) {
@@ -155,25 +159,35 @@ const Profile: React.FC<ProfileProps> = ({
   const progressPercent = propProfile.career.progressPercent;
 
   const changeLine = (line: 1 | 2 | 3) => {
-    if (onHaptic) onHaptic("light");
+    if (onHaptic) {
+      onHaptic("light");
+    }
     setNetworkLine(line);
   };
 
   const handleOpenDossier = (id: number | string) => {
-    if (onHaptic) onHaptic("medium");
+    if (onHaptic) {
+      onHaptic("medium");
+    }
     AudioEngine.decrypt(); // Play decrypt sound for dossier reveal
     setSelectedReferralId(id);
   };
 
   const handleCloseDossier = () => {
-    if (onHaptic) onHaptic("light");
+    if (onHaptic) {
+      onHaptic("light");
+    }
     AudioEngine.panelClose();
     setSelectedReferralId(null);
   };
 
   const toggleRewardMode = async () => {
-    if (!user.isVip) return; // VIP only
-    if (onHaptic) onHaptic("medium");
+    if (!user.isVip) {
+      return; // VIP only
+    }
+    if (onHaptic) {
+      onHaptic("medium");
+    }
 
     const newMode = rewardMode === "cash" ? "discount" : "cash";
     const apiMode = newMode === "cash" ? "commission" : "discount";
@@ -245,7 +259,9 @@ const Profile: React.FC<ProfileProps> = ({
                   activeTab === "network" ? "text-pandora-cyan" : "text-gray-600"
                 }`}
                 onClick={() => {
-                  if (onHaptic) onHaptic("light");
+                  if (onHaptic) {
+                    onHaptic("light");
+                  }
                   setActiveTab("network");
                 }}
                 type="button"
@@ -257,7 +273,9 @@ const Profile: React.FC<ProfileProps> = ({
                   activeTab === "logs" ? "text-pandora-cyan" : "text-gray-600"
                 }`}
                 onClick={() => {
-                  if (onHaptic) onHaptic("light");
+                  if (onHaptic) {
+                    onHaptic("light");
+                  }
                   setActiveTab("logs");
                 }}
                 type="button"

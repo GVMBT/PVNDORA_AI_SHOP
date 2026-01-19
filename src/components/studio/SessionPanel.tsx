@@ -108,13 +108,16 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
 
             {/* Sessions List */}
             <div className="flex-1 space-y-1 overflow-y-auto p-2">
-              {sessionsLoading ? (
+              {sessionsLoading && (
                 <div className="flex items-center justify-center py-8">
                   <div className="h-6 w-6 animate-spin rounded-full border-2 border-pandora-cyan/30 border-t-pandora-cyan" />
                 </div>
-              ) : sessions.length === 0 ? (
+              )}
+              {!sessionsLoading && sessions.length === 0 && (
                 <div className="py-8 text-center text-gray-500 text-sm">Нет проектов</div>
-              ) : (
+              )}
+              {!sessionsLoading &&
+                sessions.length > 0 &&
                 sessions.map((session) => (
                   <div
                     className={`group relative rounded-lg transition-colors ${
@@ -134,7 +137,9 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
                           onBlur={() => handleRename(session.id)}
                           onChange={(e) => setEditingName(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === "Enter") handleRename(session.id);
+                            if (e.key === "Enter") {
+                              handleRename(session.id);
+                            }
                             if (e.key === "Escape") {
                               setEditingId(null);
                               setEditingName("");
@@ -232,8 +237,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
                       )}
                     </AnimatePresence>
                   </div>
-                ))
-              )}
+                ))}
             </div>
 
             {/* Active Session Info */}

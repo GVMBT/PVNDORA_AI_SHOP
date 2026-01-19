@@ -187,13 +187,9 @@ export const Viewport: React.FC<ViewportProps> = ({
                   className={`text-5xl md:text-6xl ${activeModel?.color || "text-pandora-cyan"} opacity-90 drop-shadow-[0_0_30px_currentColor]`}
                   transition={{ duration: 3, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
                 >
-                  {activeDomain === "video" ? (
-                    <Film />
-                  ) : activeDomain === "image" ? (
-                    <ImageIcon />
-                  ) : (
-                    <Music />
-                  )}
+                  {activeDomain === "video" && <Film />}
+                  {activeDomain === "image" && <ImageIcon />}
+                  {activeDomain !== "video" && activeDomain !== "image" && <Music />}
                 </motion.div>
               </div>
             </div>

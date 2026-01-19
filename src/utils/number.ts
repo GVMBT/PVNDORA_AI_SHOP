@@ -8,9 +8,15 @@
  * Format large numbers with abbreviations (e.g., 1.5K, 2.3M)
  */
 export function formatCompactNumber(num: number): string {
-  if (num < 1000) return num.toString();
-  if (num < 1_000_000) return `${(num / 1000).toFixed(1)}K`;
-  if (num < 1_000_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
+  if (num < 1000) {
+    return num.toString();
+  }
+  if (num < 1_000_000) {
+    return `${(num / 1000).toFixed(1)}K`;
+  }
+  if (num < 1_000_000_000) {
+    return `${(num / 1_000_000).toFixed(1)}M`;
+  }
   return `${(num / 1_000_000_000).toFixed(1)}B`;
 }
 
@@ -43,7 +49,9 @@ export function formatPercentageWithSign(value: number, decimals = 1): string {
  * Format bytes to human-readable size (e.g., 1.5 MB, 2.3 GB)
  */
 export function formatBytes(bytes: number, decimals = 2): string {
-  if (bytes === 0) return "0 Bytes";
+  if (bytes === 0) {
+    return "0 Bytes";
+  }
 
   const k = 1024;
   const sizes = ["Bytes", "KB", "MB", "GB", "TB"];

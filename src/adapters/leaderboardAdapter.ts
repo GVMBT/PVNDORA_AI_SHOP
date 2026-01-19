@@ -12,8 +12,12 @@ import type { LeaderboardUser } from "../types/component";
  */
 function generateTrend(): "up" | "down" | "same" {
   const rand = Math.random();
-  if (rand > 0.6) return "up";
-  if (rand > 0.3) return "same";
+  if (rand > 0.6) {
+    return "up";
+  }
+  if (rand > 0.3) {
+    return "same";
+  }
   return "down";
 }
 
@@ -22,8 +26,12 @@ function generateTrend(): "up" | "down" | "same" {
  */
 function generateStatus(): "ONLINE" | "AWAY" | "BUSY" {
   const rand = Math.random();
-  if (rand > 0.6) return "ONLINE";
-  if (rand > 0.3) return "AWAY";
+  if (rand > 0.6) {
+    return "ONLINE";
+  }
+  if (rand > 0.3) {
+    return "AWAY";
+  }
   return "BUSY";
 }
 
@@ -42,13 +50,16 @@ function adaptLeaderboardEntry(entry: APILeaderboardEntry): LeaderboardUser {
     entry.photo_url ||
     `https://ui-avatars.com/api/?name=${encodeURIComponent(entry.name)}&background=0d1117&color=00ffff&size=160&font-size=0.4&bold=true`;
 
+  // Regex for filtering alphanumeric characters (moved to top level for performance)
+  const alphanumericRegex = /[a-z0-9]/;
+
   return {
     rank: entry.rank,
     name: entry.name,
     handle: `@${entry.name
       .toLowerCase()
       .split("")
-      .filter((c) => /[a-z0-9]/.test(c))
+      .filter((c) => alphanumericRegex.test(c))
       .join("")}`,
     marketSpend: Math.round(marketSpend),
     actualSpend: Math.round(actualSpend),

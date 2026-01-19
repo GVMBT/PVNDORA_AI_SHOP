@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
 
-type SimpleLocale = {
+interface SimpleLocale {
   [key: string]: string;
-};
+}
 
 const locales: SimpleLocale = {
   en: {

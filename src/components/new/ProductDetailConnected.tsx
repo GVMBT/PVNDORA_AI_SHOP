@@ -98,7 +98,9 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
 
   const handleAddToCart = useCallback(
     async (product: CatalogProduct, quantity: number) => {
-      if (onHaptic) onHaptic("medium");
+      if (onHaptic) {
+        onHaptic("medium");
+      }
 
       // If parent provides onAddToCart, use that (for local cart state)
       if (onAddToCartProp) {
@@ -109,7 +111,9 @@ const ProductDetailConnected: React.FC<ProductDetailConnectedProps> = ({
       // Otherwise use cart API
       try {
         await addToCart(String(product.id), quantity);
-        if (onHaptic) onHaptic("success");
+        if (onHaptic) {
+          onHaptic("success");
+        }
       } catch (err) {
         logger.error("Failed to add to cart", err);
       }

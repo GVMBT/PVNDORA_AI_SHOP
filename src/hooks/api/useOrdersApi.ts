@@ -23,8 +23,12 @@ export function useOrdersTyped() {
   const getOrders = useCallback(
     async (params?: { limit?: number; offset?: number }): Promise<Order[]> => {
       const searchParams = new URLSearchParams();
-      if (params?.limit) searchParams.append("limit", params.limit.toString());
-      if (params?.offset) searchParams.append("offset", params.offset.toString());
+      if (params?.limit) {
+        searchParams.append("limit", params.limit.toString());
+      }
+      if (params?.offset) {
+        searchParams.append("offset", params.offset.toString());
+      }
       const qs = searchParams.toString();
 
       try {

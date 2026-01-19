@@ -133,12 +133,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setEditingProduct(null);
   };
 
-  const handleSavePartner = async (partner: UserData) => {
+  const handleSavePartner = (partner: UserData) => {
     // TODO: Implement partner update API call
     // For now, just close modal and refresh
     logger.info("Partner update requested", partner);
     setSelectedPartner(null);
-    if (onRefreshOrders) onRefreshOrders();
+    if (onRefreshOrders) {
+      onRefreshOrders();
+    }
   };
 
   const handleSaveExpense = async (expense: ExpenseData) => {
@@ -183,7 +185,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             onRevokeVIP={async (partner) => {
               if (onToggleVIP) {
                 await onToggleVIP(partner.dbId, false);
-                if (onRefreshOrders) onRefreshOrders();
+                if (onRefreshOrders) {
+                  onRefreshOrders();
+                }
               }
             }}
             partners={propsUsers.filter((u) => u.role === "VIP")}

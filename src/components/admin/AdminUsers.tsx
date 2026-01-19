@@ -81,7 +81,9 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
 
   // Toggle VIP status (simple on/off, VIP always gets full access with ARCHITECT status)
   const handleToggleVIP = async () => {
-    if (!selectedUser) return;
+    if (!selectedUser) {
+      return;
+    }
     setProcessing(true);
 
     const isCurrentlyVIP = selectedUser.role === "VIP";
@@ -97,7 +99,9 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
       });
 
       setSelectedUser(null);
-      if (onRefresh) onRefresh();
+      if (onRefresh) {
+        onRefresh();
+      }
     } catch (err) {
       logger.error("Failed to toggle VIP status", err);
       alert("Ошибка при изменении VIP статуса");
@@ -108,9 +112,13 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
 
   // Update balance
   const handleUpdateBalance = async () => {
-    if (!(balanceModal && balanceAmount)) return;
+    if (!(balanceModal && balanceAmount)) {
+      return;
+    }
     const amount = Number.parseFloat(balanceAmount);
-    if (Number.isNaN(amount)) return;
+    if (Number.isNaN(amount)) {
+      return;
+    }
 
     setProcessing(true);
     try {
@@ -121,7 +129,9 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
 
       setBalanceModal(null);
       setBalanceAmount("");
-      if (onRefresh) onRefresh();
+      if (onRefresh) {
+        onRefresh();
+      }
     } catch (err) {
       logger.error("Failed to update balance", err);
       alert("Ошибка при обновлении баланса");
@@ -379,7 +389,9 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
               className="absolute inset-0 cursor-default bg-black/80 backdrop-blur-sm"
               onClick={() => !processing && setSelectedUser(null)}
               onKeyDown={(e) => {
-                if (e.key === "Escape" && !processing) setSelectedUser(null);
+                if (e.key === "Escape" && !processing) {
+                  setSelectedUser(null);
+                }
               }}
               type="button"
             />
@@ -473,7 +485,9 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ users, onBanUser, onRefresh }) 
               className="absolute inset-0 cursor-default bg-black/80 backdrop-blur-sm"
               onClick={() => !processing && setBalanceModal(null)}
               onKeyDown={(e) => {
-                if (e.key === "Escape" && !processing) setBalanceModal(null);
+                if (e.key === "Escape" && !processing) {
+                  setBalanceModal(null);
+                }
               }}
               type="button"
             />

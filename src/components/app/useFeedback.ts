@@ -32,6 +32,9 @@ export function useFeedback() {
         case "error":
           hapticFeedback("notification", "error");
           break;
+        default:
+          hapticFeedback("impact", "light");
+          break;
       }
 
       // 2. Audio (using AudioEngine)
@@ -51,6 +54,9 @@ export function useFeedback() {
           break;
         case "error":
           AudioEngine.error();
+          break;
+        default:
+          AudioEngine.hover();
           break;
       }
     },

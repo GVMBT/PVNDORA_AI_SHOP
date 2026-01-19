@@ -32,7 +32,9 @@ function useCountdown(deadline: string | null | undefined): {
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    if (!deadline) return;
+    if (!deadline) {
+      return;
+    }
 
     const timer = setInterval(() => {
       setNow(Date.now());
@@ -95,7 +97,9 @@ interface DecryptTextProps {
 
 // Helper function to mask characters (preserve newlines)
 const maskTextChar = (char: string): string => {
-  if (char === "\n") return "\n";
+  if (char === "\n") {
+    return "\n";
+  }
   return "•";
 };
 
@@ -124,15 +128,21 @@ const DecryptText: React.FC<DecryptTextProps> = ({ text, revealed }) => {
             .split("")
             .map((char, index) => {
               // Preserve newlines during animation
-              if (char === "\n") return "\n";
-              if (index < iterations) return char;
+              if (char === "\n") {
+                return "\n";
+              }
+              if (index < iterations) {
+                return char;
+              }
               return randomChar("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*");
             })
             .join("")
         );
 
         if (iterations >= text.length) {
-          if (rafId) cancelAnimationFrame(rafId);
+          if (rafId) {
+            cancelAnimationFrame(rafId);
+          }
           return;
         }
         iterations++;
@@ -144,7 +154,9 @@ const DecryptText: React.FC<DecryptTextProps> = ({ text, revealed }) => {
     rafId = requestAnimationFrame(animate);
 
     return () => {
-      if (rafId) cancelAnimationFrame(rafId);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
     };
   }, [revealed, text]);
 

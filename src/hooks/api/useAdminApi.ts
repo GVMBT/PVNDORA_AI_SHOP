@@ -13,7 +13,7 @@ import { logger } from "../../utils/logger";
 /**
  * Admin API request helper - uses /api/admin prefix
  */
-async function adminRequest<T>(
+function adminRequest<T>(
   endpoint: string,
   options: { method?: string; body?: string } = {}
 ): Promise<T> {
@@ -219,9 +219,15 @@ export function useAdminProductsTyped() {
       try {
         let url = "/stock";
         const params = new URLSearchParams();
-        if (productId) params.append("product_id", productId);
-        if (!availableOnly) params.append("available_only", "false");
-        if (params.toString()) url += `?${params.toString()}`;
+        if (productId) {
+          params.append("product_id", productId);
+        }
+        if (!availableOnly) {
+          params.append("available_only", "false");
+        }
+        if (params.toString()) {
+          url += `?${params.toString()}`;
+        }
 
         const response = await adminRequest<{ stock: StockItem[] }>(url);
         return response.stock || [];
@@ -258,9 +264,15 @@ export function useAdminOrdersTyped() {
     try {
       let url = "/orders";
       const params = new URLSearchParams();
-      if (status) params.append("status", status);
-      if (limit) params.append("limit", String(limit));
-      if (params.toString()) url += `?${params.toString()}`;
+      if (status) {
+        params.append("status", status);
+      }
+      if (limit) {
+        params.append("limit", String(limit));
+      }
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
 
       const response = await adminRequest<{ orders: AdminOrder[] }>(url);
       const data = response.orders || [];

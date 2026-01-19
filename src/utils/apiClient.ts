@@ -13,6 +13,9 @@ interface ApiClientOptions extends RequestInit {
   headers?: Record<string, string>;
 }
 
+// Regex patterns (moved to top level for performance)
+const CRYSTALPAY_ERROR_PREFIX_REGEX = /^CrystalPay API error:\s*/i;
+
 // Helper to extract error message from response (reduces cognitive complexity)
 async function extractErrorMessage(response: Response): Promise<string> {
   let errorMessage = `HTTP ${response.status}`;
@@ -37,7 +40,7 @@ async function extractErrorMessage(response: Response): Promise<string> {
 // Helper to handle specific HTTP status codes (reduces cognitive complexity)
 function handleSpecificStatusCodes(status: number, errorMessage: string): string {
   if (status === 429) {
-    const cleaned = errorMessage.replace(/^CrystalPay API error:\s*/i, "");
+    const cleaned = errorMessage.replace(CRYSTALPAY_ERROR_PREFIX_REGEX, "");
     if (!cleaned || cleaned === `HTTP ${status}`) {
       return "Слишком много запросов. Подождите минуту и попробуйте снова.";
     }
@@ -125,14 +128,14 @@ export async function apiRequest<T = unknown>(
  * @param endpoint - API endpoint path
  * @returns Promise resolving to response data
  */
-export async function apiGet<T = unknown>(endpoint: string): Promise<T> {
+export function apiGet<T = unknown>(endpoint: string): Promise<T> {
   return apiRequest<T>(endpoint, { method: "GET" });
 }
 
 /**
  * POST request
  */
-export async function apiPost<T = unknown>(endpoint: string, body: unknown): Promise<T> {
+export function apiPost<T = unknown>(endpoint: string, body: unknown): Promise<T> {
   return apiRequest<T>(endpoint, {
     method: "POST",
     body: JSON.stringify(body),
@@ -146,7 +149,7 @@ export async function apiPost<T = unknown>(endpoint: string, body: unknown): Pro
  * @param body - Request body (will be JSON stringified)
  * @returns Promise resolving to response data
  */
-export async function apiPut<T = unknown>(endpoint: string, body: unknown): Promise<T> {
+export function apiPut<T = unknown>(endpoint: string, body: unknown): Promise<T> {
   return apiRequest<T>(endpoint, {
     method: "PUT",
     body: JSON.stringify(body),
@@ -160,7 +163,7 @@ export async function apiPut<T = unknown>(endpoint: string, body: unknown): Prom
  * @param body - Request body (will be JSON stringified)
  * @returns Promise resolving to response data
  */
-export async function apiPatch<T = unknown>(endpoint: string, body: unknown): Promise<T> {
+export function apiPatch<T = unknown>(endpoint: string, body: unknown): Promise<T> {
   return apiRequest<T>(endpoint, {
     method: "PATCH",
     body: JSON.stringify(body),

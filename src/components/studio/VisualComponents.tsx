@@ -124,13 +124,17 @@ export const DecryptText = ({
         text
           .split("")
           .map((char, index) => {
-            if (index < i) return char;
+            if (index < i) {
+              return char;
+            }
             return String.fromCodePoint(33 + Math.random() * 93);
           })
           .join("")
       );
       i += 1 / 3;
-      if (i > text.length) clearInterval(interval);
+      if (i > text.length) {
+        clearInterval(interval);
+      }
     }, speed);
     return () => clearInterval(interval);
   }, [text, speed]);

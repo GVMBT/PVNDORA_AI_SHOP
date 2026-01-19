@@ -89,13 +89,13 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
     let usdTotal = 0;
 
     if (cart && Array.isArray(cart)) {
-      cart.forEach((item) => {
+      for (const item of cart) {
         const price = item?.price || 0;
         const priceUsd = item?.priceUsd || price;
         const quantity = item?.quantity || 1;
         displayTotal += price * quantity;
         usdTotal += priceUsd * quantity;
-      });
+      }
     }
 
     return {

@@ -25,7 +25,9 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
   const selectedWithdrawal = withdrawals.find((w) => w.id === selectedWithdrawalId);
 
   const handleApprove = useCallback(async () => {
-    if (!selectedWithdrawalId) return;
+    if (!selectedWithdrawalId) {
+      return;
+    }
 
     setProcessing(true);
     try {
@@ -42,7 +44,9 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
   }, [selectedWithdrawalId, comment, approveWithdrawal, onRefresh]);
 
   const handleReject = useCallback(async () => {
-    if (!selectedWithdrawalId) return;
+    if (!selectedWithdrawalId) {
+      return;
+    }
 
     setProcessing(true);
     try {
@@ -59,7 +63,9 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
   }, [selectedWithdrawalId, comment, rejectWithdrawal, onRefresh]);
 
   const handleComplete = useCallback(async () => {
-    if (!selectedWithdrawalId) return;
+    if (!selectedWithdrawalId) {
+      return;
+    }
 
     setProcessing(true);
     try {
@@ -107,7 +113,9 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
 
   // Helper function to render action buttons based on withdrawal status
   const renderActionButtons = () => {
-    if (!selectedWithdrawal) return null;
+    if (!selectedWithdrawal) {
+      return null;
+    }
 
     const status = selectedWithdrawal.status?.toUpperCase();
 
@@ -178,7 +186,9 @@ const AdminWithdrawals: React.FC<AdminWithdrawalsProps> = ({ withdrawals, onRefr
   };
 
   const formatDate = (dateStr?: string | null) => {
-    if (!dateStr) return "Н/Д";
+    if (!dateStr) {
+      return "Н/Д";
+    }
     try {
       return new Date(dateStr).toLocaleString("ru-RU", {
         day: "2-digit",

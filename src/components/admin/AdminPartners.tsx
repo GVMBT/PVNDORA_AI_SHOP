@@ -69,7 +69,9 @@ const STATUS_BADGE_CONFIG: Record<string, { text: string; colorClass: string } |
 
 const getStatusBadge = (status: string): React.ReactNode => {
   const config = STATUS_BADGE_CONFIG[status];
-  if (!config) return null;
+  if (!config) {
+    return null;
+  }
   return (
     <span className={`${config.colorClass} border px-2 py-0.5 text-[10px] uppercase`}>
       {config.text}
@@ -181,7 +183,9 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
 
   // Review application (approve/reject)
   const handleReview = async (approve: boolean) => {
-    if (!selectedApp) return;
+    if (!selectedApp) {
+      return;
+    }
     setProcessing(true);
 
     try {
@@ -199,7 +203,9 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
       await fetchApplications();
       setSelectedApp(null);
       setReviewComment("");
-      if (onRefresh) onRefresh();
+      if (onRefresh) {
+        onRefresh();
+      }
     } catch (err) {
       logger.error("Failed to review application", err);
       globalThis.alert("Ошибка при обработке заявки");
@@ -398,7 +404,9 @@ const AdminPartners: React.FC<AdminPartnersProps> = ({
               className="absolute inset-0 cursor-default bg-black/80 backdrop-blur-sm"
               onClick={() => !processing && setSelectedApp(null)}
               onKeyDown={(e) => {
-                if (e.key === "Escape" && !processing) setSelectedApp(null);
+                if (e.key === "Escape" && !processing) {
+                  setSelectedApp(null);
+                }
               }}
               type="button"
             />

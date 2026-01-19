@@ -67,14 +67,18 @@ const tryAutoplay = async (
   setIsPlaying: (playing: boolean) => void,
   cancelled: () => boolean
 ): Promise<void> => {
-  if (cancelled()) return;
+  if (cancelled()) {
+    return;
+  }
 
   try {
     audio.volume = volume;
     audio.muted = true;
 
     await waitForAudioReady(audio);
-    if (cancelled()) return;
+    if (cancelled()) {
+      return;
+    }
 
     await audio.play();
 
@@ -159,7 +163,9 @@ const setupAudioEventListeners = (
   onLoadCompleteRef: React.RefObject<(() => void) | undefined>
 ): (() => void) => {
   const handleCanPlayThrough = () => {
-    if (cancelled()) return;
+    if (cancelled()) {
+      return;
+    }
     setIsLoading(false);
     onLoadCompleteRef.current?.();
   };
@@ -300,7 +306,9 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
         };
 
         const handleError = (e: Event) => {
-          if (cancelled) return;
+          if (cancelled) {
+            return;
+          }
           const audioError = (e.target as HTMLAudioElement).error;
           handleAudioLoadError(audioError, {
             retryCountRef,
@@ -338,7 +346,9 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
           audioRef.current = null;
         };
       } catch (error) {
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
 
         logger.error("[BackgroundMusic] Prefetch error", error);
 
@@ -383,7 +393,9 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
   useEffect(() => {
     const resumePlayback = async () => {
       const audio = audioRef.current;
-      if (!audio || document.hidden) return;
+      if (!audio || document.hidden) {
+        return;
+      }
 
       try {
         await audio.play();
@@ -399,7 +411,9 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
 
     const handleVisibilityChange = () => {
       const audio = audioRef.current;
-      if (!audio) return;
+      if (!audio) {
+        return;
+      }
 
       if (document.hidden) {
         wasPlayingBeforeHiddenRef.current = isPlayingRef.current;
@@ -427,7 +441,9 @@ const BackgroundMusicComponent: React.FC<BackgroundMusicProps> = ({
   }, [autoPlay, isMuted]);
 
   const toggleMute = () => {
-    if (!audioRef.current) return;
+    if (!audioRef.current) {
+      return;
+    }
     setIsMuted(!isMuted);
   };
 

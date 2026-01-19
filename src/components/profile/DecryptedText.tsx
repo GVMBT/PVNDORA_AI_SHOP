@@ -29,7 +29,9 @@ const DecryptedText: React.FC<DecryptedTextProps> = ({
   const elementRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    if (!reveal) return;
+    if (!reveal) {
+      return;
+    }
 
     // Use IntersectionObserver to pause animation when not visible (save CPU)
     let isVisible = true;
@@ -72,7 +74,9 @@ const DecryptedText: React.FC<DecryptedTextProps> = ({
 
         if (iteration >= textStr.length) {
           setIsFinished(true);
-          if (observer) observer.disconnect();
+          if (observer) {
+            observer.disconnect();
+          }
           return;
         }
         iteration += 1 / 2; // Speed of decryption
@@ -85,8 +89,12 @@ const DecryptedText: React.FC<DecryptedTextProps> = ({
     rafId = requestAnimationFrame(animate);
 
     return () => {
-      if (rafId) cancelAnimationFrame(rafId);
-      if (observer) observer.disconnect();
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
+      if (observer) {
+        observer.disconnect();
+      }
     };
   }, [textStr, speed, reveal, isFinished]);
 

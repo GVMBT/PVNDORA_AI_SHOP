@@ -316,7 +316,9 @@ const Leaderboard: React.FC<LeaderboardProps> = ({
 
   // Setup infinite scroll observer - watch for sentinel at end of list
   React.useEffect(() => {
-    if (!(onLoadMore && loadMoreTriggerRef.current)) return;
+    if (!(onLoadMore && loadMoreTriggerRef.current)) {
+      return;
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {

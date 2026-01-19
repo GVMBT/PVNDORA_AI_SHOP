@@ -15,8 +15,12 @@ import type { CareerLevelData } from "./types";
 
 // Helper to get level icon (avoid nested ternary)
 const getLevelIcon = (levelId: number) => {
-  if (levelId === 1) return <Wifi size={18} />;
-  if (levelId === 2) return <Radio size={18} />;
+  if (levelId === 1) {
+    return <Wifi size={18} />;
+  }
+  if (levelId === 2) {
+    return <Radio size={18} />;
+  }
   return <Crown size={18} />;
 };
 

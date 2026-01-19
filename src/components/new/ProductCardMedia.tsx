@@ -41,7 +41,9 @@ class ParticleSystem {
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
-    if (!ctx) throw new Error("Canvas context not available");
+    if (!ctx) {
+      throw new Error("Canvas context not available");
+    }
     this.ctx = ctx;
     this.resize();
   }
@@ -82,16 +84,24 @@ class ParticleSystem {
     this.ctx.fillRect(0, 0, width, height);
 
     // Update and draw particles
-    this.particles.forEach((particle) => {
+    for (const particle of this.particles) {
       // Apply parallax
       particle.x += particle.vx + this.parallaxX * 0.01;
       particle.y += particle.vy + this.parallaxY * 0.01;
 
       // Wrap around edges
-      if (particle.x < 0) particle.x = width;
-      if (particle.x > width) particle.x = 0;
-      if (particle.y < 0) particle.y = height;
-      if (particle.y > height) particle.y = 0;
+      if (particle.x < 0) {
+        particle.x = width;
+      }
+      if (particle.x > width) {
+        particle.x = 0;
+      }
+      if (particle.y < 0) {
+        particle.y = height;
+      }
+      if (particle.y > height) {
+        particle.y = 0;
+      }
 
       // Draw particle
       this.ctx.beginPath();
@@ -101,7 +111,7 @@ class ParticleSystem {
       this.ctx.fill();
 
       // Draw connections to nearby particles
-      this.particles.forEach((other) => {
+      for (const other of this.particles) {
         const dx = particle.x - other.x;
         const dy = particle.y - other.y;
         const distance = Math.hypot(dx, dy);
@@ -115,18 +125,22 @@ class ParticleSystem {
           this.ctx.lineWidth = 0.5;
           this.ctx.stroke();
         }
-      });
-    });
+      }
+    }
 
     this.ctx.globalAlpha = 1;
   }
 
   start() {
-    if (this.isActive) return;
+    if (this.isActive) {
+      return;
+    }
     this.isActive = true;
 
     const animate = () => {
-      if (!this.isActive) return;
+      if (!this.isActive) {
+        return;
+      }
       this.draw();
       this.animationFrame = requestAnimationFrame(animate);
     };
@@ -187,13 +201,15 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
 
   // Intersection Observer for lazy loading
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current) {
+      return;
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
+        for (const entry of entries) {
           setIsInView(entry.isIntersecting);
-        });
+        }
       },
       { threshold: 0.1, rootMargin: "50px" }
     );
@@ -209,7 +225,9 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
 
   // Initialize particle system
   useEffect(() => {
-    if (!(useParticles && canvasRef.current && isInView)) return;
+    if (!(useParticles && canvasRef.current && isInView)) {
+      return;
+    }
 
     try {
       const system = new ParticleSystem(canvasRef.current);
@@ -239,7 +257,9 @@ const ProductCardMedia: React.FC<ProductCardMediaProps> = ({
 
   // Handle video loading
   useEffect(() => {
-    if (!(video && videoRef.current && isInView) || videoError) return;
+    if (!(video && videoRef.current && isInView) || videoError) {
+      return;
+    }
 
     const videoEl = videoRef.current;
 

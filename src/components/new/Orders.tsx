@@ -95,7 +95,9 @@ const Orders: React.FC<OrdersProps> = ({
   );
 
   const submitReview = useCallback(async () => {
-    if (!(reviewModal.itemId && reviewModal.orderId)) return;
+    if (!(reviewModal.itemId && reviewModal.orderId)) {
+      return;
+    }
 
     setIsSubmitting(true);
     try {

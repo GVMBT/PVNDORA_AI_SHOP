@@ -88,7 +88,9 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   );
 
   const filteredItems = useMemo((): PaletteItem[] => {
-    if (!query) return commands;
+    if (!query) {
+      return commands;
+    }
 
     const queryLower = query.toLowerCase();
     const filteredCommands = commands.filter((c) => c.label.toLowerCase().includes(queryLower));
@@ -122,7 +124,9 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   };
 
   const executeCommand = (item: PaletteItem | undefined) => {
-    if (!item) return;
+    if (!item) {
+      return;
+    }
     if (item.type === "nav") {
       onNavigate(item.view);
     } else if (item.type === "product") {

@@ -93,7 +93,9 @@ function getNextLevel(
  * Calculate progress percentage within current level
  */
 function _calculateProgressPercent(turnover: number, currentLevel: CareerLevel): number {
-  if (currentLevel.max === Number.POSITIVE_INFINITY) return 100;
+  if (currentLevel.max === Number.POSITIVE_INFINITY) {
+    return 100;
+  }
   const range = currentLevel.max - currentLevel.min;
   const progress = turnover - currentLevel.min;
   return Math.min(100, Math.max(0, (progress / range) * 100));
@@ -283,8 +285,12 @@ export function adaptProfile(
     saved: profile.total_saved,
     savedUsd: profile.total_saved_usd, // NOTE: Now contains RUB
     role: (() => {
-      if (profile.is_admin) return "ADMIN";
-      if (referral_program.is_partner) return "VIP";
+      if (profile.is_admin) {
+        return "ADMIN";
+      }
+      if (referral_program.is_partner) {
+        return "VIP";
+      }
       return "USER";
     })(),
     isVip: referral_program.is_partner,
@@ -387,13 +393,19 @@ export function adaptReferralNetwork(
   const mapNode = (node: APIReferralNode, line: 1 | 2 | 3): NetworkNode => {
     // Determine rank based on earnings
     let rank = "PROXY";
-    if (node.earnings_generated >= 1000) rank = "ARCHITECT";
-    else if (node.earnings_generated >= 250) rank = "OPERATOR";
+    if (node.earnings_generated >= 1000) {
+      rank = "ARCHITECT";
+    } else if (node.earnings_generated >= 250) {
+      rank = "OPERATOR";
+    }
 
     // Determine status
     let status: "VIP" | "ACTIVE" | "SLEEP" = "ACTIVE";
-    if (node.earnings_generated >= 500) status = "VIP";
-    else if (node.order_count === 0) status = "SLEEP";
+    if (node.earnings_generated >= 500) {
+      status = "VIP";
+    } else if (node.order_count === 0) {
+      status = "SLEEP";
+    }
 
     // Photo URL with fallback to UI Avatars
     const nodeName = node.first_name || node.username || `User ${node.telegram_id}`;
@@ -438,9 +450,13 @@ function formatTimeAgo(timestamp: string): string {
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60_000);
 
-  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffMins < 60) {
+    return `${diffMins}m ago`;
+  }
   const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  }
   const diffDays = Math.floor(diffHours / 24);
   return `${diffDays}d ago`;
 }

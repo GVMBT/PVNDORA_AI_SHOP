@@ -117,9 +117,9 @@ export function useBootTasks({ getProducts, getCart, getProfile }: UseBootTasksP
         id: "prefetch",
         label: "Caching static resources...",
         successLabel: "Resources cached",
-        execute: async () => {
+        execute: () => {
           // Noise texture is now inline SVG, no external resources to prefetch
-          return true;
+          return Promise.resolve(true);
         },
       },
     ],

@@ -157,7 +157,9 @@ export const generationsApi = {
     offset = 0
   ): Promise<{ generations: StudioGeneration[] }> {
     const params = new URLSearchParams();
-    if (sessionId) params.set("session_id", sessionId);
+    if (sessionId) {
+      params.set("session_id", sessionId);
+    }
     params.set("limit", String(limit));
     params.set("offset", String(offset));
 

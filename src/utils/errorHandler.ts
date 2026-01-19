@@ -6,6 +6,15 @@
 
 import { logger } from "./logger";
 
+// Regex patterns for filtering technical error details (moved to top level for performance)
+const TECHNICAL_PATTERNS = [
+  /^error:/i,
+  /^exception:/i,
+  /at .+\.\w+ \(.+\)/,
+  /\[object \w+\]/,
+  /undefined|null/,
+];
+
 /**
  * Extract error message from unknown error type
  */
@@ -91,16 +100,8 @@ export function getUserFriendlyError(error: unknown): string {
   }
 
   // Filter out technical details from error messages
-  const technicalPatterns = [
-    /^error:/i,
-    /^exception:/i,
-    /at .+\.\w+ \(.+\)/,
-    /\[object \w+\]/,
-    /undefined|null/,
-  ];
-
   let cleanMessage = message;
-  for (const pattern of technicalPatterns) {
+  for (const pattern of TECHNICAL_PATTERNS) {
     cleanMessage = cleanMessage.replace(pattern, "");
   }
 

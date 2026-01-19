@@ -32,50 +32,82 @@ import ProductSpecs from "./ProductSpecs";
 type AvailabilityState = "available" | "preorder" | "disabled";
 
 const getAvailabilityState = (hasStock: boolean, isPreorder: boolean): AvailabilityState => {
-  if (hasStock) return "available";
-  if (isPreorder) return "preorder";
+  if (hasStock) {
+    return "available";
+  }
+  if (isPreorder) {
+    return "preorder";
+  }
   return "disabled";
 };
 
 const getAccessProtocol = (state: AvailabilityState): string => {
-  if (state === "available") return "DIRECT_ACCESS";
-  if (state === "preorder") return "ON_DEMAND";
+  if (state === "available") {
+    return "DIRECT_ACCESS";
+  }
+  if (state === "preorder") {
+    return "ON_DEMAND";
+  }
   return "DISCONTINUED";
 };
 
 const getNodeStatus = (state: AvailabilityState): string => {
-  if (state === "available") return "OPERATIONAL";
-  if (state === "preorder") return "STANDBY";
+  if (state === "available") {
+    return "OPERATIONAL";
+  }
+  if (state === "preorder") {
+    return "STANDBY";
+  }
   return "DISABLED";
 };
 
 const getNodeStatusColor = (state: AvailabilityState): string => {
-  if (state === "available") return "text-green-500";
-  if (state === "preorder") return "text-yellow-500";
+  if (state === "available") {
+    return "text-green-500";
+  }
+  if (state === "preorder") {
+    return "text-yellow-500";
+  }
   return "text-red-500";
 };
 
 const getStatusDotColor = (state: AvailabilityState): string => {
-  if (state === "available") return "bg-green-500";
-  if (state === "preorder") return "bg-yellow-500";
+  if (state === "available") {
+    return "bg-green-500";
+  }
+  if (state === "preorder") {
+    return "bg-yellow-500";
+  }
   return "bg-red-500";
 };
 
 const getStatusText = (state: AvailabilityState): string => {
-  if (state === "available") return "GRID_ONLINE";
-  if (state === "preorder") return "RESOURCE_QUEUE";
+  if (state === "available") {
+    return "GRID_ONLINE";
+  }
+  if (state === "preorder") {
+    return "RESOURCE_QUEUE";
+  }
   return "OFFLINE";
 };
 
 const getTabLabel = (tab: string, t: (key: string) => string): string => {
-  if (tab === "specs") return t("product.techSpecs");
-  if (tab === "files") return t("product.packageContent");
+  if (tab === "specs") {
+    return t("product.techSpecs");
+  }
+  if (tab === "files") {
+    return t("product.packageContent");
+  }
   return t("product.systemManifest");
 };
 
 const getButtonClassName = (isDisabled: boolean, isSuccess: boolean): string => {
-  if (isDisabled) return "bg-gray-800 text-gray-400 cursor-not-allowed";
-  if (isSuccess) return "bg-green-500 text-black";
+  if (isDisabled) {
+    return "bg-gray-800 text-gray-400 cursor-not-allowed";
+  }
+  if (isSuccess) {
+    return "bg-green-500 text-black";
+  }
   return "bg-pandora-cyan hover:bg-white text-black";
 };
 
@@ -117,7 +149,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
     const updateSystemCheck = () => {
       setSystemCheck((prev) => {
         if (prev >= 100) {
-          if (interval) clearInterval(interval);
+          if (interval) {
+            clearInterval(interval);
+          }
           return 100;
         }
         return prev + randomInt(1, 15);
@@ -127,7 +161,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
     interval = setInterval(updateSystemCheck, 150);
 
     return () => {
-      if (interval) clearInterval(interval);
+      if (interval) {
+        clearInterval(interval);
+      }
     };
   }, []);
 
@@ -138,7 +174,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
   const mouseY = useSpring(y, { stiffness: 150, damping: 20 });
 
   function handleMouseMove({ currentTarget, clientX, clientY }: React.MouseEvent) {
-    if (globalThis.innerWidth < 768) return;
+    if (globalThis.innerWidth < 768) {
+      return;
+    }
     const { left, top, width, height } = currentTarget.getBoundingClientRect();
     const xPct = (clientX - left) / width - 0.5;
     const yPct = (clientY - top) / height - 0.5;
@@ -152,14 +190,18 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
   }
 
   const handleTabChange = (tab: "specs" | "files" | "manifest") => {
-    if (onHaptic) onHaptic("light");
+    if (onHaptic) {
+      onHaptic("light");
+    }
     setActiveTab(tab);
   };
 
   const adjustQuantity = (delta: number) => {
     const newQty = Math.max(1, quantity + delta);
     setQuantity(newQty);
-    if (onHaptic) onHaptic("light");
+    if (onHaptic) {
+      onHaptic("light");
+    }
   };
 
   // --- DERIVED AVAILABILITY STATES --- (memoized for performance)
@@ -172,8 +214,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
     const accessProtocol = getAccessProtocol(state);
     // Helper for delivery label (avoid nested ternary)
     const getDeliveryLabel = (): string => {
-      if (hasStock) return "INSTANT_DEPLOY";
-      if (isPreorder) return `ALLOCATION_QUEUE ~${product.fulfillment}H`;
+      if (hasStock) {
+        return "INSTANT_DEPLOY";
+      }
+      if (isPreorder) {
+        return `ALLOCATION_QUEUE ~${product.fulfillment}H`;
+      }
       return "UNAVAILABLE";
     };
     const deliveryLabel = getDeliveryLabel();
@@ -185,8 +231,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
 
     // Warranty label helper
     const getWarrantyLabel = (): string => {
-      if (product.warranty <= 0) return "UNSPECIFIED";
-      if (product.warranty % 24 === 0) return `${product.warranty / 24} DAYS`;
+      if (product.warranty <= 0) {
+        return "UNSPECIFIED";
+      }
+      if (product.warranty % 24 === 0) {
+        return `${product.warranty / 24} DAYS`;
+      }
       return `${product.warranty} HOURS`;
     };
     const warrantyLabel = getWarrantyLabel();
@@ -225,8 +275,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
 
   // --- MICRO-INTERACTION: ADD TO CART ---
   const handleMountModule = () => {
-    if (isAllocating || isSuccess) return;
-    if (onHaptic) onHaptic("medium");
+    if (isAllocating || isSuccess) {
+      return;
+    }
+    if (onHaptic) {
+      onHaptic("medium");
+    }
 
     setIsAllocating(true);
 
@@ -234,7 +288,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
       // Add to cart (synchronous operation)
       onAddToCart(product, quantity);
       setIsSuccess(true);
-      if (onHaptic) onHaptic("success");
+      if (onHaptic) {
+        onHaptic("success");
+      }
     } catch (err) {
       logger.error("Failed to add to cart", err);
     } finally {

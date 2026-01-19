@@ -23,9 +23,12 @@ import { useLocale } from "../../hooks/useLocale";
 
 // Helper for message styling (avoid nested ternary)
 const getMessageClasses = (sender: string): string => {
-  if (sender === "user")
+  if (sender === "user") {
     return "bg-pandora-cyan/20 border border-pandora-cyan/30 text-pandora-cyan";
-  if (sender === "system") return "bg-white/5 border border-white/10 text-gray-500 italic";
+  }
+  if (sender === "system") {
+    return "bg-white/5 border border-white/10 text-gray-500 italic";
+  }
   return "bg-white/5 border border-white/10 text-gray-300";
 };
 
@@ -158,8 +161,12 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
   }, [isOpen]);
 
   const handleSend = async () => {
-    if (!inputValue.trim() || loading || isTyping) return;
-    if (onHaptic) onHaptic();
+    if (!inputValue.trim() || loading || isTyping) {
+      return;
+    }
+    if (onHaptic) {
+      onHaptic();
+    }
 
     const userMsg: DisplayMessage = {
       id: `user-${Date.now()}`,
@@ -244,7 +251,9 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
   };
 
   const toggleChat = () => {
-    if (onHaptic) onHaptic();
+    if (onHaptic) {
+      onHaptic();
+    }
     const willClose = isOpen;
     onToggle(!isOpen);
 
@@ -256,12 +265,16 @@ const SupportChatConnected: React.FC<SupportChatConnectedProps> = ({
   };
 
   const handleRefresh = () => {
-    if (onHaptic) onHaptic();
+    if (onHaptic) {
+      onHaptic();
+    }
     loadHistory();
   };
 
   const handleClear = async () => {
-    if (onHaptic) onHaptic();
+    if (onHaptic) {
+      onHaptic();
+    }
     const success = await clearHistory();
     if (success) {
       setMessages(INITIAL_MESSAGES);

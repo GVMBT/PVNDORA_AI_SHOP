@@ -196,7 +196,9 @@ export const useStudioStore = create<StudioStore>()(
 
       fetchGenerations: async (sessionId) => {
         const targetSession = sessionId || get().activeSessionId;
-        if (!targetSession) return;
+        if (!targetSession) {
+          return;
+        }
 
         set({ generationsLoading: true });
         try {

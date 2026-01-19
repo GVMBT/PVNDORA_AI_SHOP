@@ -103,7 +103,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   // Uses balanceUsd (always USD from backend) and converts to contextCurrency
   // This handles the case when user changes currency in UI settings
   const convertedProfile = useMemo(() => {
-    if (!profile) return null;
+    if (!profile) {
+      return null;
+    }
 
     // Use context currency if set, otherwise profile currency, default to USD
     const displayCurrency = contextCurrency || profile.currency || "USD";
@@ -120,7 +122,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
     // Helper for conversion
     const convert = (usd: number): number => {
-      if (displayCurrency === "USD" || exchangeRate === 1) return usd;
+      if (displayCurrency === "USD" || exchangeRate === 1) {
+        return usd;
+      }
       const converted = usd * exchangeRate;
       // Round integer currencies
       return ["RUB", "UAH", "TRY", "INR"].includes(displayCurrency)
@@ -165,8 +169,12 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   }, [profile, contextCurrency]);
 
   const handleCopyLink = useCallback(async () => {
-    if (!profile?.referralLink) return;
-    if (onHaptic) onHaptic("light");
+    if (!profile?.referralLink) {
+      return;
+    }
+    if (onHaptic) {
+      onHaptic("light");
+    }
 
     const success = await copyToClipboard(profile.referralLink);
     if (success) {
@@ -177,7 +185,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
   const handleShare = useCallback(async () => {
     setShareLoading(true);
-    if (onHaptic) onHaptic("medium");
+    if (onHaptic) {
+      onHaptic("medium");
+    }
 
     try {
       const { prepared_message_id } = await createShareLink();
@@ -239,7 +249,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
         return;
       }
 
-      if (onHaptic) onHaptic("medium");
+      if (onHaptic) {
+        onHaptic("medium");
+      }
 
       // Use converted balance for UI display (in display currency)
       const _displayBalance = convertedProfile?.balance || 0;
@@ -304,7 +316,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
     const minAmount =
       minAmounts[currency] || (currency === "USD" ? 5 : Math.round(5 * exchangeRate));
 
-    if (onHaptic) onHaptic("light");
+    if (onHaptic) {
+      onHaptic("light");
+    }
 
     showTopUp({
       currency,
@@ -361,7 +375,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
   // Helper to rollback on error (reduces cognitive complexity)
   const rollbackPreferences = useCallback(
     (preferred_currency?: string, interface_language?: string) => {
-      if (!profile) return;
+      if (!profile) {
+        return;
+      }
       if (preferred_currency) {
         logger.info("Rolling back currency to", profile.currency);
         setCurrency(profile.currency as CurrencyCode);
@@ -422,7 +438,9 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
 
   // Handler for opening partner application modal
   const handleOpenPartnerApplication = useCallback(async () => {
-    if (onHaptic) onHaptic("light");
+    if (onHaptic) {
+      onHaptic("light");
+    }
 
     // Check existing application status
     try {

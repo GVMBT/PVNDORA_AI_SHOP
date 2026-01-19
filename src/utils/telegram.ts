@@ -9,7 +9,9 @@ import { expandViewport, requestFullscreen as sdkRequestFullscreen } from "@tele
 import type { WebApp } from "../types/telegram";
 
 export function getTelegramWebApp(): WebApp | undefined {
-  if (globalThis.window === undefined) return undefined;
+  if (globalThis.window === undefined) {
+    return undefined;
+  }
   return (globalThis as typeof globalThis & { Telegram?: { WebApp?: WebApp } }).Telegram?.WebApp;
 }
 
@@ -32,7 +34,9 @@ export function getTelegramInitData(): string {
 export function getTelegramUser(): { id: number; language_code?: string } | null {
   const tg = getTelegramWebApp();
   const user = tg?.initDataUnsafe?.user;
-  if (!user) return null;
+  if (!user) {
+    return null;
+  }
   return { id: user.id, language_code: user.language_code };
 }
 
@@ -74,7 +78,9 @@ export async function requestFullscreen(): Promise<void> {
 
   // Fallback to legacy WebApp API
   const tg = getTelegramWebApp();
-  if (!tg) return;
+  if (!tg) {
+    return;
+  }
 
   // Check Telegram WebApp version - requestFullscreen not supported in 6.0+
   const version = tg.version || "";
@@ -84,7 +90,9 @@ export async function requestFullscreen(): Promise<void> {
   }
 
   // Check if method exists
-  if (!("requestFullscreen" in tg)) return;
+  if (!("requestFullscreen" in tg)) {
+    return;
+  }
 
   // Try to call requestFullscreen (may throw if not configured in BotFather)
   try {
@@ -100,7 +108,7 @@ export async function requestFullscreen(): Promise<void> {
  * Uses modern @telegram-apps/sdk expandViewport if available,
  * falls back to legacy expand() method.
  */
-export async function expandWebApp(): Promise<void> {
+export function expandWebApp(): void {
   try {
     // Use modern SDK if available
     if (expandViewport.isAvailable()) {

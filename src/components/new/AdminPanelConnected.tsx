@@ -165,9 +165,13 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
         profitUsdParam: Record<string, unknown> | null,
         key: string
       ): number | undefined => {
-        if (!(profitUsdParam && key in profitUsdParam)) return undefined;
+        if (!(profitUsdParam && key in profitUsdParam)) {
+          return undefined;
+        }
         const value = profitUsdParam[key];
-        if (typeof value === "number") return value;
+        if (typeof value === "number") {
+          return value;
+        }
         const parsed = Number.parseFloat(String(value));
         return Number.isNaN(parsed) ? undefined : parsed;
       };
@@ -178,7 +182,9 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
       ): AccountingData => {
         const getNumber = (snakeKey: string, camelKey?: string, fallback = 0): number => {
           const value = rawData[snakeKey] ?? (camelKey ? rawData[camelKey] : undefined);
-          if (typeof value === "number") return value;
+          if (typeof value === "number") {
+            return value;
+          }
           if (typeof value === "string") {
             const parsed = Number.parseFloat(value);
             return Number.isNaN(parsed) ? fallback : parsed;
@@ -202,10 +208,15 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
         };
 
         const getTotalOrders = (): number => {
-          if (typeof rawData.total_orders === "string")
+          if (typeof rawData.total_orders === "string") {
             return Number.parseInt(rawData.total_orders, 10);
-          if (typeof rawData.total_orders === "number") return rawData.total_orders;
-          if (typeof rawData.totalOrders === "number") return rawData.totalOrders;
+          }
+          if (typeof rawData.total_orders === "number") {
+            return rawData.total_orders;
+          }
+          if (typeof rawData.totalOrders === "number") {
+            return rawData.totalOrders;
+          }
           return 0;
         };
 
@@ -476,7 +487,9 @@ const AdminPanelConnected: React.FC<AdminPanelConnectedProps> = ({ onExit }) => 
   );
 
   const transformedStats = useMemo(() => {
-    if (!analytics) return undefined;
+    if (!analytics) {
+      return undefined;
+    }
     return {
       totalRevenue: analytics.total_revenue || 0,
       ordersToday: analytics.orders_today || 0,

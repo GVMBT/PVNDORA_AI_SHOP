@@ -13,8 +13,12 @@ import type { BillingLogData } from "./types";
 
 // Helper for log badge styling (avoid nested ternary)
 const getLogBadgeClasses = (isIncome: boolean, type: string): string => {
-  if (isIncome) return "text-green-500 border-green-500/20 bg-green-500/5";
-  if (type === "OUTCOME") return "text-pandora-cyan border-pandora-cyan/20 bg-pandora-cyan/5";
+  if (isIncome) {
+    return "text-green-500 border-green-500/20 bg-green-500/5";
+  }
+  if (type === "OUTCOME") {
+    return "text-pandora-cyan border-pandora-cyan/20 bg-pandora-cyan/5";
+  }
   return "text-gray-500 border-white/10 bg-white/5";
 };
 
@@ -68,7 +72,9 @@ function processMetadata(
   defaultSource: string,
   t: TranslateFunc
 ): MetadataResult {
-  if (!meta) return { source: defaultSource, details: "" };
+  if (!meta) {
+    return { source: defaultSource, details: "" };
+  }
 
   // For purchases, show payment method
   if (sourceKey === "purchase" && meta.payment_method) {

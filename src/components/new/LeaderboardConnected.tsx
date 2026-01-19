@@ -39,7 +39,9 @@ const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) =
   // Handle filter change - reset and reload with new period
   const handleFilterChange = useCallback(
     async (newFilter: "weekly" | "all_time") => {
-      if (newFilter === activeFilter) return;
+      if (newFilter === activeFilter) {
+        return;
+      }
 
       setActiveFilter(newFilter);
       reset?.(); // Reset the loaded offsets tracker
@@ -55,7 +57,9 @@ const LeaderboardConnected: React.FC<LeaderboardConnectedProps> = ({ onBack }) =
 
   // Infinite scroll handler
   const handleLoadMore = useCallback(async () => {
-    if (loadingRef.current || !hasMore) return;
+    if (loadingRef.current || !hasMore) {
+      return;
+    }
     loadingRef.current = true;
     await loadMore();
     loadingRef.current = false;

@@ -53,7 +53,9 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({ onClose
       try {
         const [cartData, profileData] = await Promise.all([getCart(), getProfile()]);
 
-        if (!isMounted) return;
+        if (!isMounted) {
+          return;
+        }
 
         setFreshCart(cartData);
         setFreshProfile(profileData);
@@ -65,7 +67,9 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({ onClose
 
         setIsInitialized(true);
       } catch {
-        if (isMounted) setIsInitialized(true);
+        if (isMounted) {
+          setIsInitialized(true);
+        }
       }
     };
     init();
@@ -116,7 +120,9 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({ onClose
     async (code: string): Promise<{ success: boolean; message?: string }> => {
       try {
         const updatedCart = await applyPromo(code);
-        if (updatedCart) setFreshCart(updatedCart);
+        if (updatedCart) {
+          setFreshCart(updatedCart);
+        }
         return { success: true };
       } catch (err) {
         return {
@@ -131,7 +137,9 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({ onClose
   const handleRemovePromo = useCallback(async () => {
     try {
       const updatedCart = await removePromo();
-      if (updatedCart) setFreshCart(updatedCart);
+      if (updatedCart) {
+        setFreshCart(updatedCart);
+      }
     } catch {
       // Silently fail
     }
@@ -175,7 +183,9 @@ const CheckoutModalConnected: React.FC<CheckoutModalConnectedProps> = ({ onClose
 
   // Close if cart becomes empty (only check items length, not full cart object)
   useEffect(() => {
-    if (!isInitialized || cartLoading) return;
+    if (!isInitialized || cartLoading) {
+      return;
+    }
 
     const itemsLength = cart?.items?.length ?? 0;
     if (itemsLength === 0) {

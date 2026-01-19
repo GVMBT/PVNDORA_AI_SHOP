@@ -6,7 +6,9 @@ import { generateHashId } from "../../utils/id";
 
 // Helper to get document icon (avoid nested ternary)
 const getDocumentIcon = (doc: string) => {
-  if (doc === "support" || doc === "faq") return <HelpCircle size={64} />;
+  if (doc === "support" || doc === "faq") {
+    return <HelpCircle size={64} />;
+  }
   return <FileText size={64} />;
 };
 

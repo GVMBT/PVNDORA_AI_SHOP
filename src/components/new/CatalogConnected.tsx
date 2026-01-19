@@ -59,16 +59,24 @@ const CatalogConnected: React.FC<CatalogConnectedProps> = ({
 
   const handleSelectProduct = useCallback(
     (product: CatalogProduct) => {
-      if (onHaptic) onHaptic("light");
-      if (onSelectProduct) onSelectProduct(product);
+      if (onHaptic) {
+        onHaptic("light");
+      }
+      if (onSelectProduct) {
+        onSelectProduct(product);
+      }
     },
     [onSelectProduct, onHaptic]
   );
 
   const handleAddToCart = useCallback(
     (product: CatalogProduct, quantity: number) => {
-      if (onHaptic) onHaptic("medium");
-      if (onAddToCart) onAddToCart(product, quantity);
+      if (onHaptic) {
+        onHaptic("medium");
+      }
+      if (onAddToCart) {
+        onAddToCart(product, quantity);
+      }
     },
     [onAddToCart, onHaptic]
   );

@@ -18,8 +18,12 @@ const getLevelCardClasses = (
   bgColor: string,
   borderColor: string
 ): string => {
-  if (isCurrentLevel) return `${bgColor} ${borderColor}`;
-  if (isUnlocked) return "bg-white/5 border-white/10";
+  if (isCurrentLevel) {
+    return `${bgColor} ${borderColor}`;
+  }
+  if (isUnlocked) {
+    return "bg-white/5 border-white/10";
+  }
   return "bg-black/30 border-white/5 opacity-60";
 };
 
@@ -29,8 +33,12 @@ const getLevelThreshold = (
   thresholdLevel2: number,
   thresholdLevel3: number
 ): number | null => {
-  if (level === 2) return thresholdLevel2;
-  if (level === 3) return thresholdLevel3;
+  if (level === 2) {
+    return thresholdLevel2;
+  }
+  if (level === 3) {
+    return thresholdLevel3;
+  }
   return null;
 };
 

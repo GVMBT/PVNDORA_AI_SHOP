@@ -19,7 +19,9 @@ interface PartnerModalProps {
 const PartnerModal: React.FC<PartnerModalProps> = ({ partner, onClose, onSave }) => {
   const [editingPartner, setEditingPartner] = useState<UserData | null>(partner);
 
-  if (!editingPartner) return null;
+  if (!editingPartner) {
+    return null;
+  }
 
   const togglePartnerVip = () => {
     setEditingPartner({
