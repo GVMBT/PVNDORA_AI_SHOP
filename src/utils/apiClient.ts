@@ -176,3 +176,30 @@ export async function apiPatch<T = unknown>(endpoint: string, body: unknown): Pr
 export async function apiDelete<T = unknown>(endpoint: string): Promise<T> {
   return apiRequest<T>(endpoint, { method: "DELETE" });
 }
+
+/**
+ * API Client object with methods matching axios-like interface
+ * For compatibility with code expecting axios-style API
+ */
+export const apiClient = {
+  async get<T = unknown>(endpoint: string): Promise<{ data: T }> {
+    const data = await apiGet<T>(endpoint);
+    return { data };
+  },
+  async post<T = unknown>(endpoint: string, body?: unknown): Promise<{ data: T }> {
+    const data = await apiPost<T>(endpoint, body);
+    return { data };
+  },
+  async put<T = unknown>(endpoint: string, body?: unknown): Promise<{ data: T }> {
+    const data = await apiPut<T>(endpoint, body);
+    return { data };
+  },
+  async patch<T = unknown>(endpoint: string, body?: unknown): Promise<{ data: T }> {
+    const data = await apiPatch<T>(endpoint, body);
+    return { data };
+  },
+  async delete<T = unknown>(endpoint: string): Promise<{ data: T }> {
+    const data = await apiDelete<T>(endpoint);
+    return { data };
+  },
+};

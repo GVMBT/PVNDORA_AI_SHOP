@@ -54,3 +54,9 @@ export function getApiHeaders(): ApiHeaders {
 
   return headers;
 }
+
+/**
+ * Alias for getApiHeaders (for backward compatibility)
+ * @deprecated Use getApiHeaders() instead
+ */
+export const getAuthHeaders = getApiHeaders;
