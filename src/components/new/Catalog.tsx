@@ -235,9 +235,9 @@ const Catalog: React.FC<CatalogProps> = ({
                   setIsAvailabilityOpen((prev) => !prev);
                   setIsSortOpen(false);
                 }}
-                className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap touch-manipulation select-none"
+                className="h-full px-3 sm:px-4 py-2 flex items-center gap-2 bg-[#0a0a0a] border border-white/10 hover:border-pandora-cyan/50 text-sm font-mono text-gray-300 transition-all rounded-sm whitespace-nowrap touch-manipulation select-none min-w-fit"
               >
-                <span className="uppercase text-[9px] sm:text-[10px] tracking-wider">
+                <span className="uppercase text-[9px] sm:text-[10px] tracking-wider overflow-visible">
                   {activeAvailability === "All" &&
                     `${t("catalog.availability.label")}: ${t("catalog.availability.all")}`}
                   {activeAvailability === "Available" &&
@@ -260,7 +260,7 @@ const Catalog: React.FC<CatalogProps> = ({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     onClick={(e) => e.stopPropagation()}
-                    className="absolute top-full left-0 min-w-full mt-2 bg-[#0a0a0a] border border-white/20 z-[100] shadow-xl shadow-black/80"
+                    className="absolute top-full left-0 w-fit min-w-full mt-2 bg-[#0a0a0a] border border-white/20 z-[100] shadow-xl shadow-black/80"
                   >
                     {[
                       {
@@ -295,9 +295,9 @@ const Catalog: React.FC<CatalogProps> = ({
                           setActiveAvailability(option.value as AvailabilityFilter);
                           setIsAvailabilityOpen(false);
                         }}
-                        className="w-full text-left px-4 py-3 text-[10px] uppercase font-mono hover:bg-white/10 hover:text-pandora-cyan flex items-center justify-between select-none"
+                        className="w-full text-left px-4 py-3 text-[10px] uppercase font-mono hover:bg-white/10 hover:text-pandora-cyan flex items-center justify-between select-none whitespace-nowrap"
                       >
-                        <span className={option.color}>{option.label}</span>
+                        <span className={`${option.color} overflow-visible`}>{option.label}</span>
                         {activeAvailability === option.value && (
                           <Check size={12} className="text-pandora-cyan" />
                         )}
@@ -343,7 +343,7 @@ const Catalog: React.FC<CatalogProps> = ({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     onClick={(e) => e.stopPropagation()}
-                    className="absolute top-full left-0 min-w-full mt-2 bg-[#0a0a0a] border border-white/20 z-[100] shadow-xl shadow-black/80"
+                    className="absolute top-full left-0 w-fit min-w-full mt-2 bg-[#0a0a0a] border border-white/20 z-[100] shadow-xl shadow-black/80"
                   >
                     {[
                       { label: t("catalog.sort.popularity"), value: "popular" },
@@ -361,9 +361,9 @@ const Catalog: React.FC<CatalogProps> = ({
                           setSortBy(option.value as SortOption);
                           setIsSortOpen(false);
                         }}
-                        className="w-full text-left px-4 py-3 text-[10px] uppercase font-mono hover:bg-white/10 hover:text-pandora-cyan flex items-center justify-between select-none"
+                        className="w-full text-left px-4 py-3 text-[10px] uppercase font-mono hover:bg-white/10 hover:text-pandora-cyan flex items-center justify-between select-none whitespace-nowrap"
                       >
-                        {option.label}
+                        <span className="overflow-visible">{option.label}</span>
                         {sortBy === option.value && (
                           <Check size={12} className="text-pandora-cyan" />
                         )}

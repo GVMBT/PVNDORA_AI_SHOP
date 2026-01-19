@@ -37,8 +37,8 @@ aikido_zen>=1.0.0
 # Optional: Install only if DIGMA_COLLECTOR_URL and DIGMA_API_KEY are set
 opentelemetry-api>=1.21.0
 opentelemetry-sdk>=1.21.0
-opentelemetry-instrumentation-fastapi>=0.42b0
-opentelemetry-instrumentation-httpx>=0.42b0
+opentelemetry-instrumentation-fastapi>=0.42b0,<1.0.0
+opentelemetry-instrumentation-httpx>=0.42b0,<1.0.0
 opentelemetry-exporter-otlp>=1.21.0
 
 # REMOVED (unused):

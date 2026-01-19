@@ -67,6 +67,7 @@
     "profile": "Profile"
   },
   "catalog": {
+    "pageTitle": "CATÁLOGO",
     "all": "Todo",
     "subscription": "Suscripciones",
     "search": "Buscar herramientas AI...",

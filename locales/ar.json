@@ -67,6 +67,7 @@
     "profile": "Profile"
   },
   "catalog": {
+    "pageTitle": "الفهرس",
     "all": "الكل",
     "subscription": "الاشتراكات",
     "search": "البحث عن أدوات AI...",

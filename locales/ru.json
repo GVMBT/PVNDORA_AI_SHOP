@@ -53,6 +53,7 @@
 
   "catalog": {
     "title": "КАТАЛОГ",
+    "pageTitle": "КАТАЛОГ",
     "header": {
       "source": "ЦИФРОВЫЕ ТОВАРЫ",
       "status": "СТАТУС: АКТИВЕН"

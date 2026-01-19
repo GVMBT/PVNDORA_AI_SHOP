@@ -17,7 +17,7 @@ import {
   type VeoResolution,
 } from "./types";
 import { Viewport } from "./Viewport";
-import { HexGrid, Scanline } from "./VisualComponents";
+import { DataStream, HexGrid, Scanline } from "./VisualComponents";
 
 const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, onTopUp }) => {
   const { t } = useLocale();
@@ -195,8 +195,16 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
       {/* --- BACKGROUND LAYERS --- */}
       <Scanline />
       <HexGrid />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,_rgba(0,255,255,0.05)_0%,_rgba(0,0,0,0)_60%)] pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_transparent_0%,_#000_100%)] pointer-events-none opacity-80" />
+      {/* Ambient glow from center */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,_rgba(0,255,255,0.08)_0%,_rgba(0,0,0,0)_50%)] pointer-events-none" />
+      {/* Vignette effect */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_transparent_30%,_rgba(0,0,0,0.9)_100%)] pointer-events-none" />
+      {/* Corner data streams */}
+      <DataStream position="left" />
+      <DataStream position="right" />
+      {/* Edge glow lines */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-pandora-cyan/30 to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-pandora-cyan/20 to-transparent" />
 
       {/* --- HISTORY SIDEBAR --- */}
       <HistorySidebar

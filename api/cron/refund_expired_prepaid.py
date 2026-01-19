@@ -269,6 +269,84 @@ async def _process_single_refund(
     return True
 
 
+async def _fix_stuck_orders(db: Any, results: dict[str, Any]) -> None:
+    """
+    Fix orders stuck in prepaid/paid/partial status when all items are already in final state.
+
+    This can happen if a previous cron run failed during order status update (e.g., schema errors).
+    We find such orders and update their status to the correct final state.
+    """
+    # Find orders with non-final status
+    stuck_orders = (
+        await db.client.table("orders")
+        .select("id, user_id, status")
+        .in_("status", ["prepaid", "partial", "paid"])
+        .limit(50)
+        .execute()
+    )
+
+    if not stuck_orders.data:
+        return
+
+    fixed_count = 0
+    for order in stuck_orders.data or []:
+        if not isinstance(order, dict):
+            continue
+
+        order_id = order.get("id")
+        user_id = order.get("user_id")
+        if not order_id:
+            continue
+
+        # Get all items for this order
+        items = (
+            await db.client.table("order_items")
+            .select("id, status")
+            .eq("order_id", order_id)
+            .execute()
+        )
+
+        if not items.data:
+            continue
+
+        statuses = [item.get("status", "") for item in items.data if isinstance(item, dict)]
+        pending_statuses = {"pending", "prepaid"}
+        final_statuses = {"delivered", "refunded", "cancelled"}
+
+        # Check if ALL items are in final state (no pending items)
+        has_pending = any(s in pending_statuses for s in statuses)
+        all_final = all(s in final_statuses for s in statuses)
+
+        if has_pending or not all_final:
+            continue  # Order still has pending items or unknown statuses
+
+        # Determine new status based on item statuses
+        has_delivered = any(s == "delivered" for s in statuses)
+        new_status = "delivered" if has_delivered else "refunded"
+
+        # Update order status
+        try:
+            await db.client.table("orders").update({"status": new_status}).eq("id", order_id).execute()
+            fixed_count += 1
+            logger.info(f"Fixed stuck order {order_id}: {order.get('status')} -> {new_status}")
+
+            # Emit realtime event
+            if user_id:
+                try:
+                    from core.realtime import emit_order_status_change
+
+                    await emit_order_status_change(str(order_id), str(user_id), new_status)
+                except Exception as e:
+                    logger.warning(f"Failed to emit order status change for stuck order: {e}")
+
+        except Exception as e:
+            logger.error(f"Failed to fix stuck order {order_id}: {e}")
+
+    if fixed_count > 0:
+        logger.info(f"Fixed {fixed_count} stuck orders")
+        results["stuck_orders_fixed"] = fixed_count
+
+
 @app.get("/api/cron/refund_expired_prepaid")
 async def refund_expired_prepaid_entrypoint(request: Request) -> Response:
     """Vercel Cron entrypoint for refunding expired prepaid order items."""
@@ -289,6 +367,10 @@ async def refund_expired_prepaid_entrypoint(request: Request) -> Response:
     }
 
     try:
+        # Step 0: Fix stuck orders - orders where all items are final but order status not updated
+        # This can happen if previous cron run failed during order status update
+        await _fix_stuck_orders(db, results)
+
         # Step 1: Find orders with expired fulfillment_deadline
         # fulfillment_deadline is on orders table, not order_items!
         expired_orders = (
