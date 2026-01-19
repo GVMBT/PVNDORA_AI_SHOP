@@ -63,22 +63,22 @@ async def get_sessions(
     """Get user's studio sessions."""
     from core.services.database import get_database
     from core.studio.service import get_studio_service
-    
+
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     service = get_studio_service(db)
     sessions = await service.get_sessions(str(db_user.id), include_archived)
-    
+
     # Find default session
     default_session_id = None
     for s in sessions:
         if s.get("is_default"):
             default_session_id = s["id"]
             break
-    
+
     return {
         "sessions": sessions,
         "default_session_id": default_session_id,
@@ -93,15 +93,15 @@ async def create_session(
     """Create a new studio session."""
     from core.services.database import get_database
     from core.studio.service import get_studio_service
-    
+
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     service = get_studio_service(db)
     session = await service.create_session(str(db_user.id), request.name)
-    
+
     return {"success": True, "session": session}
 
 
@@ -114,20 +114,20 @@ async def update_session(
     """Update a studio session."""
     from core.services.database import get_database
     from core.studio.service import get_studio_service
-    
+
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     service = get_studio_service(db)
-    
+
     updates = {}
     if request.name is not None:
         updates["name"] = request.name
     if request.is_archived is not None:
         updates["is_archived"] = request.is_archived
-    
+
     try:
         session = await service.update_session(session_id, str(db_user.id), **updates)
         return {"success": True, "session": session}
@@ -144,14 +144,14 @@ async def delete_session(
     """Delete or archive a studio session."""
     from core.services.database import get_database
     from core.studio.service import get_studio_service
-    
+
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     service = get_studio_service(db)
-    
+
     try:
         await service.delete_session(session_id, str(db_user.id), hard_delete)
         return {"success": True}
@@ -173,12 +173,12 @@ async def get_generations(
     """Get user's generations."""
     from core.services.database import get_database
     from core.studio.service import get_studio_service
-    
+
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     service = get_studio_service(db)
     generations = await service.get_generations(
         str(db_user.id),
@@ -186,7 +186,7 @@ async def get_generations(
         limit=min(limit, 100),
         offset=offset,
     )
-    
+
     return {"generations": generations}
 
 
@@ -198,18 +198,18 @@ async def get_generation(
     """Get a single generation."""
     from core.services.database import get_database
     from core.studio.service import get_studio_service
-    
+
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     service = get_studio_service(db)
     generation = await service.get_generation(generation_id, str(db_user.id))
-    
+
     if not generation:
         raise HTTPException(status_code=404, detail="Generation not found")
-    
+
     return {"generation": generation}
 
 
@@ -219,26 +219,26 @@ async def start_generation(
     user: "TelegramUser" = Depends(verify_telegram_auth),
 ) -> dict[str, Any]:
     """Start a new AI generation.
-    
+
     This endpoint:
     1. Validates balance
     2. Deducts cost
     3. Creates generation record
     4. Starts AI provider job
-    
+
     Returns generation ID for tracking via SSE.
     """
     from core.services.database import get_database
     from core.studio.adapters.base import AdapterError
     from core.studio.service import get_studio_service
-    
+
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     service = get_studio_service(db)
-    
+
     try:
         generation = await service.start_generation(
             user_id=str(db_user.id),
@@ -247,14 +247,14 @@ async def start_generation(
             config=request.config,
             session_id=request.session_id,
         )
-        
+
         return {
             "success": True,
             "generation_id": generation["id"],
             "status": generation["status"],
             "cost": generation["cost_amount"],
         }
-        
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except AdapterError as e:
@@ -273,14 +273,14 @@ async def move_generation(
 ) -> dict[str, Any]:
     """Move or copy generation to another session."""
     from core.services.database import get_database
-    
+
     db = get_database()
     db_user = await db.get_user_by_telegram_id(user.id)
     if not db_user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     user_id = str(db_user.id)
-    
+
     # Verify generation belongs to user
     gen_result = (
         await db.client.table("studio_generations")
@@ -290,10 +290,10 @@ async def move_generation(
         .single()
         .execute()
     )
-    
+
     if not gen_result.data:
         raise HTTPException(status_code=404, detail="Generation not found")
-    
+
     # Verify target session belongs to user
     session_result = (
         await db.client.table("studio_sessions")
@@ -303,49 +303,48 @@ async def move_generation(
         .single()
         .execute()
     )
-    
+
     if not session_result.data:
         raise HTTPException(status_code=404, detail="Target session not found")
-    
+
     if request.copy:
         # Copy generation
         # TODO: Implement file copying in storage
         raise HTTPException(status_code=501, detail="Copy not implemented yet")
-    else:
-        # Move generation
-        old_session_id = gen_result.data["session_id"]
-        cost = gen_result.data["cost_amount"]
-        
-        # Update generation
-        await (
-            db.client.table("studio_generations")
-            .update({"session_id": request.target_session_id})
-            .eq("id", generation_id)
-            .execute()
-        )
-        
-        # Update old session stats
-        await (
-            db.client.table("studio_sessions")
-            .update({
-                "total_generations": db.client.literal("total_generations - 1"),
-                "total_spent": db.client.literal(f"total_spent - {cost}"),
-            })
-            .eq("id", old_session_id)
-            .execute()
-        )
-        
-        # Update new session stats
-        await (
-            db.client.table("studio_sessions")
-            .update({
-                "total_generations": db.client.literal("total_generations + 1"),
-                "total_spent": db.client.literal(f"total_spent + {cost}"),
-            })
-            .eq("id", request.target_session_id)
-            .execute()
-        )
-    
+    # Move generation
+    old_session_id = gen_result.data["session_id"]
+    cost = gen_result.data["cost_amount"]
+
+    # Update generation
+    await (
+        db.client.table("studio_generations")
+        .update({"session_id": request.target_session_id})
+        .eq("id", generation_id)
+        .execute()
+    )
+
+    # Update old session stats
+    await (
+        db.client.table("studio_sessions")
+        .update({
+            "total_generations": db.client.literal("total_generations - 1"),
+            "total_spent": db.client.literal(f"total_spent - {cost}"),
+        })
+        .eq("id", old_session_id)
+        .execute()
+    )
+
+    # Update new session stats
+    await (
+        db.client.table("studio_sessions")
+        .update({
+            "total_generations": db.client.literal("total_generations + 1"),
+            "total_spent": db.client.literal(f"total_spent + {cost}"),
+        })
+        .eq("id", request.target_session_id)
+        .execute()
+    )
+
     return {
         "success": True,
         "generation_id": generation_id,
@@ -364,11 +363,11 @@ async def get_models(
     """Get available AI models with pricing."""
     from core.services.database import get_database
     from core.studio.service import get_studio_service
-    
+
     db = get_database()
     service = get_studio_service(db)
     models = await service.get_models()
-    
+
     return {"models": models}
 
 
@@ -380,14 +379,14 @@ async def get_model_capabilities(
     """Get capabilities for a specific model (for Dynamic UI)."""
     from core.services.database import get_database
     from core.studio.service import get_studio_service
-    
+
     db = get_database()
     service = get_studio_service(db)
     capabilities = await service.get_model_capabilities(model_id)
-    
+
     if not capabilities:
         raise HTTPException(status_code=404, detail="Model not found")
-    
+
     return {"capabilities": capabilities}
 
 
@@ -400,9 +399,9 @@ async def calculate_model_price(
     """Calculate price for generation with given config."""
     from core.services.database import get_database
     from core.studio.dispatcher import calculate_price
-    
+
     db = get_database()
-    
+
     try:
         price = await calculate_price(model_id, config, db)
         return {"price": price, "currency": "RUB"}

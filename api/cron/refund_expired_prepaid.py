@@ -339,8 +339,8 @@ async def _fix_stuck_orders(db: Any, results: dict[str, Any]) -> None:
                 except Exception as e:
                     logger.warning(f"Failed to emit order status change for stuck order: {e}")
 
-        except Exception as e:
-            logger.error(f"Failed to fix stuck order {order_id}: {e}")
+        except Exception:
+            logger.exception(f"Failed to fix stuck order {order_id}")
 
     if fixed_count > 0:
         logger.info(f"Fixed {fixed_count} stuck orders")

@@ -1,6 +1,6 @@
 /**
  * Studio Realtime Hook
- * 
+ *
  * Subscribes to SSE events for generation status updates.
  */
 
@@ -33,7 +33,7 @@ export function useStudioRealtime() {
     // Build SSE URL with auth
     const headers = getAuthHeaders();
     const initData = headers["X-Telegram-Init-Data"] || "";
-    
+
     if (!initData) {
       console.warn("No auth data for Studio SSE");
       return;
@@ -51,10 +51,10 @@ export function useStudioRealtime() {
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data) as GenerationEvent;
-        
+
         if (data.type === "generation.status") {
           console.log("[Studio SSE] Generation update:", data);
-          
+
           // Update store
           updateGeneration(data.generation_id, {
             status: data.status,
@@ -96,10 +96,7 @@ export function useStudioInit() {
 
   useEffect(() => {
     // Fetch initial data
-    Promise.all([
-      fetchSessions(),
-      fetchModels(),
-    ]).then(() => {
+    Promise.all([fetchSessions(), fetchModels()]).then(() => {
       // Fetch generations after sessions are loaded
       const store = useStudioStore.getState();
       if (store.activeSessionId) {

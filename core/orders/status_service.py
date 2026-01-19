@@ -835,7 +835,7 @@ class OrderStatusService:
             logger.debug("[mark_payment_confirmed] Creating order_expenses")
             await self.db.client.rpc("calculate_order_expenses", {"p_order_id": order_id}).execute()
             logger.debug("[mark_payment_confirmed] Successfully created order_expenses")
-            
+
             # Emit realtime event for accounting update
             try:
                 from core.realtime import emit_admin_accounting_update

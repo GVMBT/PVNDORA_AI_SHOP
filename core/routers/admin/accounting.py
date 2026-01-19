@@ -1568,7 +1568,7 @@ async def create_expense(expense: ExpenseCreate, admin=Depends(verify_admin)):
     }
 
     result = await db.client.table("expenses").insert(data).execute()
-    
+
     # Emit realtime event for accounting update
     try:
         from core.realtime import emit_admin_accounting_update

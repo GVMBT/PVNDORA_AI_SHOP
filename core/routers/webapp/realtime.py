@@ -89,7 +89,7 @@ async def _stream_events_generator(
             has_events = False
             for stream_key in stream_keys:
                 last_id = last_ids.get(stream_key, "$")
-                
+
                 # On first poll, read only recent events to avoid overwhelming client
                 if is_first_poll and last_id == "$":
                     # Read all events (limited by MAX_INITIAL_EVENTS * 2 to get enough for last N)
@@ -125,7 +125,7 @@ async def _stream_events_generator(
                     continue
 
                 # For subsequent polls, read new events after last_id
-                if last_id == "$" or last_id == "0":
+                if last_id in {"$", "0"}:
                     # Skip if no last_id yet (will be set on next poll)
                     if last_id == "$":
                         last_ids[stream_key] = "0"

@@ -1,19 +1,19 @@
 /**
  * Studio Zustand Store
- * 
+ *
  * Manages all Studio state including sessions, generations, and UI state.
  */
 
 import { create } from "zustand";
 import { devtools, subscribeWithSelector } from "zustand/middleware";
 import {
+  type GenerateRequest,
   generationsApi,
   modelsApi,
-  sessionsApi,
-  type GenerateRequest,
   type StudioGeneration,
   type StudioModel,
   type StudioSession,
+  sessionsApi,
 } from "../api/studio";
 
 // ============================================================
@@ -28,25 +28,25 @@ interface StudioState {
   sessions: StudioSession[];
   activeSessionId: string | null;
   sessionsLoading: boolean;
-  
+
   // Generations
   generations: StudioGeneration[];
   generationsLoading: boolean;
   activeGenerationId: string | null;
-  
+
   // Models
   models: StudioModel[];
   modelsLoading: boolean;
   activeModelId: string;
-  
+
   // Generation in progress
   generationStatus: GenerationStatus;
   generationError: string | null;
-  
+
   // UI State
   viewMode: ViewMode;
   sidebarOpen: boolean;
-  
+
   // Prompt
   prompt: string;
   config: Record<string, unknown>;
@@ -59,25 +59,25 @@ interface StudioActions {
   renameSession: (sessionId: string, name: string) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
   setActiveSession: (sessionId: string) => void;
-  
+
   // Generations
   fetchGenerations: (sessionId?: string) => Promise<void>;
   startGeneration: (request?: Partial<GenerateRequest>) => Promise<string | null>;
   setActiveGeneration: (generationId: string | null) => void;
   updateGeneration: (generationId: string, updates: Partial<StudioGeneration>) => void;
-  
+
   // Models
   fetchModels: () => Promise<void>;
   setActiveModel: (modelId: string) => void;
   calculatePrice: () => Promise<number>;
-  
+
   // UI
   setViewMode: (mode: ViewMode) => void;
   toggleSidebar: () => void;
   setPrompt: (prompt: string) => void;
   setConfig: (key: string, value: unknown) => void;
   resetConfig: () => void;
-  
+
   // Reset
   reset: () => void;
 }
@@ -92,21 +92,21 @@ const initialState: StudioState = {
   sessions: [],
   activeSessionId: null,
   sessionsLoading: false,
-  
+
   generations: [],
   generationsLoading: false,
   activeGenerationId: null,
-  
+
   models: [],
   modelsLoading: false,
   activeModelId: "veo-3.1",
-  
+
   generationStatus: "idle",
   generationError: null,
-  
+
   viewMode: "feed",
   sidebarOpen: false,
-  
+
   prompt: "",
   config: {
     resolution: "720p",
@@ -126,7 +126,7 @@ export const useStudioStore = create<StudioStore>()(
       // --------------------------------------------------------
       // Sessions
       // --------------------------------------------------------
-      
+
       fetchSessions: async () => {
         set({ sessionsLoading: true });
         try {
@@ -160,9 +160,7 @@ export const useStudioStore = create<StudioStore>()(
         try {
           await sessionsApi.updateSession(sessionId, { name });
           set((state) => ({
-            sessions: state.sessions.map((s) =>
-              s.id === sessionId ? { ...s, name } : s
-            ),
+            sessions: state.sessions.map((s) => (s.id === sessionId ? { ...s, name } : s)),
           }));
         } catch (error) {
           console.error("Failed to rename session:", error);
@@ -212,7 +210,7 @@ export const useStudioStore = create<StudioStore>()(
 
       startGeneration: async (requestOverrides = {}) => {
         const state = get();
-        
+
         if (!state.prompt.trim() && !requestOverrides.prompt) {
           set({ generationError: "Введите промпт" });
           return null;
@@ -232,7 +230,7 @@ export const useStudioStore = create<StudioStore>()(
 
         try {
           const response = await generationsApi.generate(request);
-          
+
           if (response.success) {
             // Add placeholder generation to list
             const newGeneration: StudioGeneration = {
@@ -268,7 +266,7 @@ export const useStudioStore = create<StudioStore>()(
 
             return response.generation_id;
           }
-          
+
           set({ generationStatus: "error", generationError: "Generation failed" });
           return null;
         } catch (error) {
@@ -313,10 +311,7 @@ export const useStudioStore = create<StudioStore>()(
       calculatePrice: async () => {
         const state = get();
         try {
-          const { price } = await modelsApi.calculatePrice(
-            state.activeModelId,
-            state.config
-          );
+          const { price } = await modelsApi.calculatePrice(state.activeModelId, state.config);
           return price;
         } catch {
           // Fallback to local calculation
@@ -330,16 +325,16 @@ export const useStudioStore = create<StudioStore>()(
       // --------------------------------------------------------
 
       setViewMode: (mode) => set({ viewMode: mode }),
-      
+
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
-      
+
       setPrompt: (prompt) => set({ prompt }),
-      
+
       setConfig: (key, value) =>
         set((state) => ({
           config: { ...state.config, [key]: value },
         })),
-      
+
       resetConfig: () =>
         set({
           config: { resolution: "720p", aspect_ratio: "16:9" },

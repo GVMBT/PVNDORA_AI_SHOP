@@ -382,7 +382,7 @@ async def cancel_withdrawal(
                 },
             ).execute()
             logger.info(f"Returned {amount_debited} {balance_currency} to user after withdrawal cancellation")
-            
+
             # Emit realtime events
             try:
                 from core.realtime import emit_profile_update, emit_admin_withdrawal_update

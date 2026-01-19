@@ -15,7 +15,7 @@ langgraph>=0.2.0
 langchain-core>=0.3.81
 
 # Database & Cache
-supabase>=2.27.2
+supabase>=2.31.15
 upstash-redis==1.5.0
 
 # Payments (lazy loaded)

@@ -1,6 +1,6 @@
 /**
  * Studio API Client
- * 
+ *
  * Handles all communication with Studio backend endpoints.
  */
 
@@ -130,24 +130,16 @@ export const sessionsApi = {
     sessionId: string,
     updates: { name?: string; is_archived?: boolean }
   ): Promise<{ success: boolean; session: StudioSession }> {
-    const response = await apiClient.patch(
-      `${BASE_PATH}/sessions/${sessionId}`,
-      updates
-    );
+    const response = await apiClient.patch(`${BASE_PATH}/sessions/${sessionId}`, updates);
     return response.data;
   },
 
   /**
    * Delete session
    */
-  async deleteSession(
-    sessionId: string,
-    hardDelete = false
-  ): Promise<{ success: boolean }> {
+  async deleteSession(sessionId: string, hardDelete = false): Promise<{ success: boolean }> {
     const params = hardDelete ? "?hard_delete=true" : "";
-    const response = await apiClient.delete(
-      `${BASE_PATH}/sessions/${sessionId}${params}`
-    );
+    const response = await apiClient.delete(`${BASE_PATH}/sessions/${sessionId}${params}`);
     return response.data;
   },
 };
@@ -168,22 +160,16 @@ export const generationsApi = {
     if (sessionId) params.set("session_id", sessionId);
     params.set("limit", String(limit));
     params.set("offset", String(offset));
-    
-    const response = await apiClient.get(
-      `${BASE_PATH}/generations?${params.toString()}`
-    );
+
+    const response = await apiClient.get(`${BASE_PATH}/generations?${params.toString()}`);
     return response.data;
   },
 
   /**
    * Get single generation
    */
-  async getGeneration(
-    generationId: string
-  ): Promise<{ generation: StudioGeneration }> {
-    const response = await apiClient.get(
-      `${BASE_PATH}/generations/${generationId}`
-    );
+  async getGeneration(generationId: string): Promise<{ generation: StudioGeneration }> {
+    const response = await apiClient.get(`${BASE_PATH}/generations/${generationId}`);
     return response.data;
   },
 
@@ -203,10 +189,10 @@ export const generationsApi = {
     targetSessionId: string,
     copy = false
   ): Promise<{ success: boolean; generation_id: string; new_session_id: string }> {
-    const response = await apiClient.post(
-      `${BASE_PATH}/generations/${generationId}/move`,
-      { target_session_id: targetSessionId, copy }
-    );
+    const response = await apiClient.post(`${BASE_PATH}/generations/${generationId}/move`, {
+      target_session_id: targetSessionId,
+      copy,
+    });
     return response.data;
   },
 };
@@ -229,9 +215,7 @@ export const modelsApi = {
   async getCapabilities(modelId: string): Promise<{
     capabilities: StudioModel["capabilities"];
   }> {
-    const response = await apiClient.get(
-      `${BASE_PATH}/models/${modelId}/capabilities`
-    );
+    const response = await apiClient.get(`${BASE_PATH}/models/${modelId}/capabilities`);
     return response.data;
   },
 
@@ -242,10 +226,7 @@ export const modelsApi = {
     modelId: string,
     config: Record<string, unknown>
   ): Promise<{ price: number; currency: string }> {
-    const response = await apiClient.post(
-      `${BASE_PATH}/models/${modelId}/calculate-price`,
-      config
-    );
+    const response = await apiClient.post(`${BASE_PATH}/models/${modelId}/calculate-price`, config);
     return response.data;
   },
 };

@@ -111,7 +111,7 @@ async def _update_order_expenses(db: Any, order_id: str, cashback_usd: float) ->
         logger.info(
             f"Updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD",
         )
-        
+
         # Emit realtime event for accounting update
         try:
             from core.realtime import emit_admin_accounting_update
@@ -134,7 +134,7 @@ async def _update_order_expenses(db: Any, order_id: str, cashback_usd: float) ->
         logger.info(
             f"Created and updated order_expenses for {order_id}: review_cashback_amount={total_cashback_usd:.2f} USD",
         )
-        
+
         # Emit realtime event for accounting update
         try:
             from core.realtime import emit_admin_accounting_update

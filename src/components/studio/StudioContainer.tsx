@@ -32,19 +32,8 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
 
   // Store state
   const {
-    generations,
-    models,
-    activeModelId: storeActiveModelId,
-    prompt: storePrompt,
-    generationStatus,
     startGeneration,
-    setPrompt: setStorePrompt,
-    setActiveModel: setStoreActiveModel,
-    setConfig,
   } = useStudioStore();
-
-  const storeActiveGeneration = useStudioStore(selectActiveGeneration);
-  const storeActiveModel = useStudioStore(selectActiveModel);
 
   // Local UI State
   const [activeDomain, setActiveDomain] = useState<DomainType>("video");
@@ -218,7 +207,12 @@ const StudioContainer: React.FC<StudioProps> = ({ userBalance, onNavigateHome, o
           cost: estimatedCost,
           outputs: [],
           veoConfig: activeModel.isVeo
-            ? { mode: veoMode, resolution: veoResolution, duration: veoDuration, aspect: aspectRatio }
+            ? {
+                mode: veoMode,
+                resolution: veoResolution,
+                duration: veoDuration,
+                aspect: aspectRatio,
+              }
             : undefined,
         };
         setHistory((prev) => [newTask, ...prev]);

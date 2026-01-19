@@ -3,20 +3,9 @@
  */
 
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  Archive,
-  ChevronLeft,
-  Edit3,
-  FolderPlus,
-  MoreVertical,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Archive, ChevronLeft, Edit3, FolderPlus, MoreVertical, Trash2, X } from "lucide-react";
 import { useState } from "react";
-import {
-  selectActiveSession,
-  useStudioStore,
-} from "../../stores/studioStore";
+import { selectActiveSession, useStudioStore } from "../../stores/studioStore";
 
 interface SessionPanelProps {
   isOpen: boolean;
@@ -63,7 +52,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
     setMenuOpenId(null);
   };
 
-  const startEditing = (session: typeof sessions[0]) => {
+  const startEditing = (session: (typeof sessions)[0]) => {
     setEditingId(session.id);
     setEditingName(session.name);
     setMenuOpenId(null);
@@ -97,6 +86,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
                 <span className="text-sm font-medium text-gray-300">PROJECTS</span>
               </div>
               <button
+                type="button"
                 onClick={onClose}
                 className="p-2 hover:bg-white/5 rounded-lg transition-colors"
               >
@@ -107,6 +97,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
             {/* New Project Button */}
             <div className="p-3 border-b border-pandora-cyan/10">
               <button
+                type="button"
                 onClick={handleCreateSession}
                 className="w-full flex items-center gap-2 px-3 py-2 bg-pandora-cyan/10 hover:bg-pandora-cyan/20 border border-pandora-cyan/30 rounded-lg transition-colors text-sm"
               >
@@ -122,9 +113,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
                   <div className="w-6 h-6 border-2 border-pandora-cyan/30 border-t-pandora-cyan rounded-full animate-spin" />
                 </div>
               ) : sessions.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  Нет проектов
-                </div>
+                <div className="text-center py-8 text-gray-500 text-sm">Нет проектов</div>
               ) : (
                 sessions.map((session) => (
                   <div
@@ -153,10 +142,12 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
                               setEditingName("");
                             }
                           }}
+                          // biome-ignore lint/a11y/noAutofocus: Auto-focus is intentional for better UX when editing session name
                           autoFocus
                           className="flex-1 bg-black/50 border border-pandora-cyan/30 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-pandora-cyan"
                         />
                         <button
+                          type="button"
                           onClick={() => {
                             setEditingId(null);
                             setEditingName("");
@@ -169,14 +160,13 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
                     ) : (
                       // Normal mode
                       <button
+                        type="button"
                         onClick={() => setActiveSession(session.id)}
                         className="w-full p-3 text-left"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm text-white truncate">
-                              {session.name}
-                            </div>
+                            <div className="text-sm text-white truncate">{session.name}</div>
                             <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                               <span>{session.total_generations} генераций</span>
                               <span>{session.total_spent}₽</span>
@@ -186,6 +176,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
                           {/* Menu button */}
                           <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setMenuOpenId(menuOpenId === session.id ? null : session.id);
@@ -209,6 +200,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
                           className="absolute right-2 top-full mt-1 bg-black/95 border border-pandora-cyan/20 rounded-lg shadow-xl z-10 py-1 min-w-[140px]"
                         >
                           <button
+                            type="button"
                             onClick={() => startEditing(session)}
                             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-white/5"
                           >
@@ -218,6 +210,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
                           {!session.is_default && (
                             <>
                               <button
+                                type="button"
                                 onClick={() => {
                                   // Archive functionality
                                   setMenuOpenId(null);
@@ -228,6 +221,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
                                 Архивировать
                               </button>
                               <button
+                                type="button"
                                 onClick={() => handleDelete(session.id)}
                                 className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-500/10"
                               >
@@ -248,9 +242,7 @@ export const SessionPanel: React.FC<SessionPanelProps> = ({ isOpen, onClose }) =
             {activeSession && (
               <div className="p-4 border-t border-pandora-cyan/10">
                 <div className="text-xs text-gray-500 mb-1">Активный проект</div>
-                <div className="text-sm text-pandora-cyan truncate">
-                  {activeSession.name}
-                </div>
+                <div className="text-sm text-pandora-cyan truncate">{activeSession.name}</div>
               </div>
             )}
           </motion.div>
