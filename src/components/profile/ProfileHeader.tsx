@@ -17,7 +17,12 @@ interface ProfileHeaderProps {
   onStudioEnter?: () => void;
 }
 
-const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onBack, onAdminEnter, onStudioEnter }) => {
+const ProfileHeader: React.FC<ProfileHeaderProps> = ({
+  user,
+  onBack,
+  onAdminEnter,
+  onStudioEnter,
+}) => {
   const { t, tEn } = useLocale();
   return (
     <>

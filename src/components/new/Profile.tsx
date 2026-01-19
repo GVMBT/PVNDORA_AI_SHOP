@@ -200,7 +200,12 @@ const Profile: React.FC<ProfileProps> = ({
       className="min-h-screen text-white pt-20 md:pt-24 pb-32 px-4 md:px-8 md:pl-28 relative"
     >
       <div className="max-w-7xl mx-auto relative z-10">
-        <ProfileHeader user={user} onBack={onBack} onAdminEnter={onAdminEnter} onStudioEnter={onStudioEnter} />
+        <ProfileHeader
+          user={user}
+          onBack={onBack}
+          onAdminEnter={onAdminEnter}
+          onStudioEnter={onStudioEnter}
+        />
 
         <ProfileStats
           user={user}

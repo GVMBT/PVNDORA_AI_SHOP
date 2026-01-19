@@ -60,7 +60,7 @@ export const Viewport: React.FC<ViewportProps> = ({
                   <div className="font-mono text-[10px] text-pandora-cyan/80 w-64 space-y-1 h-32 overflow-hidden flex flex-col justify-end">
                     {generationLogs.map((log, i) => (
                       <motion.div
-                        key={i}
+                        key={`log-${i}-${log.slice(0, 20)}`}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         className="truncate"
@@ -90,8 +90,11 @@ export const Viewport: React.FC<ViewportProps> = ({
                       autoPlay
                       loop
                       controls
+                      aria-label="Generated video"
                       className="w-full h-full object-contain"
-                    />
+                    >
+                      <track kind="captions" srcLang="en" label="English" />
+                    </video>
                   ) : (
                     <img
                       src={activeTask.outputs[0]}
@@ -103,18 +106,21 @@ export const Viewport: React.FC<ViewportProps> = ({
                   {/* Result Actions Bar */}
                   <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 bg-black/80 backdrop-blur-md border border-white/10 p-1.5 rounded-sm opacity-0 group-hover/view:opacity-100 transition-all translate-y-2 group-hover/view:translate-y-0">
                     <button
+                      type="button"
                       className="p-2 hover:bg-white/10 rounded-sm text-gray-300 hover:text-white transition-colors"
                       title="Download"
                     >
                       <Download size={16} />
                     </button>
                     <button
+                      type="button"
                       className="p-2 hover:bg-white/10 rounded-sm text-gray-300 hover:text-pandora-cyan transition-colors"
                       title="Share"
                     >
                       <Share2 size={16} />
                     </button>
                     <button
+                      type="button"
                       className="p-2 hover:bg-white/10 rounded-sm text-gray-300 hover:text-white transition-colors"
                       title="Fullscreen"
                     >

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { memo, useEffect, useRef, useState } from "react";
+import { useAdmin } from "../../hooks/useAdmin";
 import { useLocale } from "../../hooks/useLocale";
 import { AudioEngine } from "../../lib/AudioEngine";
 import { removeSessionToken } from "../../utils/auth";
@@ -26,7 +27,8 @@ interface NavbarProps {
   onNavigateOrders?: () => void;
   onNavigateProfile?: () => void;
   onNavigateLeaderboard?: () => void;
-  activeTab?: "catalog" | "orders" | "profile" | "leaderboard";
+  onNavigateStudio?: () => void;
+  activeTab?: "catalog" | "orders" | "profile" | "leaderboard" | "studio";
   onHaptic?: () => void;
   onLogout?: () => void;
 }
@@ -87,11 +89,13 @@ const NavbarComponent: React.FC<NavbarProps> = ({
   onNavigateOrders,
   onNavigateProfile,
   onNavigateLeaderboard,
+  onNavigateStudio,
   activeTab = "catalog",
   onHaptic,
   onLogout,
 }) => {
   const { t } = useLocale();
+  const { isAdmin } = useAdmin();
   const [isHovered, setIsHovered] = useState(false);
   const wasHoveredRef = useRef(false);
   const logoId = useRef(generateShortId("navbar-logo")).current;
@@ -475,6 +479,15 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             isExpanded={isHovered}
             delay={0.4}
           />
+          <NavItem
+            icon={<Command size={18} />}
+            label={t("navbar.studio")}
+            subLabel={t("navbar.studioSub")}
+            onClick={isAdmin ? () => handleClick(onNavigateStudio) : undefined}
+            active={activeTab === "studio"}
+            isExpanded={isHovered}
+            delay={0.5}
+          />
         </div>
 
         {/* Footer Info (Visible on Expand) */}
@@ -633,10 +646,13 @@ const NavItem: React.FC<NavItemProps> = ({
   delay = 0,
 }) => (
   <motion.button
+    type="button"
     onClick={onClick}
+    disabled={!onClick}
     className={`
             relative flex items-center justify-center md:justify-start h-12 md:h-14 w-full group/item
-            ${active ? "bg-white/5" : "hover:bg-white/5"}
+            ${active ? "bg-white/5" : onClick ? "hover:bg-white/5" : ""}
+            ${!onClick ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
         `}
     animate={{
       paddingLeft: isExpanded ? 12 : 0,

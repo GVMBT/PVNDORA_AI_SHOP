@@ -17,7 +17,10 @@ const StudioPage: React.FC = () => {
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                role="img"
+                aria-label="Beta icon"
               >
+                <title>Beta icon</title>
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -43,7 +46,10 @@ const StudioPage: React.FC = () => {
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
+                    role="img"
+                    aria-label="Admin access icon"
                   >
+                    <title>Admin access icon</title>
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -65,7 +71,10 @@ const StudioPage: React.FC = () => {
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
+                    role="img"
+                    aria-label="Beta tester access icon"
                   >
+                    <title>Beta tester access icon</title>
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -94,6 +103,7 @@ const StudioPage: React.FC = () => {
 
           <div className="mt-8">
             <button
+              type="button"
               onClick={() => window.history.back()}
               className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white border border-white/20 hover:border-white/40 rounded-lg transition-all duration-200 font-mono text-sm"
             >

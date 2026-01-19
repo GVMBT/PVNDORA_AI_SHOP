@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { ImageIcon, LogOut, Music, Sidebar, Video, Zap } from "lucide-react";
 import type React from "react";
 import { AudioEngine } from "../../lib/AudioEngine";
-import { type DomainType, MODELS } from "./types";
+import type { DomainType } from "./types";
 
 interface TopHUDProps {
   activeDomain: DomainType;
@@ -21,13 +21,14 @@ export const TopHUD: React.FC<TopHUDProps> = ({
   onTopUp,
   onDomainSwitch,
   onSidebarToggle,
-  isSidebarOpen,
+  isSidebarOpen: _isSidebarOpen,
 }) => {
   return (
     <header className="absolute top-0 left-0 right-0 p-4 z-30 pointer-events-none flex justify-between items-start">
       <div className="pointer-events-auto flex items-center gap-4">
         {/* BACK / EXIT BUTTON */}
         <button
+          type="button"
           onClick={onNavigateHome}
           className="h-8 px-4 flex items-center gap-2 bg-red-900/20 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white transition-all rounded-sm group uppercase font-bold text-[10px] tracking-wider"
         >
@@ -37,6 +38,7 @@ export const TopHUD: React.FC<TopHUDProps> = ({
 
         {/* Sidebar Toggle */}
         <button
+          type="button"
           onClick={onSidebarToggle}
           className="w-8 h-8 flex items-center justify-center bg-black/60 backdrop-blur-md border border-white/10 hover:border-pandora-cyan text-gray-400 hover:text-pandora-cyan transition-all rounded-sm group"
         >
@@ -47,6 +49,7 @@ export const TopHUD: React.FC<TopHUDProps> = ({
         <div className="flex bg-black/60 backdrop-blur-md border border-white/10 rounded-sm p-1 gap-1">
           {(["video", "image", "audio"] as const).map((d) => (
             <button
+              type="button"
               key={d}
               onClick={() => {
                 AudioEngine.click();
@@ -72,6 +75,7 @@ export const TopHUD: React.FC<TopHUDProps> = ({
       {/* Right Side Info */}
       <div className="pointer-events-auto flex gap-3">
         <button
+          type="button"
           onClick={onTopUp}
           className="flex items-center gap-3 bg-black/60 backdrop-blur-md border border-pandora-cyan/30 px-4 py-1.5 hover:bg-pandora-cyan/10 transition-all group rounded-sm"
         >

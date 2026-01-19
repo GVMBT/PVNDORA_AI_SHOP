@@ -89,7 +89,7 @@ async def _stream_events_generator(
                 try:
                     # Read entries after last_id using xrange
                     # Format: XRANGE stream_key (last_id +inf COUNT 10
-                    entries = await redis.xrange(stream_key, min=f"({last_id}", max="+", count=10)
+                    entries = await redis.xrange(stream_key, start=f"({last_id}", end="+", count=10)
                     if entries:
                         has_events = True
                         for entry_id, fields in entries:

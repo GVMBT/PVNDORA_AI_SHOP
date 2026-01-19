@@ -161,24 +161,26 @@ except ImportError:
         async def xrange(
             self,
             stream_key: str,
-            min: str = "-",
-            max: str = "+",
+            start: str = "-",
+            end: str = "+",
             count: int | None = None,
         ) -> list[tuple[str, dict[str, str]]]:
             """Read entries from Redis Stream using XRANGE.
 
             Args:
                 stream_key: Stream key name
-                min: Minimum entry ID (use "-" for earliest, "(id" for exclusive)
-                max: Maximum entry ID (use "+" for latest)
+                start: Start entry ID (use "-" for earliest, "(id" for exclusive)
+                end: End entry ID (use "+" for latest)
                 count: Maximum number of entries to return
 
             Returns:
                 List of (entry_id, {field: value, ...}) tuples
+
+            Note: Signature matches upstash-redis library (start/end instead of min/max)
             """
             # Build command parts for Upstash REST API
             # Format: /xrange/{key}/{start}/{end}[/COUNT/{count}]
-            url = f"/xrange/{stream_key}/{min}/{max}"
+            url = f"/xrange/{stream_key}/{start}/{end}"
             if count is not None:
                 url += f"/COUNT/{count}"
 

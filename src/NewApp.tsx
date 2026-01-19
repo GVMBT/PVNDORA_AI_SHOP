@@ -423,6 +423,7 @@ function NewAppInner() {
     if (currentView === "profile") return "profile";
     if (currentView === "orders") return "orders";
     if (currentView === "leaderboard") return "leaderboard";
+    if (currentView === "studio") return "studio";
     return "catalog";
   };
 
@@ -518,6 +519,7 @@ function NewAppInner() {
           onNavigateOrders={() => navigate("orders")}
           onNavigateProfile={() => navigate("profile")}
           onNavigateLeaderboard={() => navigate("leaderboard")}
+          onNavigateStudio={() => navigate("studio")}
           activeTab={getActiveTab()}
           onHaptic={() => handleFeedback("light")}
           onLogout={handleLogout}

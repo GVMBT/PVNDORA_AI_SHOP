@@ -28,13 +28,14 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
         <span className="text-xs font-bold flex items-center gap-2 text-pandora-cyan tracking-widest">
           <History size={14} /> SESSION_LOGS
         </span>
-        <button onClick={onClose} className="hover:text-red-400 transition-colors">
+        <button type="button" onClick={onClose} className="hover:text-red-400 transition-colors">
           <X size={14} />
         </button>
       </div>
       <div className="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-hide">
         {history.map((task) => (
           <button
+            type="button"
             key={task.id}
             onClick={() => onTaskSelect(task.id)}
             className={`

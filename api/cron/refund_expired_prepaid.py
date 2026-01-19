@@ -129,8 +129,8 @@ async def _update_order_status_after_refund(
     new_status = "delivered" if has_delivered else "refunded"
 
     update_data: dict[str, Any] = {"status": new_status}
-    if new_status == "refunded":
-        update_data["refund_reason"] = "Auto-refund: fulfillment deadline exceeded"
+    # Note: refund_reason column may not exist in all database schemas
+    # We only update status, not refund_reason, to avoid schema errors
 
     await (
         db.client.table("orders")

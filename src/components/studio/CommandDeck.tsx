@@ -8,11 +8,11 @@ import {
   Layers,
   RefreshCw,
   Settings2,
+  Type,
 } from "lucide-react";
 import type React from "react";
 import type {
   DomainType,
-  MODELS,
   ModelConfig,
   VeoAspect,
   VeoDuration,
@@ -71,7 +71,7 @@ export const CommandDeck: React.FC<CommandDeckProps> = ({
   setVeoDuration,
   showModelSelector,
   setShowModelSelector,
-  triggerUpload,
+  triggerUpload: _triggerUpload,
 }) => {
   return (
     <footer className="absolute bottom-0 left-0 right-0 z-40 p-4 flex justify-center pointer-events-none">
@@ -87,17 +87,18 @@ export const CommandDeck: React.FC<CommandDeckProps> = ({
             >
               {/* Resolution */}
               <div>
-                <label className="text-[9px] text-gray-500 font-bold block mb-2 flex justify-between">
+                <div className="text-[9px] text-gray-500 font-bold block mb-2 flex justify-between">
                   RESOLUTION
                   {veoResolution === "4k" && (
                     <span className="text-red-400 flex items-center gap-1">
                       <AlertTriangle size={8} /> HIGH COST
                     </span>
                   )}
-                </label>
+                </div>
                 <div className="flex border border-white/10 bg-black/50 rounded-sm overflow-hidden">
                   {(["720p", "1080p", "4k"] as const).map((r) => (
                     <button
+                      type="button"
                       key={r}
                       onClick={() => setVeoResolution(r)}
                       disabled={veoMode === "extend" && r !== "720p"}
@@ -115,12 +116,11 @@ export const CommandDeck: React.FC<CommandDeckProps> = ({
 
               {/* Aspect */}
               <div>
-                <label className="text-[9px] text-gray-500 font-bold block mb-2">
-                  ASPECT RATIO
-                </label>
+                <div className="text-[9px] text-gray-500 font-bold block mb-2">ASPECT RATIO</div>
                 <div className="flex border border-white/10 bg-black/50 rounded-sm overflow-hidden">
                   {(["16:9", "9:16"] as const).map((r) => (
                     <button
+                      type="button"
                       key={r}
                       onClick={() => setAspectRatio(r)}
                       disabled={veoMode === "reference" && r !== "16:9"}
@@ -138,13 +138,14 @@ export const CommandDeck: React.FC<CommandDeckProps> = ({
 
               {/* Duration */}
               <div>
-                <label className="text-[9px] text-gray-500 font-bold block mb-2">DURATION</label>
+                <div className="text-[9px] text-gray-500 font-bold block mb-2">DURATION</div>
                 <div className="flex border border-white/10 bg-black/50 rounded-sm overflow-hidden">
                   {(["4s", "6s", "8s"] as const).map((d) => {
                     const isLocked =
                       (veoResolution !== "720p" || veoMode === "reference") && d !== "8s";
                     return (
                       <button
+                        type="button"
                         key={d}
                         onClick={() => setVeoDuration(d)}
                         disabled={isLocked}
@@ -163,8 +164,9 @@ export const CommandDeck: React.FC<CommandDeckProps> = ({
 
               {/* Model Selector */}
               <div className="relative">
-                <label className="text-[9px] text-gray-500 font-bold block mb-2">MODEL</label>
+                <div className="text-[9px] text-gray-500 font-bold block mb-2">MODEL</div>
                 <button
+                  type="button"
                   onClick={() => setShowModelSelector(!showModelSelector)}
                   className="w-full flex items-center justify-between px-3 py-1.5 border border-white/10 bg-black/50 text-[10px] font-mono text-white hover:border-white/30 rounded-sm"
                 >
@@ -204,6 +206,7 @@ export const CommandDeck: React.FC<CommandDeckProps> = ({
                 { id: "extend", label: "EXTEND", icon: ArrowLeft },
               ].map((m) => (
                 <button
+                  type="button"
                   key={m.id}
                   onClick={() => setVeoMode(m.id)}
                   className={`
@@ -221,6 +224,7 @@ export const CommandDeck: React.FC<CommandDeckProps> = ({
 
               <div className="flex-1" />
               <button
+                type="button"
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className={`px-3 py-1.5 text-[9px] font-bold uppercase rounded-sm transition-all flex items-center gap-2 ${showAdvanced ? "text-pandora-cyan bg-pandora-cyan/10" : "text-gray-500 hover:text-white"}`}
               >
@@ -261,6 +265,7 @@ export const CommandDeck: React.FC<CommandDeckProps> = ({
               </span>
             </div>
             <button
+              type="button"
               onClick={onGenerate}
               disabled={isGenerating || (!prompt.trim() && veoMode === "text")}
               className={`

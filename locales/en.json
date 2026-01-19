@@ -37,6 +37,8 @@
     "leaderboardSub": "TOP SAVERS",
     "profile": "PROFILE",
     "profileSub": "SETTINGS",
+    "studio": "STUDIO",
+    "studioSub": "CONTENT GENERATION [BETA]",
     "status": "SYSTEM STATUS",
     "online": "ONLINE",
     "disconnect": "LOG OUT",

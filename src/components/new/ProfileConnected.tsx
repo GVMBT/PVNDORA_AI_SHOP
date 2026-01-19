@@ -27,7 +27,12 @@ interface ProfileConnectedProps {
   onStudioEnter?: () => void;
 }
 
-const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, onAdminEnter, onStudioEnter }) => {
+const ProfileConnected: React.FC<ProfileConnectedProps> = ({
+  onBack,
+  onHaptic,
+  onAdminEnter,
+  onStudioEnter,
+}) => {
   const {
     profile,
     getProfile,
