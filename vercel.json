@@ -1,27 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "build": {
-    "excludeFiles": [
-      "**/*.md",
-      "**/*.txt",
-      "docs/**",
-      "tests/**",
-      "test/**",
-      "__tests__/**",
-      "**/__pycache__/**",
-      "**/*.pyc",
-      "**/*.pyo",
-      ".git/**",
-      ".github/**",
-      ".cursor/**",
-      ".vscode/**",
-      "*.log",
-      ".env*",
-      "scripts/**",
-      "bot_setup/**",
-      "supabase/**"
-    ]
-  },
   "headers": [
     {
       "source": "/(.*)",
