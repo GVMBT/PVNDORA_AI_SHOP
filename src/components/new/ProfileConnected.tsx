@@ -24,15 +24,9 @@ interface ProfileConnectedProps {
   onBack: () => void;
   onHaptic?: (type?: "light" | "medium") => void;
   onAdminEnter?: () => void;
-  onStudioEnter?: () => void;
 }
 
-const ProfileConnected: React.FC<ProfileConnectedProps> = ({
-  onBack,
-  onHaptic,
-  onAdminEnter,
-  onStudioEnter,
-}) => {
+const ProfileConnected: React.FC<ProfileConnectedProps> = ({ onBack, onHaptic, onAdminEnter }) => {
   const {
     profile,
     getProfile,
@@ -553,7 +547,6 @@ const ProfileConnected: React.FC<ProfileConnectedProps> = ({
         onHaptic={onHaptic}
         onSetPartnerMode={handleSetPartnerMode}
         onShare={handleShare}
-        onStudioEnter={onStudioEnter}
         onTopUp={handleTopUp}
         onUpdatePreferences={handleUpdatePreferences}
         onWithdraw={handleWithdraw}

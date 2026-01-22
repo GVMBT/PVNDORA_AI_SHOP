@@ -11,9 +11,9 @@ import {
   Trophy,
   User,
 } from "lucide-react";
+// Note: Command icon kept for CMD+K hint section
 import type React from "react";
 import { memo, useEffect, useRef, useState } from "react";
-import { useAdmin } from "../../hooks/useAdmin";
 import { useLocale } from "../../hooks/useLocale";
 import { AudioEngine } from "../../lib/AudioEngine";
 import { removeSessionToken } from "../../utils/auth";
@@ -27,8 +27,7 @@ interface NavbarProps {
   onNavigateOrders?: () => void;
   onNavigateProfile?: () => void;
   onNavigateLeaderboard?: () => void;
-  onNavigateStudio?: () => void;
-  activeTab?: "catalog" | "orders" | "profile" | "leaderboard" | "studio";
+  activeTab?: "catalog" | "orders" | "profile" | "leaderboard";
   onHaptic?: () => void;
   onLogout?: () => void;
 }
@@ -97,13 +96,11 @@ const NavbarComponent: React.FC<NavbarProps> = ({
   onNavigateOrders,
   onNavigateProfile,
   onNavigateLeaderboard,
-  onNavigateStudio,
   activeTab = "catalog",
   onHaptic,
   onLogout,
 }) => {
   const { t } = useLocale();
-  const { isAdmin } = useAdmin();
   const [isHovered, setIsHovered] = useState(false);
   const wasHoveredRef = useRef(false);
   const logoId = useRef(generateShortId("navbar-logo")).current;
@@ -486,15 +483,6 @@ const NavbarComponent: React.FC<NavbarProps> = ({
             label={t("navbar.profile")}
             onClick={() => handleClick(onNavigateProfile)}
             subLabel={t("navbar.profileSub")}
-          />
-          <NavItem
-            active={activeTab === "studio"}
-            delay={0.5}
-            icon={<Command size={18} />}
-            isExpanded={isHovered}
-            label={t("navbar.studio")}
-            onClick={isAdmin ? () => handleClick(onNavigateStudio) : undefined}
-            subLabel={t("navbar.studioSub")}
           />
         </div>
 

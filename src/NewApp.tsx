@@ -441,9 +441,6 @@ function NewAppInner() {
     if (currentView === "leaderboard") {
       return "leaderboard";
     }
-    if (currentView === "studio") {
-      return "studio";
-    }
     return "catalog";
   };
 
@@ -530,7 +527,7 @@ function NewAppInner() {
   // Main app
   return (
     <AppLayout>
-      {currentView !== "admin" && currentView !== "payment-result" && currentView !== "studio" && (
+      {currentView !== "admin" && currentView !== "payment-result" && (
         <Navbar
           activeTab={getActiveTab()}
           cartCount={cart?.items?.length || 0}
@@ -540,7 +537,6 @@ function NewAppInner() {
           onNavigateLeaderboard={() => navigate("leaderboard")}
           onNavigateOrders={() => navigate("orders")}
           onNavigateProfile={() => navigate("profile")}
-          onNavigateStudio={() => navigate("studio")}
           onOpenCart={handleOpenCart}
           showMobile={!selectedProduct}
         />
@@ -583,20 +579,18 @@ function NewAppInner() {
         )}
       </AnimatePresence>
 
-      {currentView !== "studio" && (
-        <SupportChatConnected
-          initialContext={supportContext}
-          isOpen={isSupportWidgetOpen}
-          onHaptic={() => handleFeedback("light")}
-          onToggle={(val) => {
-            setIsSupportWidgetOpen(val);
-            if (!val) {
-              setSupportContext(null);
-            }
-          }}
-          raiseOnMobile={currentView === "leaderboard"}
-        />
-      )}
+      <SupportChatConnected
+        initialContext={supportContext}
+        isOpen={isSupportWidgetOpen}
+        onHaptic={() => handleFeedback("light")}
+        onToggle={(val) => {
+          setIsSupportWidgetOpen(val);
+          if (!val) {
+            setSupportContext(null);
+          }
+        }}
+        raiseOnMobile={currentView === "leaderboard"}
+      />
 
       {isBooted && (
         <BackgroundMusic

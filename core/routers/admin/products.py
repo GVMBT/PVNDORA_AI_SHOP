@@ -7,6 +7,7 @@ All methods use async/await with supabase-py v2 (no asyncio.to_thread).
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from postgrest.exceptions import APIError
 
 from core.auth import verify_admin
 from core.routers.deps import get_notification_service
@@ -17,7 +18,73 @@ from .models import AddStockRequest, BulkStockRequest, CreateProductRequest
 # Error message constants
 ERR_PRODUCT_NOT_FOUND = "Product not found"
 
+# Valid values for constrained fields
+VALID_STATUSES = {"active", "inactive", "out_of_stock", "discontinued", "coming_soon"}
+VALID_TYPES = {"ai", "design", "dev", "music"}
+VALID_FULFILLMENT_TYPES = {"auto", "manual"}
+
 router = APIRouter(tags=["admin-products"])
+
+
+def _validate_product_data(request: CreateProductRequest) -> dict[str, Any]:
+    """Validate and prepare product data for database operations.
+
+    Validates constrained fields (status, type, fulfillment_type) against
+    allowed values and normalizes them (strip whitespace, lowercase).
+
+    Returns:
+        Dict with validated and prepared data ready for DB insert/update.
+
+    Raises:
+        HTTPException: If any field has an invalid value.
+    """
+    # Normalize and validate status
+    status = (request.status or "active").strip().lower()
+    if status not in VALID_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status '{request.status}'. Allowed: {', '.join(sorted(VALID_STATUSES))}",
+        )
+
+    # Normalize and validate type (category in frontend)
+    product_type = (request.category or "ai").strip().lower()
+    if product_type not in VALID_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid category '{request.category}'. Allowed: {', '.join(sorted(VALID_TYPES))}",
+        )
+
+    # Normalize and validate fulfillment_type
+    fulfillment_type = (request.fulfillmentType or "auto").strip().lower()
+    if fulfillment_type not in VALID_FULFILLMENT_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid fulfillmentType '{request.fulfillmentType}'. Allowed: {', '.join(sorted(VALID_FULFILLMENT_TYPES))}",
+        )
+
+    return {
+        "name": request.name,
+        "description": request.description,
+        # Category → type in DB
+        "type": product_type,
+        # Pricing
+        "price": request.price,  # Base USD price
+        "prices": request.prices or {},  # Anchor prices (JSONB)
+        "msrp": request.msrp or request.price,  # MSRP in RUB
+        "discount_price": request.discountPrice,
+        "cost_price": request.costPrice,
+        # Fulfillment
+        "fulfillment_type": fulfillment_type,
+        "fulfillment_time_hours": request.fulfillment,
+        # Product Settings
+        "warranty_hours": request.warranty,
+        "duration_days": request.duration,
+        "status": status,
+        # Media
+        "image_url": request.image,
+        # Content
+        "instructions": request.instructions,
+    }
 
 
 # ==================== PRODUCTS ====================
@@ -30,35 +97,24 @@ async def admin_create_product(
     """Create a new product."""
     db = get_database()
 
-    product_data = {
-        "name": request.name,
-        "description": request.description,
-        # Category → type in DB
-        "type": request.category,
-        # Pricing
-        "price": request.price,  # Base USD price
-        "prices": request.prices or {},  # Anchor prices (JSONB)
-        "msrp": request.msrp or request.price,  # MSRP in RUB
-        "discount_price": request.discountPrice,
-        "cost_price": request.costPrice,
-        # Fulfillment
-        "fulfillment_type": request.fulfillmentType,
-        "fulfillment_time_hours": request.fulfillment,
-        # Product Settings
-        "warranty_hours": request.warranty,
-        "duration_days": request.duration,
-        "status": request.status,
-        # Media
-        "image_url": request.image,
-        # Content
-        "instructions": request.instructions,
-    }
+    # Validate and prepare product data
+    product_data = _validate_product_data(request)
 
-    result = await db.client.table("products").insert(product_data).execute()
+    try:
+        result = await db.client.table("products").insert(product_data).execute()
 
-    if result.data:
-        return {"success": True, "product": result.data[0]}
-    raise HTTPException(status_code=500, detail="Failed to create product")
+        if result.data:
+            return {"success": True, "product": result.data[0]}
+        raise HTTPException(status_code=500, detail="Failed to create product")
+    except APIError as e:
+        # Handle database constraint violations with helpful messages
+        error_msg = str(e.message) if hasattr(e, "message") else str(e)
+        if "check constraint" in error_msg.lower():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Database constraint violation: {error_msg}. Check field values.",
+            ) from e
+        raise HTTPException(status_code=500, detail=f"Database error: {error_msg}") from e
 
 
 @router.get("/products")
@@ -133,33 +189,34 @@ async def admin_update_product(
     """Update a product."""
     db = get_database()
 
-    update_data = {
-        "name": request.name,
-        "description": request.description,
-        # Category → type in DB
-        "type": request.category,
-        # Pricing
-        "price": request.price,  # Base USD price
-        "prices": request.prices or {},  # Anchor prices (JSONB)
-        "msrp": request.msrp or request.price,  # MSRP in RUB
-        "discount_price": request.discountPrice,
-        "cost_price": request.costPrice,
-        # Fulfillment
-        "fulfillment_type": request.fulfillmentType,
-        "fulfillment_time_hours": request.fulfillment,
-        # Product Settings
-        "warranty_hours": request.warranty,
-        "duration_days": request.duration,
-        "status": request.status,
-        # Media
-        "image_url": request.image,
-        # Content
-        "instructions": request.instructions,
-    }
+    # Validate and prepare update data
+    update_data = _validate_product_data(request)
 
-    result = await db.client.table("products").update(update_data).eq("id", product_id).execute()
+    try:
+        result = await db.client.table("products").update(update_data).eq("id", product_id).execute()
 
-    return {"success": True, "updated": len(result.data) > 0}
+        if not result.data:
+            raise HTTPException(status_code=404, detail=ERR_PRODUCT_NOT_FOUND)
+
+        return {"success": True, "updated": True, "product": result.data[0]}
+    except APIError as e:
+        # Handle database constraint violations with helpful messages
+        error_msg = str(e.message) if hasattr(e, "message") else str(e)
+        if "check constraint" in error_msg.lower():
+            # Extract which constraint failed for better error message
+            constraint_info = ""
+            if "status_check" in error_msg.lower():
+                constraint_info = f" Valid statuses: {', '.join(sorted(VALID_STATUSES))}."
+            elif "type_check" in error_msg.lower():
+                constraint_info = f" Valid types: {', '.join(sorted(VALID_TYPES))}."
+            elif "fulfillment_type_check" in error_msg.lower():
+                constraint_info = f" Valid fulfillment types: {', '.join(sorted(VALID_FULFILLMENT_TYPES))}."
+
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid field value.{constraint_info} Original error: {error_msg}",
+            ) from e
+        raise HTTPException(status_code=500, detail=f"Database error: {error_msg}") from e
 
 
 @router.delete("/products/{product_id}")

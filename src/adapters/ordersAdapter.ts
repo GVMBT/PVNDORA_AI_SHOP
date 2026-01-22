@@ -371,11 +371,12 @@ export function adaptOrder(apiOrder: APIOrder, currency = "USD"): Order {
   if (rawStatus === "pending" && apiOrder.expires_at) {
     // For pending orders, show payment deadline (ISO string)
     deadline = apiOrder.expires_at;
-  } else if (["prepaid", "fulfilling", "paid"].includes(rawStatus)) {
+  } else if (
+    ["prepaid", "fulfilling", "paid"].includes(rawStatus) &&
+    apiOrder.fulfillment_deadline
+  ) {
     // For prepaid/processing orders, show delivery deadline if available
-    if (apiOrder.fulfillment_deadline) {
-      deadline = apiOrder.fulfillment_deadline; // ISO string
-    }
+    deadline = apiOrder.fulfillment_deadline; // ISO string
     // If no fulfillment_deadline, deadline stays null (UI will show "Ожидание")
   }
   // For delivered/cancelled/refunded - no deadline

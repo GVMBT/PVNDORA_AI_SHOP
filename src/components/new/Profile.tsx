@@ -28,7 +28,6 @@ interface ProfileProps {
   onBack: () => void;
   onHaptic?: (type?: "light" | "medium") => void;
   onAdminEnter?: () => void;
-  onStudioEnter?: () => void;
   onCopyLink?: () => void;
   onShare?: () => void;
   shareLoading?: boolean;
@@ -50,7 +49,6 @@ const Profile: React.FC<ProfileProps> = ({
   onBack,
   onHaptic,
   onAdminEnter,
-  onStudioEnter,
   onCopyLink,
   onShare: onShareProp,
   shareLoading: _shareLoading,
@@ -214,12 +212,7 @@ const Profile: React.FC<ProfileProps> = ({
       initial={{ opacity: 0 }}
     >
       <div className="relative z-10 mx-auto max-w-7xl">
-        <ProfileHeader
-          onAdminEnter={onAdminEnter}
-          onBack={onBack}
-          onStudioEnter={onStudioEnter}
-          user={user}
-        />
+        <ProfileHeader onAdminEnter={onAdminEnter} onBack={onBack} user={user} />
 
         <ProfileStats
           copied={copied}

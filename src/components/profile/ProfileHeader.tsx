@@ -4,7 +4,7 @@
  * User identity card with avatar, name, handle, and admin access button.
  */
 
-import { ArrowLeft, Crown, LayoutDashboard, Sparkles, User } from "lucide-react";
+import { ArrowLeft, Crown, LayoutDashboard, User } from "lucide-react";
 import type React from "react";
 import { memo } from "react";
 import { useLocale } from "../../hooks/useLocale";
@@ -14,15 +14,9 @@ interface ProfileHeaderProps {
   user: ProfileDataProp;
   onBack: () => void;
   onAdminEnter?: () => void;
-  onStudioEnter?: () => void;
 }
 
-const ProfileHeader: React.FC<ProfileHeaderProps> = ({
-  user,
-  onBack,
-  onAdminEnter,
-  onStudioEnter,
-}) => {
+const ProfileHeader: React.FC<ProfileHeaderProps> = ({ user, onBack, onAdminEnter }) => {
   const { t, tEn } = useLocale();
   return (
     <>
@@ -91,17 +85,6 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         </div>
         {/* Action Buttons */}
         <div className="flex flex-col gap-2 sm:flex-row">
-          {/* Studio Entry - visible for admins */}
-          {user.role === "ADMIN" && onStudioEnter && (
-            <button
-              className="flex items-center gap-2 border border-yellow-500/30 bg-yellow-900/10 px-4 py-2 font-bold font-mono text-xs text-yellow-500 uppercase tracking-widest transition-all hover:bg-yellow-500 hover:text-black"
-              onClick={onStudioEnter}
-              type="button"
-            >
-              <Sparkles size={14} />
-              STUDIO_BETA
-            </button>
-          )}
           {/* Admin Entry */}
           {user.role === "ADMIN" && onAdminEnter && (
             <button

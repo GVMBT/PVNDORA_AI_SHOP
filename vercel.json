@@ -1,5 +1,27 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "build": {
+    "excludeFiles": [
+      "**/*.md",
+      "**/*.txt",
+      "docs/**",
+      "tests/**",
+      "test/**",
+      "__tests__/**",
+      "**/__pycache__/**",
+      "**/*.pyc",
+      "**/*.pyo",
+      ".git/**",
+      ".github/**",
+      ".cursor/**",
+      ".vscode/**",
+      "*.log",
+      ".env*",
+      "scripts/**",
+      "bot_setup/**",
+      "supabase/**"
+    ]
+  },
   "headers": [
     {
       "source": "/(.*)",
@@ -101,10 +123,6 @@
     {
       "path": "/api/cron/deliver_overdue_discount",
       "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/cleanup_studio_files",
-      "schedule": "0 4 * * *"
     }
   ]
 }

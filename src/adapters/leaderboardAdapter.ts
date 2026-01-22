@@ -35,6 +35,9 @@ function generateStatus(): "ONLINE" | "AWAY" | "BUSY" {
   return "BUSY";
 }
 
+// Regex for filtering alphanumeric characters (top level for performance)
+const ALPHANUMERIC_REGEX = /[a-z0-9]/;
+
 /**
  * Adapt single leaderboard entry
  */
@@ -50,16 +53,13 @@ function adaptLeaderboardEntry(entry: APILeaderboardEntry): LeaderboardUser {
     entry.photo_url ||
     `https://ui-avatars.com/api/?name=${encodeURIComponent(entry.name)}&background=0d1117&color=00ffff&size=160&font-size=0.4&bold=true`;
 
-  // Regex for filtering alphanumeric characters (moved to top level for performance)
-  const alphanumericRegex = /[a-z0-9]/;
-
   return {
     rank: entry.rank,
     name: entry.name,
     handle: `@${entry.name
       .toLowerCase()
       .split("")
-      .filter((c) => alphanumericRegex.test(c))
+      .filter((c) => ALPHANUMERIC_REGEX.test(c))
       .join("")}`,
     marketSpend: Math.round(marketSpend),
     actualSpend: Math.round(actualSpend),
