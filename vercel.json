@@ -49,16 +49,19 @@
   ],
   "functions": {
     "api/index.py": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "excludeFiles": "{.next,*.cache,node_modules,public,app,docs,tests,test,__tests__,scripts,bot_setup,supabase,.git,.github,.cursor,.vscode,*.log,.env*}/**"
     },
     "api/og/referral.js": {
       "maxDuration": 30
     },
     "api/cron/*.py": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "excludeFiles": "{.next,*.cache,node_modules,public,app,docs,tests,test,__tests__,scripts,bot_setup,supabase,.git,.github,.cursor,.vscode,*.log,.env*}/**"
     },
     "api/workers/*.py": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "excludeFiles": "{.next,*.cache,node_modules,public,app,docs,tests,test,__tests__,scripts,bot_setup,supabase,.git,.github,.cursor,.vscode,*.log,.env*}/**"
     }
   },
   "crons": [

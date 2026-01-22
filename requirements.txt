@@ -27,19 +27,17 @@ qstash>=3.0.0
 # HTTP client
 httpx>=0.27.0
 
-# Testing
-pytest>=7.4.0
-
 # Security - Aikido Zen (Runtime Firewall)
 aikido_zen>=1.0.0
 
 # Observability - Digma (Code Analysis: N+1, Chatty Logic, Dead Code)
 # Optional: Install only if DIGMA_COLLECTOR_URL and DIGMA_API_KEY are set
-opentelemetry-api>=1.21.0
-opentelemetry-sdk>=1.21.0
-opentelemetry-instrumentation-fastapi>=0.42b0,<1.0.0
-opentelemetry-instrumentation-httpx>=0.42b0,<1.0.0
-opentelemetry-exporter-otlp>=1.21.0
+# Install manually if needed: pip install opentelemetry-api opentelemetry-sdk opentelemetry-instrumentation-fastapi opentelemetry-instrumentation-httpx opentelemetry-exporter-otlp
+# opentelemetry-api>=1.21.0
+# opentelemetry-sdk>=1.21.0
+# opentelemetry-instrumentation-fastapi>=0.42b0,<1.0.0
+# opentelemetry-instrumentation-httpx>=0.42b0,<1.0.0
+# opentelemetry-exporter-otlp>=1.21.0
 
 # REMOVED (unused):
 # uvicorn - Vercel doesn't need it
