@@ -1,0 +1,14 @@
+# Development dependencies
+# Install with: pip install -r requirements-dev.txt
+
+# Testing
+pytest>=7.4.0
+
+# Optional: OpenTelemetry for Digma observability
+# Only install if you need Digma observability:
+# pip install opentelemetry-api opentelemetry-sdk opentelemetry-instrumentation-fastapi opentelemetry-instrumentation-httpx opentelemetry-exporter-otlp
+# opentelemetry-api>=1.21.0
+# opentelemetry-sdk>=1.21.0
+# opentelemetry-instrumentation-fastapi>=0.42b0,<1.0.0
+# opentelemetry-instrumentation-httpx>=0.42b0,<1.0.0
+# opentelemetry-exporter-otlp>=1.21.0
